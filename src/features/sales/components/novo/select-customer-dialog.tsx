@@ -1,0 +1,145 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Search, User, Plus, Check } from "lucide-react";
+import { PersonType } from "@/schemas/customer";
+import { useCustomer } from "@/features/custom/hooks/use-customer";
+import { CustomerSales } from "./create-sale";
+import { AddCustomerModal } from "@/features/custom/components/add-customer";
+
+interface SelectCustomerDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedCustomer?: CustomerSales;
+  onSelect: (customer: CustomerSales) => void;
+}
+
+export function SelectCustomerDialog({
+  open,
+  onOpenChange,
+  selectedCustomer,
+  onSelect,
+}: SelectCustomerDialogProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const { customers, isLoading } = useCustomer({});
+  const filteredCustomers = customers?.filter(
+    (c) => c.name.toLowerCase().includes(searchTerm.toLowerCase()),
+    // ||      c.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSelect = (customer: CustomerSales) => {
+    onSelect(customer);
+    onOpenChange(false);
+  };
+
+  const handleRemove = () => {
+    onSelect({} as CustomerSales);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Selecionar Cliente</DialogTitle>
+          <DialogDescription>
+            Busque e selecione um cliente para a venda
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, CPF/CNPJ ou e-mail..."
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <ScrollArea className="h-[300px] pr-4">
+            <div className="space-y-2">
+              {filteredCustomers.map((customer) => (
+                <button
+                  key={customer.id}
+                  onClick={() => handleSelect(customer)}
+                  className="w-full flex items-start gap-3 rounded-lg border p-3 text-left transition-all hover:border-primary hover:bg-accent"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                    <User className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium truncate">
+                        {customer.name}
+                      </span>
+                      <Badge variant="secondary" className="text-xs">
+                        {customer.personType === ("PF" as PersonType)
+                          ? "Pessoa Física"
+                          : "Pessoa Jurídica"}
+                      </Badge>
+                      {selectedCustomer?.id === customer.id && (
+                        <Check className="h-4 w-4 text-primary ml-auto shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {customer.document}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {customer.email}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              {filteredCustomers.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <User className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium">
+                    Nenhum cliente encontrado
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Tente outro termo de busca
+                  </p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 bg-transparent"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancelar
+            </Button>
+            {selectedCustomer && (
+              <Button variant="secondary" onClick={handleRemove}>
+                Remover Cliente
+              </Button>
+            )}
+            <AddCustomerModal>
+              <Button className="flex-1">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Cliente
+              </Button>
+            </AddCustomerModal>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -1,0 +1,10 @@
+services:
+  db:
+    image: postgres:17
+    container_name: erp-limas-db
+    environment:
+      POSTGRES_USER: docker
+      POSTGRES_PASSWORD: docker
+      POSTGRES_DB: erp-limas
+    ports:
+      - "5432:5432"
