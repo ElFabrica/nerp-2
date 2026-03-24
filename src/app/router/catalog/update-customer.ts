@@ -12,7 +12,7 @@ export const updateCustomer = base
   .input(
     z.object({
       subdomain: z.string(),
-      email: z.string(),
+      email: z.string().optional(),
       name: z.string().optional(),
       address: z.string().optional(),
       phone: z.string().optional(),
@@ -25,7 +25,7 @@ export const updateCustomer = base
       complement: z.string().optional(),
       neighborhood: z.string().optional(),
       personType: z.enum(PersonType).optional(),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     const organization = await prisma.organization.findUnique({

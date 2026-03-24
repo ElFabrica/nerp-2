@@ -35,7 +35,7 @@ import Link from "next/link";
 
 const schemaForm = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  email: z.string().email("Email inválido"),
+  email: z.email("Email inválido").nullish(),
   phone: z.string().optional(),
   document: z.string().optional(),
   city: z.string().optional(),
@@ -49,7 +49,7 @@ const schemaForm = z.object({
 interface Customer {
   name: string;
   createdAt: Date;
-  email: string;
+  email: string | null;
   notes: string | null;
   address: string | null;
   phone: string | null;
@@ -77,7 +77,7 @@ export function FormCustomer({
   const form = useForm<z.infer<typeof schemaForm>>({
     defaultValues: {
       name: customer.name,
-      email: customer.email,
+      email: customer.email ?? "",
       phone: customer.phone ?? "",
       document: customer.document ?? "",
       city: customer.city ?? "",
@@ -94,7 +94,7 @@ export function FormCustomer({
   const onSubmit = (data: z.infer<typeof schemaForm>) => {
     updateCustomerMutation.mutate({
       subdomain,
-      email: customer.email,
+      email: customer.email ?? undefined,
       name: data.name,
       phone: data.phone,
       document: data.document,
@@ -153,7 +153,7 @@ export function FormCustomer({
                   {isFormCustomerLoading ? (
                     <Skeleton className="h-10 w-full" />
                   ) : (
-                    <Input disabled {...field} />
+                    <Input disabled {...field} value={field.value ?? ""} />
                   )}
                 </Field>
               )}
@@ -213,7 +213,7 @@ export function FormCustomer({
                     value={field.value}
                     onValueChange={field.onChange}
                   >
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-45">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
