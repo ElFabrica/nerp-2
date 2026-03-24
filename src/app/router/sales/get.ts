@@ -59,51 +59,56 @@ export const getSale = base
     }),
   )
   .handler(async ({ input, context }) => {
-    const sale = await prisma.sale.findUnique({
-      where: {
-        id: input.saleId,
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                category: true,
+    try {
+      const sale = await prisma.sale.findUnique({
+        where: {
+          id: input.saleId,
+        },
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  category: true,
+                },
               },
             },
           },
+          customer: true,
         },
-        customer: true,
-      },
-    });
-    if (!sale) {
-      throw new Error("Venda não encontrada");
+      });
+      if (!sale) {
+        throw new Error("Venda não encontrada");
+      }
+      const saleFormat = {
+        id: sale.id,
+        saleNumber: sale.saleNumber,
+        status: sale.status,
+        customer: sale.customer,
+        items: sale.items.map((item) => ({
+          id: item.id,
+          productName: item.product.name,
+          sku: item.product.sku,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+          total: Number(item.total),
+          categoryName: item.product.category?.name,
+        })),
+        subtotal: Number(sale.subtotal),
+        discount: Number(sale.discount),
+        total: Number(sale.total),
+        icms: undefined,
+        issuedAt: undefined,
+        authorizedAt: undefined,
+        cancelledAt: undefined,
+        cancellationReason: undefined,
+        xmlUrl: undefined,
+        createdAt: sale.createdAt,
+        pdfUrl: undefined,
+      };
+      return saleFormat;
+    } catch (err) {
+      console.log(err);
+      throw new Error();
     }
-    const saleFormat = {
-      id: sale.id,
-      saleNumber: sale.saleNumber,
-      status: sale.status,
-      customer: sale.customer,
-      items: sale.items.map((item) => ({
-        id: item.id,
-        productName: item.product.name,
-        sku: item.product.sku,
-        quantity: Number(item.quantity),
-        unitPrice: Number(item.unitPrice),
-        total: Number(item.total),
-        categoryName: item.product.category?.name,
-      })),
-      subtotal: Number(sale.subtotal),
-      discount: Number(sale.discount),
-      total: Number(sale.total),
-      icms: undefined,
-      issuedAt: undefined,
-      authorizedAt: undefined,
-      cancelledAt: undefined,
-      cancellationReason: undefined,
-      xmlUrl: undefined,
-      createdAt: sale.createdAt,
-      pdfUrl: undefined,
-    };
-    return saleFormat;
   });

@@ -455,7 +455,7 @@ model Customer {
   name           String
   personType     PersonType   @default(FISICA)
   document       String? // CPF ou CNPJ
-  email          String
+  email          String?
   phone          String?
   // Endereço
   address        String?

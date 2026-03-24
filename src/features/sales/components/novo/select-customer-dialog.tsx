@@ -70,7 +70,7 @@ export function SelectCustomerDialog({
             />
           </div>
 
-          <ScrollArea className="h-[300px] pr-4">
+          <ScrollArea className="h-75 pr-4">
             <div className="space-y-2">
               {filteredCustomers.map((customer) => (
                 <button
@@ -87,7 +87,7 @@ export function SelectCustomerDialog({
                         {customer.name}
                       </span>
                       <Badge variant="secondary" className="text-xs">
-                        {customer.personType === ("PF" as PersonType)
+                        {customer.personType === ("FISICA" as PersonType)
                           ? "Pessoa Física"
                           : "Pessoa Jurídica"}
                       </Badge>

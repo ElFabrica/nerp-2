@@ -1,10 +1,10 @@
 services:
   db:
     image: postgres:17
-    container_name: erp-limas-db
+    container_name: nerp-db
     environment:
       POSTGRES_USER: docker
       POSTGRES_PASSWORD: docker
-      POSTGRES_DB: erp-limas
+      POSTGRES_DB: nerp
     ports:
       - "5432:5432"

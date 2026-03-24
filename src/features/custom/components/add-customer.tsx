@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -42,7 +41,7 @@ const createCustomerSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   document: z.string().optional(),
   phone: z.string().optional(),
-  email: z.email("Email inválido"),
+  email: z.string().optional(),
   type: z.enum(["FISICA", "JURIDICA"]),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -94,7 +93,7 @@ export const AddCustomerModal = ({
           "address",
           `${addressData.logradouro}${
             addressData.bairro ? `, ${addressData.bairro}` : ""
-          }`
+          }`,
         );
       }
     }

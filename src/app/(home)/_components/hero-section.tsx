@@ -10,6 +10,8 @@ export default function HeroSection() {
   const [menuState, setMenuState] = useState(false);
   const { data: session, isPending } = authClient.useSession();
 
+  const initializeNowPath = !session?.user ? "/login" : "/dashboard";
+
   return (
     <>
       <header className="fixed z-20 w-full border-b border-dashed bg-white backdrop-blur md:relative dark:bg-zinc-950/50 lg:dark:bg-transparent">
@@ -92,8 +94,8 @@ export default function HeroSection() {
                 Sistema de ERP Moderno para empresas de todas as empresas.
               </p>
 
-              <Button asChild size="lg">
-                <Link href="#">
+              <Button asChild disabled={isPending} size="lg">
+                <Link href={initializeNowPath}>
                   <span className="btn-label">Começar agora</span>
                 </Link>
               </Button>

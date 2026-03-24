@@ -2,6 +2,7 @@ import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/db";
+import { emptyToNull } from "@/utils/empty-to-nll";
 import { z } from "zod";
 
 export const createCustomer = base
@@ -12,35 +13,39 @@ export const createCustomer = base
       name: z.string(),
       document: z.string().optional(),
       phone: z.string().optional(),
-      email: z.string(),
+      email: z.string().optional(),
       type: z.enum(["FISICA", "JURIDICA"]),
       city: z.string().optional(),
       state: z.string().optional(),
       cep: z.string().optional(),
       address: z.string().optional(),
       description: z.string().optional(),
-    })
+    }),
   )
   .output(
     z.object({
       id: z.string(),
       name: z.string(),
-    })
+    }),
   )
   .handler(async ({ input, context, errors }) => {
-    const customerWithSameEmail = await prisma.customer.findUnique({
-      where: {
-        organizationId_email: {
-          email: input.email,
-          organizationId: context.org.id,
-        },
-      },
-    });
+    const email = emptyToNull(input.email);
 
-    if (customerWithSameEmail) {
-      throw errors.BAD_REQUEST({
-        message: "Cliente já cadastrado",
+    if (email) {
+      const customerWithSameEmail = await prisma.customer.findUnique({
+        where: {
+          organizationId_email: {
+            email: email,
+            organizationId: context.org.id,
+          },
+        },
       });
+
+      if (customerWithSameEmail) {
+        throw errors.BAD_REQUEST({
+          message: "Cliente já cadastrado",
+        });
+      }
     }
 
     const customer = await prisma.customer.create({
@@ -48,7 +53,7 @@ export const createCustomer = base
         name: input.name,
         document: input.document,
         phone: input.phone,
-        email: input.email,
+        email: email,
         personType: input.type,
         zipCode: input.cep,
         notes: input.description,

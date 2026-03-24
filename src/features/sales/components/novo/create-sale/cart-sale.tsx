@@ -16,7 +16,6 @@ import { Minus, Plus, Trash2, User } from "lucide-react";
 import { currencyFormatter } from "@/utils/currency-formatter";
 import { Label } from "@/components/ui/label";
 import { CartItem, CustomerSales } from ".";
-import { useState } from "react";
 import { FieldError } from "@/components/ui/field";
 import { FieldErrors } from "react-hook-form";
 import { SaleFormData } from "./schema";
@@ -94,7 +93,7 @@ export function CartSale({
             </div>
           ) : (
             <>
-              <ScrollArea className="h-[280px] pr-4">
+              <ScrollArea className="h-70 pr-4">
                 <div className="space-y-3">
                   {cartItems.map((item) => (
                     <div

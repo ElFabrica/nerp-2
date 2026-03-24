@@ -43,6 +43,7 @@ import { PageHeader } from "@/components/page-header";
 import { statusConfig } from "@/utils/status-sales-config";
 import { currencyFormatter } from "@/utils/currency-formatter";
 import { SaleDetailsDialog } from "./sale-details";
+import { DeleteSaleDialog } from "./delete-sale-dialog";
 
 const paymentMethodLabels: Record<string, string> = {
   PIX: "PIX",
@@ -52,11 +53,20 @@ const paymentMethodLabels: Record<string, string> = {
   BOLETO: "Boleto",
 };
 
+type DeleteSaleData = {
+  saleId: string | null;
+  isOpen: boolean;
+};
+
 export function SalesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [saleId, setSaleId] = useState<string | null>(null);
+  const [deleteSaleData, setDeleteSaleData] = useState<DeleteSaleData>({
+    saleId: null,
+    isOpen: false,
+  });
 
   const { data, isLoadingSales } = useQuerySales({
     status: undefined,
@@ -93,6 +103,13 @@ export function SalesPage() {
     setOpen(open);
     setSaleId(id);
   };
+
+  function handleOpenDialogDelete(open: boolean, id: string) {
+    setDeleteSaleData({
+      isOpen: true,
+      saleId: id,
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -215,7 +232,12 @@ export function SalesPage() {
                                   Imprimir nota
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive">
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() =>
+                                    handleOpenDialogDelete(true, sale.id)
+                                  }
+                                >
                                   <XCircle className="h-4 w-4 mr-2" />
                                   Cancelar venda
                                 </DropdownMenuItem>
@@ -251,6 +273,13 @@ export function SalesPage() {
       </Tabs>
       {saleId && (
         <SaleDetailsDialog open={open} onOpenChange={setOpen} saleId={saleId} />
+      )}
+      {deleteSaleData.isOpen && deleteSaleData.saleId && (
+        <DeleteSaleDialog
+          id={deleteSaleData.saleId}
+          isOpen={deleteSaleData.isOpen}
+          onClose={() => setDeleteSaleData({ isOpen: false, saleId: null })}
+        />
       )}
     </div>
   );
