@@ -25,8 +25,14 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from "@/context/catalog/use-cart-session";
+
+function safeRedirect(value: string | null): string | null {
+  if (!value) return null;
+  if (!value.startsWith("/") || value.startsWith("//")) return null;
+  return value;
+}
 
 const signUpSchema = z
   .object({
@@ -49,6 +55,9 @@ export function RegisterForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = safeRedirect(searchParams.get("redirectTo"));
+  const successPath = redirectTo ?? "/create-organization";
   const form = useForm<SignUpSchema>({
     resolver: zodResolver(signUpSchema),
   });
@@ -64,7 +73,7 @@ export function RegisterForm({
       {
         onSuccess: () => {
           toast.success("Conta criada com sucesso");
-          router.push("/create-organization");
+          router.push(successPath);
         },
         onError: () => {
           toast.error("Erro ao criar conta");
@@ -76,7 +85,7 @@ export function RegisterForm({
   const onGoogleLogin = async () => {
     await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/create-organization",
+      callbackURL: successPath,
     });
   };
 

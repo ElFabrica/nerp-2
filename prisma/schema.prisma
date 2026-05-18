@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -106,57 +105,59 @@ enum OrganizationStatus {
 }
 
 model Organization {
-  id                String             @id @default(cuid())
-  name              String
-  slug              String             @unique
-  logo              String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  metadata          String? // Mantido do seu schema
+  id                      String                   @id @default(cuid())
+  name                    String
+  slug                    String                   @unique
+  logo                    String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  metadata                String? // Mantido do seu schema
   // Dados da empresa
-  tradeName         String? // Nome fantasia
-  document          String?            @unique // CNPJ/CPF
-  email             String?
-  phone             String?
+  tradeName               String? // Nome fantasia
+  document                String?                  @unique // CNPJ/CPF
+  email                   String?
+  phone                   String?
   // Multi-tenant e Catálogo
-  subdomain         String?            @unique // empresa1.seuapp.com
-  customDomain      String?            @unique // minhaloja.com.br
+  subdomain               String?                  @unique // empresa1.seuapp.com
+  customDomain            String?                  @unique // minhaloja.com.br
   // Endereço
-  address           String?
-  addressNumber     String?
-  complement        String?
-  neighborhood      String?
-  city              String?
-  state             String?
-  zipCode           String?
-  country           String             @default("BR")
+  address                 String?
+  addressNumber           String?
+  complement              String?
+  neighborhood            String?
+  city                    String?
+  state                   String?
+  zipCode                 String?
+  country                 String                   @default("BR")
   // Configurações visuais
-  primaryColor      String             @default("#3b82f6")
+  primaryColor            String                   @default("#3b82f6")
   // Plano e status
-  plan              PlanType           @default(FREE)
-  status            OrganizationStatus @default(TRIAL)
+  plan                    PlanType                 @default(FREE)
+  status                  OrganizationStatus       @default(TRIAL)
   // Limites por plano
-  maxProducts       Int                @default(100)
-  maxUsers          Int                @default(3)
+  maxProducts             Int                      @default(100)
+  maxUsers                Int                      @default(3)
   // Datas importantes
-  trialEndsAt       DateTime?
-  subscribedAt      DateTime?
+  trialEndsAt             DateTime?
+  subscribedAt            DateTime?
   // Relações de membros (mantido do seu schema)
-  members           Member[]
-  invitations       Invitation[]
+  members                 Member[]
+  invitations             Invitation[]
   // Relações do ERP
-  products          Product[]
-  categories        Category[]
-  customers         Customer[]
-  suppliers         Supplier[]
-  sales             Sale[]
-  purchases         Purchase[]
-  stockMovements    StockMovement[]
-  catalogSettings   CatalogSettings?
-  financialAccounts FinancialAccount[]
-  transactions      Transaction[]
-  catalogUsers CatalogUser[]
-
+  products                Product[]
+  categories              Category[]
+  customers               Customer[]
+  suppliers               Supplier[]
+  sales                   Sale[]
+  purchases               Purchase[]
+  stockMovements          StockMovement[]
+  catalogSettings         CatalogSettings?
+  financialAccounts       FinancialAccount[]
+  transactions            Transaction[]
+  catalogUsers            CatalogUser[]
+  // Integração NASA (S2S)
+  nasaIntegrationConsents NasaIntegrationConsent[]
+  nasaIntegrationKeys     NasaIntegrationKey[]
 
   @@index([slug])
   @@index([subdomain])
@@ -228,68 +229,67 @@ enum FreightOption {
 }
 
 enum FreightChargeType {
-  FIXED 
-  PER_KG 
+  FIXED
+  PER_KG
 }
 
-
 model CatalogSettings {
-  id              String       @id @default(cuid())
-  organizationId  String       @unique
+  id                      String            @id @default(cuid())
+  organizationId          String            @unique
   // Visibilidade
-  isActive        Boolean      @default(true)
-  showPrices      Boolean      @default(true)
-  showProductWithoutStock Boolean @default(false)
-  showStock       Boolean      @default(false)
-  allowOrders     Boolean      @default(false)
-  sortOrder       CatalogSortOrder @default(ASC)
+  isActive                Boolean           @default(true)
+  showPrices              Boolean           @default(true)
+  showProductWithoutStock Boolean           @default(false)
+  showStock               Boolean           @default(false)
+  allowOrders             Boolean           @default(false)
+  sortOrder               CatalogSortOrder  @default(ASC)
   // Contato
-  whatsappNumber  String?
-  showWhatsapp    Boolean      @default(true)
-  contactEmail    String?
+  whatsappNumber          String?
+  showWhatsapp            Boolean           @default(true)
+  contactEmail            String?
   //Adress
-  cep             String?
-  address         String?
-  district        String?
-  number          String?
+  cep                     String?
+  address                 String?
+  district                String?
+  number                  String?
   // SEO
-  metaTitle       String?
-  metaDescription String?
-  cnpj            String?
+  metaTitle               String?
+  metaDescription         String?
+  cnpj                    String?
   // Personalização
-  logo     String?
-  bannerImages    String[]    @default([])
-  aboutText       String?      @db.Text
-  theme           String? @default("#00bcd4")
+  logo                    String?
+  bannerImages            String[]          @default([])
+  aboutText               String?           @db.Text
+  theme                   String?           @default("#00bcd4")
   //Payment
-  paymentMethodSettings PaymentMethod[]
+  paymentMethodSettings   PaymentMethod[]
   //Delivery
-  deliveryMethods DeliveryMethod[]
-  deliverySpecialInfo String?
+  deliveryMethods         DeliveryMethod[]
+  deliverySpecialInfo     String?
   //Settings Delivery
-  freightOptions FreightOption @default(NO_SHIPPING)
-  freightChargeType FreightChargeType @default(FIXED)
-  freightFixedValue      Decimal       @default(0)  @db.Decimal(10, 2)
-  freightValuePerKg      Decimal       @default(0)  @db.Decimal(10, 2)
-  freeShippingEnabled    Boolean      @default(false)
-  freeShippingMinValue   Decimal       @default(0)  @db.Decimal(10, 2)
+  freightOptions          FreightOption     @default(NO_SHIPPING)
+  freightChargeType       FreightChargeType @default(FIXED)
+  freightFixedValue       Decimal           @default(0) @db.Decimal(10, 2)
+  freightValuePerKg       Decimal           @default(0) @db.Decimal(10, 2)
+  freeShippingEnabled     Boolean           @default(false)
+  freeShippingMinValue    Decimal           @default(0) @db.Decimal(10, 2)
   //Integrations
-  id_meta         String?
-  pixel_meta      String?
+  id_meta                 String?
+  pixel_meta              String?
   //Stripe
-  stripeKey String? @map("stripe_key")
+  stripeKey               String?           @map("stripe_key")
   //Asaas
-  walletId String? @map("wallet_id")
+  walletId                String?           @map("wallet_id")
   // Redes Sociais
-  instagram       String?
-  facebook        String?
-  twitter         String?
-  youtube         String?
-  kwai            String?
-  tiktok          String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  instagram               String?
+  facebook                String?
+  twitter                 String?
+  youtube                 String?
+  kwai                    String?
+  tiktok                  String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  organization            Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("catalog_settings")
 }
@@ -449,36 +449,35 @@ enum PersonType {
 }
 
 model Customer {
-  id             String       @id @default(cuid())
-  organizationId String
+  id              String       @id @default(cuid())
+  organizationId  String
   // Identificação
-  name           String
-  personType     PersonType   @default(FISICA)
-  document       String? // CPF ou CNPJ
-  email          String
-  phone          String?
+  name            String
+  personType      PersonType   @default(FISICA)
+  document        String? // CPF ou CNPJ
+  email           String
+  phone           String?
   // Endereço
-  address        String?
-  addressNumber  String?
-  complement     String?
-  neighborhood   String?
-  city           String?
-  state          String?
-  zipCode        String?
+  address         String?
+  addressNumber   String?
+  complement      String?
+  neighborhood    String?
+  city            String?
+  state           String?
+  zipCode         String?
   // Informações adicionais
-  notes          String?      @db.Text
-  isActive       Boolean      @default(true)
+  notes           String?      @db.Text
+  isActive        Boolean      @default(true)
   //Assas
-  asaasCustomerId String? @map("asaas_customer_id")
+  asaasCustomerId String?      @map("asaas_customer_id")
   // Timestamps
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
   // Relações
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sales          Sale[]
-  userCatalog  CatalogUser? @relation(fields: [clientId], references: [id])
-  clientId String? @unique
-  
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sales           Sale[]
+  userCatalog     CatalogUser? @relation(fields: [clientId], references: [id])
+  clientId        String?      @unique
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -526,35 +525,33 @@ model Supplier {
 }
 
 model CatalogUser {
-  id             String   @id @default(cuid())
+  id             String @id @default(cuid())
   organizationId String
 
-  email          String
-  passwordHash   String
-  name           String
+  email        String
+  passwordHash String
+  name         String
 
   // Dados coletados no checkout
-  phone          String?
-  address        String?
-  city           String?
-  state          String?
-  zipCode        String?
+  phone   String?
+  address String?
+  city    String?
+  state   String?
+  zipCode String?
 
   // Stripe
   stripeCustomerId String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  customer Customer?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?
 
   @@unique([organizationId, email])
   @@index([organizationId])
   @@map("catalog_users")
 }
-
-
 
 // ============================================
 // VENDAS
@@ -606,7 +603,7 @@ model Sale {
   // Relações
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  createdBy      User?            @relation("CreatedSales", fields: [createdById], references: [id])
+  createdBy      User?           @relation("CreatedSales", fields: [createdById], references: [id])
   items          SaleItem[]
   stockMovements StockMovement[]
   transactions   Transaction[]
@@ -810,4 +807,45 @@ model Transaction {
   @@index([saleId])
   @@index([purchaseId])
   @@map("transactions")
+}
+
+// ============================================
+// INTEGRAÇÃO NASA (Server-to-Server)
+// ============================================
+
+model NasaIntegrationConsent {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  nerpOrgId   String
+  userId      String
+  scopes      String[]
+  redirectUri String
+  consumedAt  DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  organization Organization @relation(fields: [nerpOrgId], references: [id], onDelete: Cascade)
+
+  @@index([code])
+  @@index([expiresAt])
+  @@index([nerpOrgId])
+  @@map("nasa_integration_consents")
+}
+
+model NasaIntegrationKey {
+  id               String    @id @default(cuid())
+  organizationId   String
+  apiKey           String    @unique
+  secretCiphertext String
+  scopes           String[]
+  consentByUserId  String
+  lastUsedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([apiKey])
+  @@map("nasa_integration_keys")
 }

@@ -23,8 +23,14 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+
+function safeRedirect(value: string | null): string {
+  if (!value) return "/dashboard";
+  if (!value.startsWith("/") || value.startsWith("//")) return "/dashboard";
+  return value;
+}
 
 const loginSchema = z.object({
   email: z.email("E-mail inválido"),
@@ -38,6 +44,8 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = safeRedirect(searchParams.get("redirectTo"));
   const form = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
   });
@@ -51,7 +59,7 @@ export function LoginForm({
       {
         onSuccess: () => {
           toast.success("Login realizado com sucesso");
-          router.push("/dashboard");
+          router.push(redirectTo);
         },
         onError: () => {
           toast.error("Erro ao realizar login");
@@ -63,7 +71,7 @@ export function LoginForm({
   const onGoogleLogin = async () => {
     await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/dashboard",
+      callbackURL: redirectTo,
     });
   };
 
