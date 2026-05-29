@@ -1,0 +1,33 @@
+import { Inngest, eventType, staticSchema } from "inngest";
+import type { SyncType } from "@/lib/sync-payloads";
+
+/**
+ * Cliente Inngest do NERP.
+ *
+ * Substitui o Vercel Cron: a entrega de eventos de sync (NERP → NASA) deixa de
+ * ser por polling da `SyncOutbox` e passa a ser event-driven. Cada mudança de
+ * auth emite `sync/nasa.requested`; a função `syncNasaDelivery` entrega ao NASA
+ * com retry/backoff nativos do Inngest.
+ */
+
+/**
+ * Payload do evento de entrega. Carrega o `type` + `payload` canônico (ver
+ * `sync-payloads.ts`) e, opcionalmente, o `outboxId` da linha de auditoria em
+ * `SyncOutbox` para que a função marque `deliveredAt`.
+ */
+export type SyncRequestedData = {
+  type: SyncType;
+  payload: unknown;
+  outboxId?: string;
+};
+
+export const inngest = new Inngest({ id: "nerp" });
+
+/**
+ * Definição tipada do evento — serve como trigger da função e como fábrica
+ * type-safe para `inngest.send(...)`. `staticSchema` dá tipagem em tempo de
+ * compilação sem validação em runtime (sem dependência de Zod aqui).
+ */
+export const syncNasaRequested = eventType("sync/nasa.requested", {
+  schema: staticSchema<SyncRequestedData>(),
+});

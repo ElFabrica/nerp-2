@@ -849,3 +849,24 @@ model NasaIntegrationKey {
   @@index([apiKey])
   @@map("nasa_integration_keys")
 }
+
+// ============================================
+// SYNC DE AUTH NERP → NASA (outbox)
+// ============================================
+// O NERP não tem Inngest. Os hooks do better-auth só GRAVAM aqui
+// (fire-and-forget); um processador (endpoint/cron) lê os pendentes, chama o
+// cliente outbound e marca `deliveredAt` ou agenda retry com backoff.
+
+model SyncOutbox {
+  id            String    @id @default(cuid())
+  type          String // "user" | "account" | "org" | "member"
+  payload       Json
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  deliveredAt   DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+
+  @@index([deliveredAt, nextAttemptAt])
+  @@map("sync_outbox")
+}
