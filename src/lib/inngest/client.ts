@@ -21,7 +21,12 @@ export type SyncRequestedData = {
   outboxId?: string;
 };
 
-export const inngest = new Inngest({ id: "nerp" });
+// Em dev (`isDev: true`) o SDK entrega ao Dev Server local (`pnpm inngest:dev`)
+// e NÃO exige `INNGEST_EVENT_KEY`. Em prod usa a chave do ambiente (Inngest Cloud).
+export const inngest = new Inngest({
+  id: "nerp",
+  isDev: process.env.NODE_ENV !== "production",
+});
 
 /**
  * Definição tipada do evento — serve como trigger da função e como fábrica
