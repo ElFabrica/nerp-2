@@ -51,9 +51,10 @@ import { ChefHat } from "lucide-react";
 2. `npm run dev`, logar, ver **"Cozinha"** na sidebar → abrir `/cozinha`.
 3. Cadastrar "Mesa 18 - Batata Recheada" → entra em **Em Preparo**, tempo subindo.
 4. Passar do tempo estimado → card âmbar → vermelho (atrasado).
-5. **[MARCAR COMO PRONTO]** → vai para **Prontos**.
+5. **Arrastar** o card de Em Preparo → **Prontos** (ou botão `[→ Pronto]`).
 6. Botão **"Abrir painel da TV"** → `/painel/{orgSlug}` em nova aba, sem login, mostra o pronto
    com `🍻 {nome da org}` e o rodapé; atualiza sozinho (~5s).
-7. **[ENTREGUE]** (ou aguardar `AUTO_HIDE_MS`) → some da TV e dos Prontos.
+7. **Arrastar** de Prontos → **Entregues** (ou `[→ Entregue]`) → some da TV; aparece na coluna
+   **Entregues** e some dela após `AUTO_HIDE_MS`.
 8. Isolamento multi-tenant entre orgs diferentes.
 9. `npm run lint` sem erros.

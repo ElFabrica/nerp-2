@@ -13,7 +13,9 @@ até a cozinha. Não existe:
 O objetivo é entregar um **Kitchen Display System (KDS)** com três superfícies:
 
 1. **Tela da Cozinha** (`/cozinha`, autenticada) — cadastra o pedido (mesa + prato) e
-   gerencia um kanban de duas colunas: **Em Preparo → Prontos**.
+   gerencia um kanban de **3 colunas estilo iFood**: **Em Preparo → Prontos → Entregues**.
+   Os cards avançam de status sendo **arrastados** entre as colunas (drag-and-drop com
+   `@dnd-kit`), com **botão de avançar como fallback** em cada card.
 2. **Painel da TV** (`/painel/[orgSlug]`, **público**, tela cheia) — exibe **apenas** os
    pedidos prontos para retirada.
 3. **Backend** — um modelo `KitchenOrder` e um router oRPC `kitchen`.
@@ -30,14 +32,15 @@ card avança de forma independente. A tela mostra **tempo decorrido**, **tempo e
 GARÇOM (sistema atual)
   └─ anota nº da mesa na ficha ──▶ leva à COZINHA
 
-COZINHA  (/cozinha)
-  ┌─────────────────────────────┐      ┌─────────────────────────────┐
-  │  Cadastrar pedido           │      │  EM PREPARO       │ PRONTOS │
-  │  Mesa: [18]                 │ ───▶ │  Mesa 18 - Batata │ ...     │
-  │  Prato: [Batata Recheada]   │      │  [MARCAR PRONTO]  │ [ENTREGUE]
-  └─────────────────────────────┘      └─────────────────────────────┘
-                                                 │ markReady        │ markDelivered
-                                                 ▼                  ▼
+COZINHA  (/cozinha)  — kanban 3 colunas, arrastar (dndkit) ou botão [→]
+  ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+  │  EM PREPARO   │   │   PRONTOS     │   │   ENTREGUES   │
+  │  Mesa 18 ⠿    │──▶│   Mesa 5 ⠿    │──▶│   Mesa 2      │
+  │  Batata ⏱3:21 │   │   Pastel  [→] │   │   Suco        │
+  └───────────────┘   └───────────────┘   └───────────────┘
+       arrasta │ markReady    arrasta │ markDelivered
+               ▼                      ▼
+  Cadastrar pedido:  Mesa: [18]  Prato: [Batata Recheada]  ──▶ entra em EM PREPARO
 PAINEL DA TV  (/painel/{orgSlug}, público)
   🍻 {Nome da Organização}
   PEDIDOS PRONTOS PARA RETIRADA
@@ -53,16 +56,17 @@ PAINEL DA TV  (/painel/{orgSlug}, público)
 |------|---------|
 | Campo **Prato** | Texto livre obrigatório **+ vínculo opcional** a um `Product` do catálogo (que fornece o tempo de preparo). Permite itens fora do cardápio. |
 | **Painel da TV** | Rota **pública por link** (`/painel/[orgSlug]`), sem login, tela cheia. Mesmo modelo de confiança do storefront/checkout público. |
-| **Ciclo do pronto** | Pedido pronto tem botão **[ENTREGUE]** e **some automaticamente da TV após ~5 min** (configurável). Evita lista infinita. |
+| **Ciclo do pronto** | Pedido pronto é entregue arrastando-o para **Entregues** (ou botão `[→ Entregue]`) e **some automaticamente da TV após ~5 min** (configurável). Evita lista infinita. |
 | **Título da TV** | **Nome dinâmico da organização** (multi-tenant), não fixo "SAIDEIRA". |
 | **Tempo real** | **Polling** via React Query `refetchInterval` (não há websockets no projeto). |
 | **Papéis** | Sem RBAC novo — qualquer membro autenticado da org usa o KDS (alinhado ao app atual). |
+| **Kanban** | **3 colunas** (Em Preparo → Prontos → Entregues) com **drag-and-drop** (`@dnd-kit`) + **botão de fallback** por card. Transições **forward-only** (drops inválidos voltam ao lugar). |
 
 ## Stack relevante (confirmada no código)
 
 Next.js 15 (App Router) · TypeScript · Prisma 7 + PostgreSQL · **oRPC** type-safe ·
 Better Auth (plugin de organização, multi-tenant) · TanStack React Query v5 ·
-Tailwind v4 + Radix + shadcn/ui · Biome (lint/format).
+Tailwind v4 + Radix + shadcn/ui · **`@dnd-kit` (drag-and-drop do kanban)** · Biome (lint/format).
 
 ## Etapas de implementação
 
@@ -82,6 +86,7 @@ Cada etapa é **incremental e testável isoladamente**. Implementar na ordem:
 **Novos**
 - `src/app/router/kitchen/{create,list,mark-ready,mark-delivered,public-ready,index}.ts`
 - `src/features/kitchen/hooks/use-kitchen.tsx`
+- `src/features/kitchen/hooks/use-kanban-dnd.ts`  ← lógica de drag-and-drop (onDragEnd)
 - `src/features/kitchen/components/{kitchen-board,register-order-form,order-card,kitchen-column}.tsx`
 - `src/features/kitchen/components/tv-display.tsx`
 - `src/utils/kitchen-config.ts`
@@ -94,6 +99,7 @@ Cada etapa é **incremental e testável isoladamente**. Implementar na ordem:
 - `prisma/schema.prisma`
 - `src/app/router/index.ts`
 - `src/components/app-sidebar.tsx`
+- `package.json` — nova dependência `@dnd-kit/core` · `@dnd-kit/sortable` · `@dnd-kit/utilities`
 
 ## Verificação ponta a ponta (após todas as etapas)
 
@@ -101,9 +107,10 @@ Cada etapa é **incremental e testável isoladamente**. Implementar na ordem:
 2. `npm run dev`, logar numa org, abrir `/cozinha`.
 3. Cadastrar "Mesa 18 - Batata Recheada" → aparece em **Em Preparo** com o tempo subindo.
 4. Passar do tempo estimado → card fica âmbar e depois vermelho (atrasado).
-5. **[MARCAR COMO PRONTO]** → card vai para **Prontos**.
+5. **Arrastar** o card de Em Preparo → **Prontos** (ou usar o botão `[→ Pronto]`).
 6. Abrir `/painel/{orgSlug}` em aba anônima → pedido pronto com `🍻 {nome da org}` e o rodapé,
    atualizando sozinho (~5s).
-7. **[ENTREGUE]** (ou aguardar a janela) → pedido some da TV e dos Prontos.
+7. **Arrastar** de Prontos → **Entregues** (ou `[→ Entregue]`) → some da TV; o card aparece na
+   coluna **Entregues** e some dela após a janela `AUTO_HIDE_MS`.
 8. Isolamento multi-tenant: `/painel/{slug-de-outra-org}` não mostra pedidos desta org.
 9. `npm run lint` sem erros.

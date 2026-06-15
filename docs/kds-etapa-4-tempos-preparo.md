@@ -90,7 +90,9 @@ const style = urgencyStyles[urgency];
 - **Polling x clock**: o conjunto de pedidos atualiza a cada 5s (Etapa 3); o relógio
   recalcula o decorrido a cada 1s — o número sobe suave entre os refetches.
 - **Janela `AUTO_HIDE_MS`**: usada pela rota `public-ready` (Etapa 2/5) para esconder pedidos
-  prontos antigos da TV automaticamente.
+  prontos antigos da TV automaticamente, **e também pelo `list.ts`** (Etapa 2) para limitar a
+  coluna **Entregues** do kanban `/cozinha` aos entregues recentes — uma única constante rege
+  as duas superfícies.
 
 ## Como validar a etapa
 

@@ -90,8 +90,9 @@ npm run db:generate   # prisma generate     → regenera src/generated/prisma
 - **`estimatedMinutes` é um snapshot**: gravado na criação para não mudar retroativamente se o
   cardápio for editado depois. Resolução do valor: input do formulário → senão
   `product.prepTimeMinutes` → senão `null` (a UI usa fallback `DEFAULT_PREP_MINUTES = 15`).
-- **`status` com `ENTREGUE`**: terceiro estado para suportar o botão [ENTREGUE] e o
-  auto-sumiço da TV (ver Etapas 2 e 5), em vez de deletar o registro (preserva histórico).
+- **`status` com `ENTREGUE`**: terceiro estado que alimenta a **coluna Entregues** do kanban
+  (arrastar p/ Entregues ou botão de fallback) e o auto-sumiço da TV (ver Etapas 2, 3 e 5), em
+  vez de deletar o registro (preserva histórico).
 - **Índices**: `[organizationId, status]` cobre as listagens por coluna; `[createdAt]` cobre a
   ordenação por mais antigo.
 

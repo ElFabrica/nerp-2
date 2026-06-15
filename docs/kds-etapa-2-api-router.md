@@ -60,11 +60,17 @@ export const createKitchenOrder = base
 
 ### `list.ts` — `listKitchenOrders` (GET)
 
+> O kanban da Etapa 3 tem **3 colunas** (Em Preparo → Prontos → **Entregues**), então a coluna
+> Entregues precisa de dados — o `ENTREGUE` deixa de ser excluído incondicionalmente.
+
 - **Input**: `z.object({ status: z.enum(KitchenOrderStatus).optional() })`
 - **Handler**: `findMany` por `organizationId` (+ `status` se informado).
   - **EM_PREPARO** ordenado por `createdAt asc` (mais antigo/atrasado no topo).
   - **PRONTO** ordenado por `readyAt desc`.
-  - `ENTREGUE` excluído por padrão.
+  - **ENTREGUE**: filtra `deliveredAt >= new Date(Date.now() - AUTO_HIDE_MS)` (janela de
+    entregues recentes — reusa a constante `AUTO_HIDE_MS` da [Etapa 4](./kds-etapa-4-tempos-preparo.md);
+    evita lista infinita) e ordena por `deliveredAt desc`.
+  - Sem `status` informado: comportamento antigo (lista os ativos; entregues antigos fora).
   - Datas serializadas com `.toISOString()` (igual `sales/list.ts`) para o cliente calcular o
     tempo decorrido com o próprio relógio.
 - **Output**: array de
@@ -75,8 +81,9 @@ export const createKitchenOrder = base
     dishName: z.string(),
     status: z.enum(KitchenOrderStatus),
     estimatedMinutes: z.number().nullable(),
-    createdAt: z.string(),        // ISO
-    readyAt: z.string().nullable(),
+    createdAt: z.string(),               // ISO
+    readyAt: z.string().nullable(),      // ISO
+    deliveredAt: z.string().nullable(),  // ISO — usado pela coluna/janela de Entregues
   })
   ```
 
@@ -94,7 +101,12 @@ export const createKitchenOrder = base
 ### `mark-delivered.ts` — `markKitchenOrderDelivered` (POST)
 
 - Mesmo padrão, `where: { id, organizationId, status: "PRONTO" }`,
-  `data: { status: "ENTREGUE", deliveredAt: new Date() }`. Alimenta o botão [ENTREGUE].
+  `data: { status: "ENTREGUE", deliveredAt: new Date() }`.
+
+> **Drag-and-drop usa a mesma API**: na Etapa 3 o `onDragEnd` do kanban dispara `markReady`
+> (arrastar p/ Prontos) e `markDelivered` (arrastar p/ Entregues) — os mesmos endpoints que
+> os botões de fallback. **Não há endpoint novo**: as transições são forward-only, então não é
+> preciso "desfazer status" no backend; drops inválidos são ignorados no cliente (snap back).
 
 ### `public-ready.ts` — `publicReadyOrders` (público, sem auth)
 

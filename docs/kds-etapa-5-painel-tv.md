@@ -80,8 +80,9 @@ Detalhes:
 ## Auto-sumiço
 
 A rota `publicReady` (Etapa 2) já filtra `readyAt >= now - AUTO_HIDE_MS` (Etapa 4), então
-pedidos prontos antigos **somem sozinhos** da TV (~5 min), mesmo que ninguém clique [ENTREGUE].
-Clicar [ENTREGUE] na cozinha remove imediatamente.
+pedidos prontos antigos **somem sozinhos** da TV (~5 min), mesmo que ninguém marque como
+entregue. Entregar na cozinha (arrastar p/ **Entregues** ou botão `[→ Entregue]`) remove da TV
+imediatamente.
 
 ## Segurança / privacidade
 
@@ -95,6 +96,7 @@ clientes ou pagamentos). A rota só lê pedidos `PRONTO` recentes daquela org.
 2. Abrir `/painel/{orgSlug}` em **aba anônima** (sem sessão) → o pedido aparece com
    `🍻 {nome da org}` e o rodapé fixo.
 3. Aguardar o polling (~5s) após marcar outro pronto → ele aparece sozinho.
-4. Clicar [ENTREGUE] na cozinha (ou esperar `AUTO_HIDE_MS`) → some da TV.
+4. Entregar na cozinha — arrastar p/ **Entregues** ou `[→ Entregue]` (ou esperar
+   `AUTO_HIDE_MS`) → some da TV.
 5. `/painel/{slug-de-outra-org}` não mostra pedidos desta org (isolamento multi-tenant).
 6. `/painel/slug-inexistente` → erro tratado (NOT_FOUND).
