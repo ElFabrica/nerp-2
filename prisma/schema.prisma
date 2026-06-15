@@ -30,6 +30,7 @@ model User {
   createdSales          Sale[]          @relation("CreatedSales")
   createdStockMovements StockMovement[] @relation("CreatedStockMovements")
   createdPurchases      Purchase[]      @relation("CreatedPurchases")
+  createdKitchenOrders  KitchenOrder[]  @relation("CreatedKitchenOrders")
 
   @@index([email])
   @@map("user")
@@ -151,6 +152,7 @@ model Organization {
   sales                   Sale[]
   purchases               Purchase[]
   stockMovements          StockMovement[]
+  kitchenOrders           KitchenOrder[]
   catalogSettings         CatalogSettings?
   financialAccounts       FinancialAccount[]
   transactions            Transaction[]
@@ -368,6 +370,8 @@ model Product {
   isActive         Boolean         @default(true)
   isFeatured       Boolean         @default(false)
   trackStock       Boolean         @default(true)
+  // KDS - tempo médio de preparo (min) usado no painel da cozinha
+  prepTimeMinutes  Int?
   // Timestamps
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
@@ -379,6 +383,7 @@ model Product {
   saleItems        SaleItem[]
   purchaseItems    PurchaseItem[]
   stockMovements   StockMovement[]
+  kitchenOrders    KitchenOrder[]
 
   @@unique([organizationId, slug])
   // @@unique([organizationId, sku])
@@ -633,6 +638,42 @@ model SaleItem {
   @@index([saleId])
   @@index([productId])
   @@map("sale_items")
+}
+
+// ============================================
+// COZINHA (KDS - Kitchen Display System)
+// ============================================
+
+enum KitchenOrderStatus {
+  EM_PREPARO // Em preparo na cozinha
+  PRONTO // Pronto para retirada
+  ENTREGUE // Entregue/retirado
+}
+
+model KitchenOrder {
+  id               String             @id @default(cuid())
+  organizationId   String
+  // Pedido
+  tableNumber      String // Texto livre: "18", "Balcão 3"
+  dishName         String // Nome do prato (texto livre)
+  productId        String? // Vínculo opcional ao catálogo
+  estimatedMinutes Int? // Snapshot do tempo de preparo na criação
+  // Status e fluxo
+  status           KitchenOrderStatus @default(EM_PREPARO)
+  notes            String?
+  // Timestamps
+  createdAt        DateTime           @default(now())
+  readyAt          DateTime?
+  deliveredAt      DateTime?
+  createdById      String?
+  // Relações
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product          Product?           @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdBy        User?              @relation("CreatedKitchenOrders", fields: [createdById], references: [id])
+
+  @@index([organizationId, status])
+  @@index([createdAt])
+  @@map("kitchen_orders")
 }
 
 // ============================================
