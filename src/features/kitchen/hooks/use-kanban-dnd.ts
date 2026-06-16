@@ -13,18 +13,34 @@ interface UseKanbanDndProps {
 // Encapsula o estado e a transição do DndContext (genérica, baseada em columnId).
 export function useKanbanDnd({ columns, countIn }: UseKanbanDndProps) {
   const [activeId, setActiveId] = useState<string | null>(null); // p/ o DragOverlay
+  // coluna de origem do card em arraste — as colunas usam isso p/ não se
+  // destacarem como alvo da própria origem e p/ exibir o "Solte aqui".
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const move = useMutationMoveKitchenOrder();
+
+  function reset() {
+    setActiveId(null);
+    setActiveColumnId(null);
+  }
 
   function onDragStart(event: DragStartEvent) {
     setActiveId(event.active.id as string);
+    setActiveColumnId(
+      (event.active.data.current?.columnId as string | undefined) ?? null,
+    );
+  }
+
+  // Arraste cancelado (ESC / drop fora) — limpa o estado p/ encerrar o realce.
+  function onDragCancel() {
+    reset();
   }
 
   function onDragEnd(event: DragEndEvent) {
-    setActiveId(null);
     const from = event.active.data.current?.columnId as string | undefined;
     const to = (event.over?.data.current?.columnId ?? event.over?.id) as
       | string
       | undefined;
+    reset();
 
     if (!from || !to || from === to) return; // mesma coluna ⇒ snap back
 
@@ -40,5 +56,12 @@ export function useKanbanDnd({ columns, countIn }: UseKanbanDndProps) {
     move.mutate({ id: event.active.id as string, toColumnId: to });
   }
 
-  return { activeId, setActiveId, onDragStart, onDragEnd };
+  return {
+    activeId,
+    activeColumnId,
+    setActiveId,
+    onDragStart,
+    onDragCancel,
+    onDragEnd,
+  };
 }

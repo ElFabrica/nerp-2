@@ -22,6 +22,10 @@ interface KitchenColumnProps {
   nextColumn: KitchenColumnType | null;
   // coluna terminal (isFinal) p/ a ação direta "Entregue" nos cards
   finalColumn?: KitchenColumnType | null;
+  // há um arraste em curso em qualquer lugar do board
+  isDragActive?: boolean;
+  // coluna de origem do card em arraste (p/ não realçar a própria origem)
+  activeColumnId?: string | null;
   onEdit?: (column: KitchenColumnType) => void;
 }
 
@@ -30,6 +34,8 @@ export function KitchenColumn({
   orders,
   nextColumn,
   finalColumn,
+  isDragActive = false,
+  activeColumnId = null,
   onEdit,
 }: KitchenColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -40,12 +46,22 @@ export function KitchenColumn({
   const count = orders.length;
   const isFull = column.wipLimit != null && count >= column.wipLimit;
 
+  // Feedback de alvo durante o arraste. A origem não se destaca (o card já está
+  // lá). Alvo cheio ⇒ realce "bloqueado" (vermelho), avisando que o servidor
+  // vai recusar antes mesmo de soltar.
+  const isSource = activeColumnId === column.id;
+  const isCandidate = isDragActive && !isSource;
+  const isValidTarget = isOver && isCandidate && !isFull;
+  const isBlockedTarget = isOver && isCandidate && isFull;
+
   return (
     <div
       ref={setNodeRef}
       className={cn(
         "flex w-72 shrink-0 flex-col rounded-lg border bg-muted/30 transition-colors",
-        isOver && "ring-2 ring-primary/60 bg-muted/60",
+        isValidTarget && "ring-2 ring-primary/60 bg-muted/60",
+        isBlockedTarget &&
+          "ring-2 ring-destructive/60 bg-destructive/5 cursor-not-allowed",
       )}
     >
       {/* Cabeçalho dinâmico com a cor de identificação da coluna. */}
@@ -88,9 +104,20 @@ export function KitchenColumn({
               />
             ))}
             {count === 0 && (
-              <p className="px-1 py-6 text-center text-xs text-muted-foreground">
-                Sem pedidos
-              </p>
+              <div
+                className={cn(
+                  "flex items-center justify-center rounded-md px-1 py-6 text-center text-xs text-muted-foreground transition-colors",
+                  isCandidate && "border-2 border-dashed",
+                  isValidTarget && "border-primary/60 text-primary",
+                  isBlockedTarget && "border-destructive/60 text-destructive",
+                )}
+              >
+                {isBlockedTarget
+                  ? "Coluna cheia"
+                  : isCandidate
+                    ? "Solte aqui"
+                    : "Sem pedidos"}
+              </div>
             )}
           </div>
         </SortableContext>

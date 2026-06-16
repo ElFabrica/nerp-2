@@ -82,10 +82,11 @@ export function KitchenBoard() {
   // coluna terminal (isFinal) — alvo da ação direta "Entregue" nos cards
   const finalColumn = columns.find((c) => c.isFinal) ?? null;
 
-  const { activeId, onDragStart, onDragEnd } = useKanbanDnd({
-    columns,
-    countIn,
-  });
+  const { activeId, activeColumnId, onDragStart, onDragCancel, onDragEnd } =
+    useKanbanDnd({
+      columns,
+      countIn,
+    });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -164,6 +165,7 @@ export function KitchenBoard() {
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={onDragStart}
+          onDragCancel={onDragCancel}
           onDragEnd={onDragEnd}
         >
           <div className="flex gap-4 overflow-x-auto pb-4">
@@ -180,13 +182,19 @@ export function KitchenBoard() {
                   orders={ordersByColumn.get(column.id) ?? []}
                   nextColumn={nextColumn}
                   finalColumn={finalColumn}
+                  isDragActive={activeId != null}
+                  activeColumnId={activeColumnId}
                 />
               );
             })}
           </div>
 
-          {/* fantasma do card durante o arraste */}
-          <DragOverlay>
+          {/* Fantasma do card durante o arraste. dropAnimation desativado: o
+              movimento entre colunas é otimista (react-query), então o card já
+              aparece na coluna nova no mesmo frame. A animação padrão voaria o
+              fantasma de volta à posição original (coluna antiga) antes do
+              re-render — daí o efeito de "voltar". Sem ela, a troca é instantânea. */}
+          <DragOverlay dropAnimation={null}>
             {activeOrder ? (
               <OrderCard order={activeOrder} nextColumn={null} overlay />
             ) : null}
