@@ -29,13 +29,13 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { KitchenColumn } from "../hooks/use-kitchen-columns";
+import type { KitchenColumn } from "../hooks/use-pedidos-columns";
 import {
   useMutationDeleteColumn,
   useMutationReorderColumns,
   useMutationUpdateColumn,
   useQueryKitchenColumns,
-} from "../hooks/use-kitchen-columns";
+} from "../hooks/use-pedidos-columns";
 import { ColumnForm } from "./column-form";
 import { ColumnIcon } from "./column-icon";
 

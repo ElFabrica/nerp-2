@@ -80,8 +80,8 @@ const navigation = [
     icon: ShoppingCart,
   },
   {
-    name: "Cozinha",
-    href: "/cozinha",
+    name: "Pedidos",
+    href: "/pedidos",
     icon: ChefHat,
   },
   {

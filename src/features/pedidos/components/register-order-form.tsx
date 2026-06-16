@@ -28,7 +28,7 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { useMutationCreateKitchenOrder } from "../hooks/use-kitchen";
+import { useMutationCreateKitchenOrder } from "../hooks/use-pedidos";
 
 const NO_PRODUCT = "__none__";
 

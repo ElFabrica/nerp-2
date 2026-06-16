@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { TvDisplay } from "@/features/kitchen/components/tv-display";
+import { TvDisplay } from "@/features/pedidos/components/tv-display";
 
 interface Props {
   params: Promise<{ orgSlug: string }>;

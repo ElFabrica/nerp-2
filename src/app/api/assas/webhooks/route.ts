@@ -1,6 +1,6 @@
 import { SaleStatus } from "@/generated/prisma/enums";
 import prisma from "@/lib/db";
-import { createKitchenOrdersFromSale } from "@/lib/kitchen/create-orders-from-sale";
+import { createKitchenOrdersFromSale } from "@/lib/pedidos/create-orders-from-sale";
 import type { AsaasCheckoutEventType } from "@/schemas/assas";
 import { NextResponse } from "next/server";
 

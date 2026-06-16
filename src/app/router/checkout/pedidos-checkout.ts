@@ -1,7 +1,7 @@
 import { base } from "@/app/middlewares/base";
 import { CatalogOperationMode, SaleStatus } from "@/generated/prisma/enums";
 import prisma from "@/lib/db";
-import { createKitchenOrdersFromSale } from "@/lib/kitchen/create-orders-from-sale";
+import { createKitchenOrdersFromSale } from "@/lib/pedidos/create-orders-from-sale";
 import { z } from "zod";
 
 /**

@@ -1,6 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/db";
-import { AUTO_HIDE_MS } from "@/utils/kitchen-config";
+import { AUTO_HIDE_MS } from "@/utils/pedidos-config";
 import z from "zod";
 
 export const publicReadyOrders = base

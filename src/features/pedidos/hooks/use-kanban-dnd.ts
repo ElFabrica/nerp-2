@@ -1,8 +1,8 @@
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { KitchenColumn } from "./use-kitchen-columns";
-import { useMutationMoveKitchenOrder } from "./use-kitchen";
+import type { KitchenColumn } from "./use-pedidos-columns";
+import { useMutationMoveKitchenOrder } from "./use-pedidos";
 
 interface UseKanbanDndProps {
   columns: KitchenColumn[];

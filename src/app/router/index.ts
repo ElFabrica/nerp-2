@@ -7,7 +7,7 @@ import { checkoutRouter } from "./checkout";
 import { dashboardRoutes } from "./dashboard";
 import { customerRoutes } from "./customer";
 import { SalesRoutes } from "./sales";
-import { kitchenRoutes } from "./kitchen";
+import { kitchenRoutes } from "./pedidos";
 
 export const router = {
   products: productsRoutes,

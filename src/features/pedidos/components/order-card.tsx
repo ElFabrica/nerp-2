@@ -14,7 +14,7 @@ import {
   DEFAULT_PREP_MINUTES,
   getOrderUrgency,
   urgencyStyles,
-} from "@/utils/kitchen-config";
+} from "@/utils/pedidos-config";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,12 +31,12 @@ import {
   GripVertical,
   MoreVertical,
 } from "lucide-react";
-import type { KitchenColumn } from "../hooks/use-kitchen-columns";
+import type { KitchenColumn } from "../hooks/use-pedidos-columns";
 import {
   useMutationMoveKitchenOrder,
   useMutationSetArchivedKitchenOrder,
-} from "../hooks/use-kitchen";
-import type { KitchenOrder } from "../hooks/use-kitchen";
+} from "../hooks/use-pedidos";
+import type { KitchenOrder } from "../hooks/use-pedidos";
 
 interface OrderCardProps {
   order: KitchenOrder;

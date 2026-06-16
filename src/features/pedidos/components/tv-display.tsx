@@ -4,7 +4,7 @@ import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { Beer, BellRing, Loader2, TriangleAlert } from "lucide-react";
 
-// Polling no lugar de websockets: alinhado ao restante do KDS (use-kitchen).
+// Polling no lugar de websockets: alinhado ao restante do KDS (use-pedidos).
 // A própria rota publicReady já some com pedidos antigos (AUTO_HIDE_MS).
 const POLL_MS = 5000;
 

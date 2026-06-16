@@ -20,11 +20,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import type { KitchenColumn } from "../hooks/use-kitchen-columns";
+import type { KitchenColumn } from "../hooks/use-pedidos-columns";
 import {
   useMutationCreateColumn,
   useMutationUpdateColumn,
-} from "../hooks/use-kitchen-columns";
+} from "../hooks/use-pedidos-columns";
 import { ColumnIcon } from "./column-icon";
 
 // Ícones lucide sugeridos para as etapas da cozinha (o campo aceita qualquer

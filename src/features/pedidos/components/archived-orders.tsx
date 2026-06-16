@@ -8,7 +8,7 @@ import { Archive, Clock, RotateCcw } from "lucide-react";
 import {
   useMutationSetArchivedKitchenOrder,
   useQueryArchivedKitchenOrders,
-} from "../hooks/use-kitchen";
+} from "../hooks/use-pedidos";
 
 export function ArchivedOrders() {
   const { data: orders = [] } = useQueryArchivedKitchenOrders();

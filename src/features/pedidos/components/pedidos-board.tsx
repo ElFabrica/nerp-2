@@ -25,17 +25,17 @@ import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Archive, ExternalLink, LayoutGrid } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useKanbanDnd } from "../hooks/use-kanban-dnd";
-import { useMutationCreateColumn } from "../hooks/use-kitchen-columns";
-import { useQueryKitchenColumns } from "../hooks/use-kitchen-columns";
+import { useMutationCreateColumn } from "../hooks/use-pedidos-columns";
+import { useQueryKitchenColumns } from "../hooks/use-pedidos-columns";
 import {
   useQueryArchivedKitchenOrders,
   useQueryKitchenOrders,
-} from "../hooks/use-kitchen";
-import type { KitchenOrder } from "../hooks/use-kitchen";
+} from "../hooks/use-pedidos";
+import type { KitchenOrder } from "../hooks/use-pedidos";
 import { Badge } from "@/components/ui/badge";
 import { ArchivedOrders } from "./archived-orders";
 import { ColumnManager } from "./column-manager";
-import { KitchenColumn } from "./kitchen-column";
+import { KitchenColumn } from "./pedidos-column";
 import { OrderCard } from "./order-card";
 import { RegisterOrderForm } from "./register-order-form";
 
@@ -112,7 +112,7 @@ export function KitchenBoard() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Cozinha"
+        title="Pedidos"
         description="Registre os pedidos e acompanhe o preparo no kanban."
       >
         <ColumnManager />

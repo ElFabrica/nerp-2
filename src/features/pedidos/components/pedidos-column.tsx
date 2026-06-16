@@ -10,8 +10,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Pencil } from "lucide-react";
-import type { KitchenColumn as KitchenColumnType } from "../hooks/use-kitchen-columns";
-import type { KitchenOrder } from "../hooks/use-kitchen";
+import type { KitchenColumn as KitchenColumnType } from "../hooks/use-pedidos-columns";
+import type { KitchenOrder } from "../hooks/use-pedidos";
 import { ColumnIcon } from "./column-icon";
 import { OrderCard } from "./order-card";
 
