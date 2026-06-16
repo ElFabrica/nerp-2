@@ -57,7 +57,7 @@ function slugify(value: string) {
  */
 export async function createProductForOrg(
   input: CreateProductInput,
-  { orgId, userId }: { orgId: string; userId: string }
+  { orgId, userId }: { orgId: string; userId: string },
 ) {
   const baseSlug = slugify(input.name);
 

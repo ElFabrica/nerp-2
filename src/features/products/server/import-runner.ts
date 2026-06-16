@@ -1,4 +1,5 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import type { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/db";
 import { S3 } from "@/lib/s3-client";
 import type { ImportMapping } from "@/features/products/import-fields";
@@ -28,7 +29,7 @@ function slugify(value: string) {
 async function resolveCategoryId(
   name: string,
   orgId: string,
-  cache: Map<string, string>
+  cache: Map<string, string>,
 ): Promise<string> {
   const key = name.toLowerCase();
   const cached = cache.get(key);
@@ -74,7 +75,7 @@ export async function runProductImport(importId: string): Promise<void> {
     new GetObjectCommand({
       Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES,
       Key: record.fileKey,
-    })
+    }),
   );
   const bytes = await object.Body?.transformToByteArray();
   if (!bytes) throw new Error("Arquivo de importação vazio ou inacessível");
@@ -107,13 +108,13 @@ export async function runProductImport(importId: string): Promise<void> {
           categoryId = await resolveCategoryId(
             mapped.categoryName,
             record.organizationId,
-            categoryCache
+            categoryCache,
           );
         }
 
         await createProductForOrg(
           { ...mapped.input, categoryId },
-          { orgId: record.organizationId, userId: record.createdById }
+          { orgId: record.organizationId, userId: record.createdById },
         );
         createdRows++;
       }
@@ -134,7 +135,7 @@ export async function runProductImport(importId: string): Promise<void> {
           processedRows,
           createdRows,
           failedRows: errors.length,
-          errors,
+          errors: errors as unknown as Prisma.InputJsonValue,
         },
       });
     }
@@ -148,7 +149,7 @@ export async function runProductImport(importId: string): Promise<void> {
       processedRows,
       createdRows,
       failedRows: errors.length,
-      errors,
+      errors: errors as unknown as Prisma.InputJsonValue,
       completedAt: new Date(),
     },
   });

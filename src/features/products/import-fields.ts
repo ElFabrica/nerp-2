@@ -21,7 +21,12 @@ export interface ImportField {
 export const PRODUCT_IMPORT_FIELDS: ImportField[] = [
   { key: "name", label: "Nome", required: true, type: "string" },
   { key: "sku", label: "SKU", required: false, type: "string" },
-  { key: "barcode", label: "Código de barras", required: false, type: "string" },
+  {
+    key: "barcode",
+    label: "Código de barras",
+    required: false,
+    type: "string",
+  },
   { key: "description", label: "Descrição", required: false, type: "string" },
   {
     key: "category",
@@ -45,7 +50,12 @@ export const PRODUCT_IMPORT_FIELDS: ImportField[] = [
     required: false,
     type: "number",
   },
-  { key: "currentStock", label: "Estoque atual", required: false, type: "number" },
+  {
+    key: "currentStock",
+    label: "Estoque atual",
+    required: false,
+    type: "number",
+  },
   { key: "minStock", label: "Estoque mínimo", required: false, type: "number" },
   { key: "maxStock", label: "Estoque máximo", required: false, type: "number" },
   { key: "weight", label: "Peso", required: false, type: "number" },

@@ -13,13 +13,13 @@ export const deleteProduct = base
   .input(
     z.object({
       productId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
       productId: z.string(),
       productName: z.string(),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     const productExists = await prisma.product.findUnique({

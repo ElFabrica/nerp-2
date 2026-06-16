@@ -13,7 +13,7 @@ import {
 import { Check, ChevronsUpDown, Filter, X } from "lucide-react";
 import { useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
-import { Categories } from "./products-table";
+import type { Categories } from "./products-table";
 import { Label } from "@/components/ui/label";
 import {
   InputGroup,
@@ -75,7 +75,7 @@ export function FilterProducts({ categories }: FilterProductsProps) {
     category?.split(",").map((cat) => cat.toLowerCase()) || [];
 
   const selectedCategories = categories.filter((cat) =>
-    categorySlugs.includes(cat.slug.toLowerCase())
+    categorySlugs.includes(cat.slug.toLowerCase()),
   );
   const form = useForm<z.infer<typeof formFilterSchema>>({
     resolver: zodResolver(formFilterSchema),
@@ -91,7 +91,7 @@ export function FilterProducts({ categories }: FilterProductsProps) {
     // Aplica categorias
     if (form.getValues("categoryIds").length >= 1) {
       const selectedCats = categories.filter((cat) =>
-        form.getValues("categoryIds").includes(cat.id)
+        form.getValues("categoryIds").includes(cat.id),
       );
       setCategory(selectedCats.map((cat) => cat.slug.toLowerCase()).join(","));
     } else {
@@ -180,8 +180,8 @@ export function FilterProducts({ categories }: FilterProductsProps) {
                                 if (currentValue.includes(category.id)) {
                                   field.onChange(
                                     currentValue.filter(
-                                      (id) => id !== category.id
-                                    )
+                                      (id) => id !== category.id,
+                                    ),
                                   );
                                 } else {
                                   field.onChange([
@@ -199,7 +199,7 @@ export function FilterProducts({ categories }: FilterProductsProps) {
                                     "size-4",
                                     field.value.includes(category.id)
                                       ? "opacity-100"
-                                      : "opacity-0"
+                                      : "opacity-0",
                                   )}
                                 />
                               )}

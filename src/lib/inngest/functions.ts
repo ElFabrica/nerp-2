@@ -90,7 +90,7 @@ export const productImportProcess = inngest.createFunction(
     await step.run("process-import", () => runProductImport(importId));
 
     return { importId, done: true };
-  }
+  },
 );
 
 export const functions = [syncNasaDelivery, productImportProcess];

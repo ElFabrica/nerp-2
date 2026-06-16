@@ -13,14 +13,14 @@ export const duplicateProduct = base
   .input(
     z.object({
       productId: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
       id: z.string(),
       slug: z.string(),
       productName: z.string(),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     const product = await prisma.product.findUnique({

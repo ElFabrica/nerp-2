@@ -19,6 +19,7 @@ import {
 import {
   Box,
   Building,
+  ChefHat,
   ChevronDown,
   ChevronsUpDown,
   GalleryVerticalEnd,
@@ -46,7 +47,7 @@ import { authClient } from "@/lib/auth-client";
 import { Skeleton } from "./ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useEffect, useState } from "react";
-import { ActiveOrganization } from "@/lib/auth-types";
+import type { ActiveOrganization } from "@/lib/auth-types";
 import Image from "next/image";
 import {
   Collapsible,
@@ -76,6 +77,11 @@ const navigation = [
     name: "Frente de caixa",
     href: "/vendas",
     icon: ShoppingCart,
+  },
+  {
+    name: "Cozinha",
+    href: "/cozinha",
+    icon: ChefHat,
   },
   {
     name: "Estoque",
@@ -172,7 +178,7 @@ export function AppSidebar() {
                                     asChild
                                     className={cn(
                                       pathname === child.href &&
-                                        "bg-sidebar-accent text-sidebar-accent-foreground"
+                                        "bg-sidebar-accent text-sidebar-accent-foreground",
                                     )}
                                   >
                                     <Link href={child.href}>
@@ -195,7 +201,7 @@ export function AppSidebar() {
                       tooltip={item.name}
                       className={cn(
                         pathname.startsWith(item.href) &&
-                          "bg-sidebar-accent text-sidebar-accent-foreground"
+                          "bg-sidebar-accent text-sidebar-accent-foreground",
                       )}
                       asChild
                     >

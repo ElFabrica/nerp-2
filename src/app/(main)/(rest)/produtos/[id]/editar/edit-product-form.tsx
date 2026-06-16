@@ -84,7 +84,7 @@ export function EditProductForm() {
       input: {
         id: productId,
       },
-    })
+    }),
   );
 
   const updateProductMutation = useMutation(
@@ -104,7 +104,7 @@ export function EditProductForm() {
       onError: () => {
         return toast.error("Erro ao atualizar o produto.");
       },
-    })
+    }),
   );
 
   const { categories, isLoadingCategories } = useCategory();

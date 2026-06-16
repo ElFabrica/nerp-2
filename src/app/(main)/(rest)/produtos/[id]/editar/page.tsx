@@ -17,7 +17,7 @@ export default async function Page({ params }: ProductPageProps) {
       input: {
         id: productId,
       },
-    })
+    }),
   );
 
   return (

@@ -48,7 +48,9 @@ export function parseNumber(value: unknown): number | undefined {
 }
 
 function parseUnit(value: unknown): ProductUnit | undefined {
-  const str = String(value ?? "").trim().toUpperCase();
+  const str = String(value ?? "")
+    .trim()
+    .toUpperCase();
   if (!str) return undefined;
   return (ProductUnit as Record<string, ProductUnit>)[str];
 }
@@ -63,7 +65,7 @@ export interface MappedRow {
 }
 
 const NUMBER_KEYS = new Set(
-  PRODUCT_IMPORT_FIELDS.filter((f) => f.type === "number").map((f) => f.key)
+  PRODUCT_IMPORT_FIELDS.filter((f) => f.type === "number").map((f) => f.key),
 );
 
 /**
@@ -79,7 +81,10 @@ export function mapRow(row: SheetRow, mapping: ImportMapping): MappedRow {
 
   const name = String(get("name") ?? "").trim();
   if (!name) {
-    return { input: { name: "", costPrice: 0, salePrice: 0 }, error: "Nome é obrigatório" };
+    return {
+      input: { name: "", costPrice: 0, salePrice: 0 },
+      error: "Nome é obrigatório",
+    };
   }
 
   // Valida e converte os campos numéricos.
@@ -98,10 +103,16 @@ export function mapRow(row: SheetRow, mapping: ImportMapping): MappedRow {
   }
 
   if (numbers.costPrice === undefined) {
-    return { input: { name, costPrice: 0, salePrice: 0 }, error: "Preço de custo é obrigatório" };
+    return {
+      input: { name, costPrice: 0, salePrice: 0 },
+      error: "Preço de custo é obrigatório",
+    };
   }
   if (numbers.salePrice === undefined) {
-    return { input: { name, costPrice: 0, salePrice: 0 }, error: "Preço de venda é obrigatório" };
+    return {
+      input: { name, costPrice: 0, salePrice: 0 },
+      error: "Preço de venda é obrigatório",
+    };
   }
 
   const asString = (key: string) => {

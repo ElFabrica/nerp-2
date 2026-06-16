@@ -24,6 +24,7 @@ export const updateKitchenColumn = base
       wipLimit: z.number().int().positive().nullable().optional(),
       description: z.string().optional(),
       icon: z.string().optional(),
+      isActive: z.boolean().optional(),
       isInitial: z.boolean().optional(),
       showOnTv: z.boolean().optional(),
       isFinal: z.boolean().optional(),
@@ -42,6 +43,7 @@ export const updateKitchenColumn = base
         ? { description: rest.description }
         : {}),
       ...(rest.icon !== undefined ? { icon: rest.icon } : {}),
+      ...(rest.isActive !== undefined ? { isActive: rest.isActive } : {}),
       ...(rest.isInitial !== undefined ? { isInitial: rest.isInitial } : {}),
       ...(rest.showOnTv !== undefined ? { showOnTv: rest.showOnTv } : {}),
       ...(rest.isFinal !== undefined ? { isFinal: rest.isFinal } : {}),

@@ -48,14 +48,14 @@ export const updateProduct = base
       isFeatured: z.boolean().default(false),
       trackStock: z.boolean().default(true),
       allowNegative: z.boolean().default(false),
-    })
+    }),
   )
   .output(
     z.object({
       id: z.string(),
       name: z.string(),
       slug: z.string(),
-    })
+    }),
   )
   .handler(async ({ input, errors }) => {
     const productExists = await prisma.product.findUnique({
