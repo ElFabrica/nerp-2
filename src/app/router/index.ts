@@ -7,6 +7,7 @@ import { checkoutRouter } from "./checkout";
 import { dashboardRoutes } from "./dashboard";
 import { customerRoutes } from "./customer";
 import { SalesRoutes } from "./sales";
+import { kitchenRoutes } from "./kitchen";
 
 export const router = {
   products: productsRoutes,
@@ -18,4 +19,5 @@ export const router = {
   dashboard: dashboardRoutes,
   customer: customerRoutes,
   sales: SalesRoutes,
+  kitchen: kitchenRoutes,
 };
