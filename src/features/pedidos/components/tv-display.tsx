@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Beer, BellRing, Loader2, TriangleAlert } from "lucide-react";
 
 // Polling no lugar de websockets: alinhado ao restante do KDS (use-pedidos).
-// A própria rota publicReady já some com pedidos antigos (AUTO_HIDE_MS).
+// O pedido só some da TV quando sai do status de pronto (movido p/ fora da coluna
+// showOnTv ou arquivado) — o tempo de espera não remove mais o pedido.
 const POLL_MS = 5000;
 
 export function TvDisplay({ orgSlug }: { orgSlug: string }) {

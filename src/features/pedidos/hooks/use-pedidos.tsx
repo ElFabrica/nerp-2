@@ -90,6 +90,25 @@ export function useMutationCreateKitchenOrder() {
   );
 }
 
+// Cria vários pedidos de uma mesma mesa numa única requisição (lote).
+export function useMutationCreateKitchenOrders() {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.kitchen.createMany.mutationOptions({
+      onSuccess: ({ count }) => {
+        toast.success(
+          count > 1 ? `${count} pedidos registrados!` : "Pedido registrado!",
+        );
+        queryClient.invalidateQueries({ queryKey: orpc.kitchen.list.key() });
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    }),
+  );
+}
+
 export function useMutationMoveKitchenOrder() {
   const queryClient = useQueryClient();
 

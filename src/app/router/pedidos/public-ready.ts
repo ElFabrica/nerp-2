@@ -1,6 +1,5 @@
 import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/db";
-import { AUTO_HIDE_MS } from "@/utils/pedidos-config";
 import z from "zod";
 
 export const publicReadyOrders = base
@@ -36,11 +35,14 @@ export const publicReadyOrders = base
       throw errors.NOT_FOUND({ message: "Organização não encontrada!" });
     }
 
+    // O pedido pronto fica na TV até sair do status de pronto: ou seja, até ser
+    // movido p/ fora da coluna showOnTv ou arquivado (retirado). O tempo de espera
+    // não remove mais o pedido — mesmo critério "ativo" do board (archivedAt: null).
     const orders = await prisma.kitchenOrder.findMany({
       where: {
         organizationId: org.id,
         column: { showOnTv: true },
-        columnEnteredAt: { gte: new Date(Date.now() - AUTO_HIDE_MS) },
+        archivedAt: null,
       },
       orderBy: { columnEnteredAt: "desc" },
     });
