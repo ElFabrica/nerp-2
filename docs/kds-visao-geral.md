@@ -13,12 +13,15 @@ até a cozinha. Não existe:
 O objetivo é entregar um **Kitchen Display System (KDS)** com três superfícies:
 
 1. **Tela da Cozinha** (`/cozinha`, autenticada) — cadastra o pedido (mesa + prato) e
-   gerencia um kanban de **3 colunas estilo iFood**: **Em Preparo → Prontos → Entregues**.
-   Os cards avançam de status sendo **arrastados** entre as colunas (drag-and-drop com
+   gerencia um kanban de **colunas personalizáveis** estilo iFood. Toda org nasce com **3
+   colunas padrão** (**Em Preparo → Prontos → Entregues**) criadas automaticamente, mas o
+   usuário pode **renomear, recolorir, reordenar, limitar (WIP), esconder e adicionar/remover
+   colunas**. Os cards avançam sendo **arrastados** entre as colunas (drag-and-drop com
    `@dnd-kit`), com **botão de avançar como fallback** em cada card.
 2. **Painel da TV** (`/painel/[orgSlug]`, **público**, tela cheia) — exibe **apenas** os
-   pedidos prontos para retirada.
-3. **Backend** — um modelo `KitchenOrder` e um router oRPC `kitchen`.
+   pedidos nas colunas marcadas como "mostrar na TV" (por padrão "Prontos").
+3. **Backend** — modelos `KitchenColumn` (colunas dinâmicas por org) + `KitchenOrder` e um
+   router oRPC `kitchen` (com CRUD de colunas).
 
 ### Requisito-chave: tempos de preparo diferentes
 
@@ -32,18 +35,19 @@ card avança de forma independente. A tela mostra **tempo decorrido**, **tempo e
 GARÇOM (sistema atual)
   └─ anota nº da mesa na ficha ──▶ leva à COZINHA
 
-COZINHA  (/cozinha)  — kanban 3 colunas, arrastar (dndkit) ou botão [→]
+COZINHA  (/cozinha)  — kanban de colunas dinâmicas, arrastar (dndkit) ou botão [→]
+  (3 colunas padrão; editáveis: nome, cor, ordem, WIP, visibilidade... + add/remover)
   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-  │  EM PREPARO   │   │   PRONTOS     │   │   ENTREGUES   │
+  │ 🍳 EM PREPARO │   │ 🔔 PRONTOS    │   │ ✓ ENTREGUES   │  ← nome/cor/ícone editáveis
   │  Mesa 18 ⠿    │──▶│   Mesa 5 ⠿    │──▶│   Mesa 2      │
   │  Batata ⏱3:21 │   │   Pastel  [→] │   │   Suco        │
   └───────────────┘   └───────────────┘   └───────────────┘
-       arrasta │ markReady    arrasta │ markDelivered
-               ▼                      ▼
-  Cadastrar pedido:  Mesa: [18]  Prato: [Batata Recheada]  ──▶ entra em EM PREPARO
+       arrasta │ kitchen.move    arrasta │ kitchen.move   (move livre + validação de WIP)
+               ▼                         ▼
+  Cadastrar pedido:  Mesa: [18]  Prato: [Batata Recheada]  ──▶ entra na coluna de entrada
 PAINEL DA TV  (/painel/{orgSlug}, público)
   🍻 {Nome da Organização}
-  PEDIDOS PRONTOS PARA RETIRADA
+  PEDIDOS PRONTOS PARA RETIRADA   (colunas com "mostrar na TV")
   Mesa 18 - Batata Recheada   (some após ~5 min)
   ─────────────────────────────
   Acompanhe sua mesa no painel.
@@ -56,11 +60,11 @@ PAINEL DA TV  (/painel/{orgSlug}, público)
 |------|---------|
 | Campo **Prato** | Texto livre obrigatório **+ vínculo opcional** a um `Product` do catálogo (que fornece o tempo de preparo). Permite itens fora do cardápio. |
 | **Painel da TV** | Rota **pública por link** (`/painel/[orgSlug]`), sem login, tela cheia. Mesmo modelo de confiança do storefront/checkout público. |
-| **Ciclo do pronto** | Pedido pronto é entregue arrastando-o para **Entregues** (ou botão `[→ Entregue]`) e **some automaticamente da TV após ~5 min** (configurável). Evita lista infinita. |
+| **Ciclo do pronto** | Pedido pronto é entregue movendo-o para uma coluna terminal (ex.: **Entregues**) e **some automaticamente da TV após ~5 min** (configurável). Evita lista infinita. |
 | **Título da TV** | **Nome dinâmico da organização** (multi-tenant), não fixo "SAIDEIRA". |
 | **Tempo real** | **Polling** via React Query `refetchInterval` (não há websockets no projeto). |
 | **Papéis** | Sem RBAC novo — qualquer membro autenticado da org usa o KDS (alinhado ao app atual). |
-| **Kanban** | **3 colunas** (Em Preparo → Prontos → Entregues) com **drag-and-drop** (`@dnd-kit`) + **botão de fallback** por card. Transições **forward-only** (drops inválidos voltam ao lugar). |
+| **Kanban** | **Colunas personalizáveis por org** (nome, cor, ordem, limite WIP, visibilidade, descrição/ícone), com **3 colunas padrão** criadas automaticamente na criação da org (Em Preparo → Prontos → Entregues). **Drag-and-drop** (`@dnd-kit`) + **botão de fallback** por card. Movimentação **livre** entre colunas (`kitchen.move`), com validação de **limite WIP** no servidor. |
 
 ## Stack relevante (confirmada no código)
 

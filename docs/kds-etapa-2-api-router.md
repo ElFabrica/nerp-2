@@ -4,15 +4,18 @@
 
 ## Por que
 
-A tela da cozinha e o painel da TV precisam de endpoints type-safe para **criar**, **listar**
-e **mudar o status** dos pedidos. Seguimos o padrão oRPC já usado em
-`src/app/router/sales/*`, com isolamento por organização nos endpoints autenticados e uma
-rota **pública** (sem login) para a TV — espelhando `src/app/router/checkout/purchase.ts`.
+A tela da cozinha e o painel da TV precisam de endpoints type-safe para **gerenciar as colunas
+personalizadas**, **criar/listar pedidos** e **mover um pedido entre colunas**. Como as colunas
+são dinâmicas (Etapa 1), o backend trabalha com `columnId` em vez de um enum de status, e expõe
+um CRUD de colunas. Seguimos o padrão oRPC já usado em `src/app/router/sales/*`, com isolamento
+por organização nos endpoints autenticados e uma rota **pública** (sem login) para a TV —
+espelhando `src/app/router/checkout/purchase.ts`.
 
 ## Arquivos afetados
 
 **Novos** — `src/app/router/kitchen/`
-- `create.ts` · `list.ts` · `mark-ready.ts` · `mark-delivered.ts` · `public-ready.ts` · `index.ts`
+- Pedidos: `create.ts` · `list.ts` · `move.ts` · `public-ready.ts` · `index.ts`
+- Colunas: `columns/list.ts` · `columns/create.ts` · `columns/update.ts` · `columns/delete.ts` · `columns/reorder.ts`
 
 **Modificar**
 - `src/app/router/index.ts` — registrar `kitchen: kitchenRoutes`
@@ -23,7 +26,6 @@ rota **pública** (sem login) para a TV — espelhando `src/app/router/checkout/
 import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { KitchenOrderStatus } from "@/generated/prisma/enums";
 import prisma from "@/lib/db";
 import z from "zod";
 
@@ -36,10 +38,80 @@ export const createKitchenOrder = base
   .handler(async ({ context, input }) => { /* ... */ });
 ```
 
-> A org vem de `context.org.id` (via `requireOrgMiddleware`) ou de
-> `context.session.activeOrganizationId!` (como em `sales/create.ts`). Use `context.org.id`.
+> A org vem de `context.org.id` (via `requireOrgMiddleware`). Não há mais enum de status; o
+> "status" é `columnId`.
 
-## Endpoints
+## Endpoints de colunas (`columns/*`)
+
+### `columns/list.ts` — `listKitchenColumns` (GET)
+
+- **Input**: `z.object({ includeInactive: z.boolean().optional() })`
+- **Handler**: `findMany` por `organizationId`, `orderBy: { position: "asc" }`. Por padrão só
+  `isActive: true`; `includeInactive` traz todas (para a tela de gestão).
+- **Output**: array de
+  ```ts
+  z.object({
+    id: z.string(),
+    name: z.string(),
+    color: z.string(),
+    position: z.number(),
+    wipLimit: z.number().nullable(),
+    isActive: z.boolean(),
+    description: z.string().nullable(),
+    icon: z.string().nullable(),
+    isInitial: z.boolean(),
+    showOnTv: z.boolean(),
+    isFinal: z.boolean(),
+  })
+  ```
+
+### `columns/create.ts` — `createKitchenColumn` (POST)
+
+- **Input**
+  ```ts
+  z.object({
+    name: z.string().min(1),
+    color: z.string().regex(/^#([0-9a-fA-F]{6})$/).optional(),
+    wipLimit: z.number().int().positive().nullable().optional(),
+    description: z.string().optional(),
+    icon: z.string().optional(),
+    isInitial: z.boolean().optional(),
+    showOnTv: z.boolean().optional(),
+    isFinal: z.boolean().optional(),
+  })
+  ```
+- **Handler**: calcula `position = (max(position da org) ?? -1) + 1` (vai pro fim). Cria com
+  `organizationId: context.org.id`. **Garante unicidade de `isInitial`**: se `isInitial: true`,
+  zera o flag das demais colunas da org na mesma transação (uma org só tem **uma** coluna de
+  entrada). `showOnTv`/`isFinal` podem repetir.
+- **Output**: `z.object({ id: z.string() })`.
+
+### `columns/update.ts` — `updateKitchenColumn` (POST)
+
+- **Input**: `id` + os mesmos campos do create, todos opcionais (patch parcial).
+- **Handler**: `updateMany({ where: { id, organizationId }, data })` (filtro de org evita
+  cross-tenant). Se `isInitial: true`, reaplica a regra de unicidade. `count === 0` → `NOT_FOUND`.
+- **Output**: `z.object({ success: z.boolean() })`.
+
+### `columns/delete.ts` — `deleteKitchenColumn` (POST)
+
+- **Input**: `z.object({ id: z.string() })`
+- **Handler**:
+  1. Bloqueia apagar a **única** coluna `isInitial` da org → `throw errors.BAD_REQUEST(...)`
+     (sempre tem que existir uma coluna de entrada).
+  2. Conta cards na coluna; se `> 0` → `throw errors.BAD_REQUEST("Mova ou remova os pedidos
+     antes de apagar a coluna")` (casa com `onDelete: Restrict` da Etapa 1).
+  3. `deleteMany({ where: { id, organizationId } })`.
+- **Output**: `z.object({ success: z.boolean() })`.
+
+### `columns/reorder.ts` — `reorderKitchenColumns` (POST)
+
+- **Input**: `z.object({ order: z.array(z.object({ id: z.string(), position: z.number().int() })) })`
+- **Handler**: `prisma.$transaction` com um `updateMany` por item (`where: { id, organizationId }`).
+  Atualiza a ordem das colunas de uma vez (drag-and-drop de colunas na tela de gestão).
+- **Output**: `z.object({ success: z.boolean() })`.
+
+## Endpoints de pedidos
 
 ### `create.ts` — `createKitchenOrder` (POST)
 
@@ -51,62 +123,63 @@ export const createKitchenOrder = base
     productId: z.string().optional(),
     estimatedMinutes: z.number().int().positive().optional(),
     notes: z.string().optional(),
+    columnId: z.string().optional(), // padrão: a coluna isInitial da org
   })
   ```
-- **Handler**: se `estimatedMinutes` ausente e houver `productId`, busca
-  `product.prepTimeMinutes` para preencher o snapshot. Cria com `status: "EM_PREPARO"`,
-  `organizationId: context.org.id`, `createdById: context.session.userId`.
+- **Handler**: se `estimatedMinutes` ausente e houver `productId`, busca `product.prepTimeMinutes`
+  para preencher o snapshot. Resolve a coluna destino: `columnId` informado **ou** a coluna
+  `isInitial: true` da org. Cria com `organizationId: context.org.id`,
+  `createdById: context.session.userId`, `columnEnteredAt: new Date()` e
+  `position = (max position da coluna ?? -1) + 1`.
 - **Output**: `z.object({ id: z.string() })`.
 
 ### `list.ts` — `listKitchenOrders` (GET)
 
-> O kanban da Etapa 3 tem **3 colunas** (Em Preparo → Prontos → **Entregues**), então a coluna
-> Entregues precisa de dados — o `ENTREGUE` deixa de ser excluído incondicionalmente.
+> O kanban da Etapa 3 tem **N colunas dinâmicas**; a UI lista as colunas (`columns.list`) e os
+> pedidos, agrupando por `columnId` no cliente. Não há mais filtro por enum.
 
-- **Input**: `z.object({ status: z.enum(KitchenOrderStatus).optional() })`
-- **Handler**: `findMany` por `organizationId` (+ `status` se informado).
-  - **EM_PREPARO** ordenado por `createdAt asc` (mais antigo/atrasado no topo).
-  - **PRONTO** ordenado por `readyAt desc`.
-  - **ENTREGUE**: filtra `deliveredAt >= new Date(Date.now() - AUTO_HIDE_MS)` (janela de
-    entregues recentes — reusa a constante `AUTO_HIDE_MS` da [Etapa 4](./kds-etapa-4-tempos-preparo.md);
-    evita lista infinita) e ordena por `deliveredAt desc`.
-  - Sem `status` informado: comportamento antigo (lista os ativos; entregues antigos fora).
+- **Input**: `z.object({ columnId: z.string().optional(), recentOnly: z.boolean().optional() })`
+- **Handler**: `findMany` por `organizationId` (+ `columnId` se informado),
+  `orderBy: [{ column: { position: "asc" } }, { position: "asc" }]`.
+  - Para colunas **`isFinal`** (ou quando `recentOnly`), filtra
+    `columnEnteredAt >= new Date(Date.now() - AUTO_HIDE_MS)` (janela de recentes — reusa
+    `AUTO_HIDE_MS` da [Etapa 4](./kds-etapa-4-tempos-preparo.md); evita lista infinita na coluna
+    terminal).
   - Datas serializadas com `.toISOString()` (igual `sales/list.ts`) para o cliente calcular o
     tempo decorrido com o próprio relógio.
 - **Output**: array de
   ```ts
   z.object({
     id: z.string(),
+    columnId: z.string(),
     tableNumber: z.string(),
     dishName: z.string(),
-    status: z.enum(KitchenOrderStatus),
     estimatedMinutes: z.number().nullable(),
-    createdAt: z.string(),               // ISO
-    readyAt: z.string().nullable(),      // ISO
-    deliveredAt: z.string().nullable(),  // ISO — usado pela coluna/janela de Entregues
+    position: z.number(),
+    createdAt: z.string(),         // ISO
+    columnEnteredAt: z.string(),   // ISO — tempo na coluna atual + janela de auto-hide
   })
   ```
 
-### `mark-ready.ts` — `markKitchenOrderReady` (POST)
+### `move.ts` — `moveKitchenOrder` (POST) — substitui markReady/markDelivered
 
-- **Input**: `z.object({ id: z.string() })`
-- **Handler**: `prisma.kitchenOrder.updateMany({ where: { id, organizationId: context.org.id,
-  status: "EM_PREPARO" }, data: { status: "PRONTO", readyAt: new Date() } })`.
-  Se `count === 0` → `throw errors.NOT_FOUND(...)`.
-- **Output**: `z.object({ success: z.boolean() })`
+> **Um único endpoint** para qualquer transição (colunas dinâmicas ⇒ não dá pra ter
+> `markReady`/`markDelivered` fixos). Drag-and-drop e o botão de avançar chamam o **mesmo**
+> `move`.
 
-> Usar `updateMany` com o filtro de org **evita update cross-tenant** e é **idempotente**
-> (clicar duas vezes não quebra).
+- **Input**: `z.object({ id: z.string(), toColumnId: z.string() })`
+- **Handler** (`prisma.$transaction`):
+  1. Valida que a coluna destino existe e é da org → senão `NOT_FOUND`.
+  2. **Limite WIP**: se `toColumnId.wipLimit != null`, conta cards já na coluna; se
+     `count >= wipLimit` → `throw errors.BAD_REQUEST("Limite da coluna atingido")`.
+  3. `updateMany({ where: { id, organizationId }, data: { columnId: toColumnId,
+     columnEnteredAt: new Date(), position: (max position do destino ?? -1) + 1 } })`.
+     `count === 0` → `NOT_FOUND`. Mover para a mesma coluna é no-op idempotente.
+- **Output**: `z.object({ success: z.boolean() })`.
 
-### `mark-delivered.ts` — `markKitchenOrderDelivered` (POST)
-
-- Mesmo padrão, `where: { id, organizationId, status: "PRONTO" }`,
-  `data: { status: "ENTREGUE", deliveredAt: new Date() }`.
-
-> **Drag-and-drop usa a mesma API**: na Etapa 3 o `onDragEnd` do kanban dispara `markReady`
-> (arrastar p/ Prontos) e `markDelivered` (arrastar p/ Entregues) — os mesmos endpoints que
-> os botões de fallback. **Não há endpoint novo**: as transições são forward-only, então não é
-> preciso "desfazer status" no backend; drops inválidos são ignorados no cliente (snap back).
+> Como as colunas são livres, **não há mais "forward-only" no backend** — qualquer coluna pode
+> ir para qualquer coluna (a UI pode opcionalmente restringir, mas o servidor só valida WIP e
+> org). O `updateMany` com filtro de org **evita move cross-tenant** e é **idempotente**.
 
 ### `public-ready.ts` — `publicReadyOrders` (público, sem auth)
 
@@ -117,8 +190,9 @@ Usa **`base` apenas** (sem `requireAuthMiddleware`/`requireOrgMiddleware`), igua
 - **Handler**:
   1. `const org = await prisma.organization.findUnique({ where: { slug: input.orgSlug } })`;
      se não existir → `throw errors.NOT_FOUND(...)`.
-  2. Lista `status: "PRONTO"` **e** `readyAt >= new Date(Date.now() - AUTO_HIDE_MS)`
-     (janela de auto-sumiço; `AUTO_HIDE_MS` definido na Etapa 4), ordenado por `readyAt desc`.
+  2. Lê pedidos em colunas com **`showOnTv: true`** daquela org **e**
+     `columnEnteredAt >= new Date(Date.now() - AUTO_HIDE_MS)` (janela de auto-sumiço;
+     `AUTO_HIDE_MS` definido na Etapa 4), ordenado por `columnEnteredAt desc`.
 - **Output**:
   ```ts
   z.object({
@@ -127,29 +201,40 @@ Usa **`base` apenas** (sem `requireAuthMiddleware`/`requireOrgMiddleware`), igua
       id: z.string(),
       tableNumber: z.string(),
       dishName: z.string(),
-      readyAt: z.string(),     // ISO
+      readyAt: z.string(),     // ISO — = columnEnteredAt da coluna showOnTv
     })),
   })
   ```
 
 > **`slug` vs `subdomain`**: `Organization.slug` é `@unique` e sempre presente — escolha mais
 > robusta para a URL da TV. (O checkout usa `subdomain`, que é nullable.)
+> **`showOnTv` substitui o antigo status `PRONTO`**: a coluna que alimenta a TV é configurável.
 
 ## `index.ts` (barrel)
 
 ```ts
 import { createKitchenOrder } from "./create";
 import { listKitchenOrders } from "./list";
-import { markKitchenOrderReady } from "./mark-ready";
-import { markKitchenOrderDelivered } from "./mark-delivered";
+import { moveKitchenOrder } from "./move";
 import { publicReadyOrders } from "./public-ready";
+import { listKitchenColumns } from "./columns/list";
+import { createKitchenColumn } from "./columns/create";
+import { updateKitchenColumn } from "./columns/update";
+import { deleteKitchenColumn } from "./columns/delete";
+import { reorderKitchenColumns } from "./columns/reorder";
 
 export const kitchenRoutes = {
   list: listKitchenOrders,
   create: createKitchenOrder,
-  markReady: markKitchenOrderReady,
-  markDelivered: markKitchenOrderDelivered,
+  move: moveKitchenOrder,
   publicReady: publicReadyOrders,
+  columns: {
+    list: listKitchenColumns,
+    create: createKitchenColumn,
+    update: updateKitchenColumn,
+    delete: deleteKitchenColumn,
+    reorder: reorderKitchenColumns,
+  },
 };
 ```
 
@@ -167,8 +252,13 @@ export const router = {
 ## Como validar a etapa
 
 - Type-check / `npm run lint` sem erros.
-- Via `orpc` no front (ou um teste manual): `orpc.kitchen.create(...)` retorna `{ id }`;
-  `orpc.kitchen.list({ status: "EM_PREPARO" })` retorna o pedido criado.
-- `orpc.kitchen.markReady({ id })` move para PRONTO; chamar de novo lança `NOT_FOUND`.
-- `orpc.kitchen.publicReady({ orgSlug })` (sem sessão) retorna `orgName` + pedidos prontos
-  recentes; slug inexistente lança `NOT_FOUND`.
+- `orpc.kitchen.columns.list()` retorna as 3 colunas padrão da org (Em Preparo / Prontos /
+  Entregues) ordenadas por `position`.
+- `orpc.kitchen.create(...)` retorna `{ id }` e o pedido cai na coluna `isInitial`;
+  `orpc.kitchen.list({ columnId })` retorna o pedido criado.
+- `orpc.kitchen.move({ id, toColumnId })` move o card; com `wipLimit` atingido lança
+  `BAD_REQUEST`.
+- `orpc.kitchen.columns.create/update/reorder/delete` funcionam; apagar coluna com cards ou a
+  única coluna `isInitial` lança `BAD_REQUEST`.
+- `orpc.kitchen.publicReady({ orgSlug })` (sem sessão) retorna `orgName` + pedidos em colunas
+  `showOnTv` recentes; slug inexistente lança `NOT_FOUND`.

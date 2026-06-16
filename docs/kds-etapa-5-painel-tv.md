@@ -79,24 +79,29 @@ Detalhes:
 
 ## Auto-sumiço
 
-A rota `publicReady` (Etapa 2) já filtra `readyAt >= now - AUTO_HIDE_MS` (Etapa 4), então
-pedidos prontos antigos **somem sozinhos** da TV (~5 min), mesmo que ninguém marque como
-entregue. Entregar na cozinha (arrastar p/ **Entregues** ou botão `[→ Entregue]`) remove da TV
+A rota `publicReady` (Etapa 2) lê os pedidos nas colunas marcadas como **`showOnTv`** e filtra
+`columnEnteredAt >= now - AUTO_HIDE_MS` (Etapa 4), então pedidos prontos antigos **somem
+sozinhos** da TV (~5 min), mesmo que ninguém marque como entregue. Mover o card na cozinha para
+qualquer coluna **sem `showOnTv`** (ex.: a coluna terminal "Entregues") remove da TV
 imediatamente.
+
+> **Coluna da TV é configurável**: por padrão a coluna "Prontos" (criada na org) tem
+> `showOnTv: true`. O usuário pode marcar outra(s) coluna(s) como exibida(s) na TV em
+> "Gerenciar colunas" (Etapa 3).
 
 ## Segurança / privacidade
 
 A rota expõe **número da mesa + nome do prato** publicamente por `orgSlug`. É aceitável para
 uma TV dentro do estabelecimento (decisão confirmada). Não há dados sensíveis (sem valores,
-clientes ou pagamentos). A rota só lê pedidos `PRONTO` recentes daquela org.
+clientes ou pagamentos). A rota só lê pedidos recentes em colunas `showOnTv` daquela org.
 
 ## Como validar a etapa
 
-1. Marcar um pedido como **PRONTO** na cozinha.
+1. Mover um pedido para a coluna **showOnTv** (por padrão "Prontos") na cozinha.
 2. Abrir `/painel/{orgSlug}` em **aba anônima** (sem sessão) → o pedido aparece com
    `🍻 {nome da org}` e o rodapé fixo.
-3. Aguardar o polling (~5s) após marcar outro pronto → ele aparece sozinho.
-4. Entregar na cozinha — arrastar p/ **Entregues** ou `[→ Entregue]` (ou esperar
-   `AUTO_HIDE_MS`) → some da TV.
+3. Aguardar o polling (~5s) após mover outro pedido para a coluna da TV → ele aparece sozinho.
+4. Mover o card para uma coluna **sem `showOnTv`** (ex.: "Entregues"), por arraste ou pelo botão
+   `[→ {próxima coluna}]` (ou esperar `AUTO_HIDE_MS`) → some da TV.
 5. `/painel/{slug-de-outra-org}` não mostra pedidos desta org (isolamento multi-tenant).
 6. `/painel/slug-inexistente` → erro tratado (NOT_FOUND).

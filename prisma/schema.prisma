@@ -152,6 +152,7 @@ model Organization {
   sales                   Sale[]
   purchases               Purchase[]
   stockMovements          StockMovement[]
+  kitchenColumns          KitchenColumn[]
   kitchenOrders           KitchenOrder[]
   catalogSettings         CatalogSettings?
   financialAccounts       FinancialAccount[]
@@ -644,34 +645,55 @@ model SaleItem {
 // COZINHA (KDS - Kitchen Display System)
 // ============================================
 
-enum KitchenOrderStatus {
-  EM_PREPARO // Em preparo na cozinha
-  PRONTO // Pronto para retirada
-  ENTREGUE // Entregue/retirado
+// Colunas personalizáveis do kanban (uma org tem N colunas).
+// Substitui o antigo enum KitchenOrderStatus: o "status" passa a ser a coluna.
+model KitchenColumn {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String // Nomenclatura editável: "Em Preparo", "Na Brasa"...
+  color          String   @default("#64748B") // Cor de identificação (hex)
+  position       Int // Ordem no board (0,1,2...)
+  wipLimit       Int? // Limite WIP (null = sem limite)
+  isActive       Boolean  @default(true) // Visível/ativa no board
+  description    String? // Texto auxiliar (opcional)
+  icon           String? // Ícone lucide (ex "ChefHat") ou emoji
+  isInitial      Boolean  @default(false) // Coluna de entrada: novos pedidos caem aqui
+  showOnTv       Boolean  @default(false) // Alimenta o painel da TV
+  isFinal        Boolean  @default(false) // Estado terminal: auto-some / fora da TV
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  // Relações
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orders         KitchenOrder[]
+
+  @@index([organizationId, position])
+  @@index([organizationId, isActive])
+  @@map("kitchen_columns")
 }
 
 model KitchenOrder {
-  id               String             @id @default(cuid())
+  id               String        @id @default(cuid())
   organizationId   String
+  columnId         String // Coluna atual (substitui o antigo enum status)
   // Pedido
   tableNumber      String // Texto livre: "18", "Balcão 3"
   dishName         String // Nome do prato (texto livre)
   productId        String? // Vínculo opcional ao catálogo
   estimatedMinutes Int? // Snapshot do tempo de preparo na criação
-  // Status e fluxo
-  status           KitchenOrderStatus @default(EM_PREPARO)
+  position         Int           @default(0) // Ordem do card dentro da coluna
   notes            String?
   // Timestamps
-  createdAt        DateTime           @default(now())
-  readyAt          DateTime?
-  deliveredAt      DateTime?
+  createdAt        DateTime      @default(now())
+  columnEnteredAt  DateTime      @default(now()) // Quando entrou na coluna atual (tempo decorrido + auto-hide)
   createdById      String?
   // Relações
-  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  product          Product?           @relation(fields: [productId], references: [id], onDelete: SetNull)
-  createdBy        User?              @relation("CreatedKitchenOrders", fields: [createdById], references: [id])
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  column           KitchenColumn @relation(fields: [columnId], references: [id], onDelete: Restrict)
+  product          Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdBy        User?         @relation("CreatedKitchenOrders", fields: [createdById], references: [id])
 
-  @@index([organizationId, status])
+  @@index([organizationId, columnId])
+  @@index([columnId, position])
   @@index([createdAt])
   @@map("kitchen_orders")
 }
@@ -910,4 +932,39 @@ model SyncOutbox {
 
   @@index([deliveredAt, nextAttemptAt])
   @@map("sync_outbox")
+}
+
+// ============================================
+// Importação de produtos via planilha (CSV/XLSX)
+// ============================================
+// Cada importação em massa cria uma linha aqui. O arquivo bruto vai pro S3
+// (`fileKey`); a função Inngest `productImportProcess` lê este registro, baixa o
+// arquivo, processa em lotes e atualiza os contadores/erros para a UI fazer polling.
+
+enum ProductImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model ProductImport {
+  id             String              @id @default(cuid())
+  organizationId String
+  createdById    String
+  fileKey        String // chave do objeto no S3
+  fileName       String
+  mapping        Json // { campoProduto: nomeColunaArquivo }
+  status         ProductImportStatus @default(PENDING)
+  totalRows      Int                 @default(0)
+  processedRows  Int                 @default(0)
+  createdRows    Int                 @default(0)
+  failedRows     Int                 @default(0)
+  errors         Json                @default("[]") // [{ row, message }]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  completedAt    DateTime?
+
+  @@index([organizationId, status])
+  @@map("product_imports")
 }

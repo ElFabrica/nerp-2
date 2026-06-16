@@ -83,6 +83,35 @@ export const auth = betterAuth({
               subdomain: organization.slug,
             },
           });
+          // Semeia o kanban da cozinha estilo iFood (3 colunas padrão editáveis).
+          await prisma.kitchenColumn.createMany({
+            data: [
+              {
+                organizationId: organization.id,
+                name: "Em Preparo",
+                color: "#F97316",
+                position: 0,
+                isInitial: true,
+                icon: "ChefHat",
+              },
+              {
+                organizationId: organization.id,
+                name: "Prontos",
+                color: "#22C55E",
+                position: 1,
+                showOnTv: true,
+                icon: "BellRing",
+              },
+              {
+                organizationId: organization.id,
+                name: "Entregues",
+                color: "#64748B",
+                position: 2,
+                isFinal: true,
+                icon: "CheckCheck",
+              },
+            ],
+          });
           // Replica org + member do owner no NASA.
           await enqueueSyncOutbox("org", {
             id: organization.id,

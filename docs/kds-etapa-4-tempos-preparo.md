@@ -85,14 +85,16 @@ const style = urgencyStyles[urgency];
 
 - **Faixas de urgência**: `elapsed < est` → normal; `est ≤ elapsed < est*1.5` → warning (âmbar);
   `elapsed ≥ est*1.5` → overdue (vermelho + pulse). Alternadas via `cn()`.
-- **Ordenação**: a coluna **Em Preparo** vem do backend ordenada `createdAt asc`
-  (mais antigo primeiro) → os mais atrasados sobem ao topo.
+- **Ordenação**: a coluna de entrada (**Em Preparo**) vem do backend ordenada por `position`
+  (mais antigo primeiro, já que entra no fim) → os mais atrasados ficam no topo.
+- **Tempo decorrido**: calculado a partir de `columnEnteredAt` (tempo na coluna atual). Para o
+  "tempo total desde o cadastro", use `createdAt`.
 - **Polling x clock**: o conjunto de pedidos atualiza a cada 5s (Etapa 3); o relógio
   recalcula o decorrido a cada 1s — o número sobe suave entre os refetches.
-- **Janela `AUTO_HIDE_MS`**: usada pela rota `public-ready` (Etapa 2/5) para esconder pedidos
-  prontos antigos da TV automaticamente, **e também pelo `list.ts`** (Etapa 2) para limitar a
-  coluna **Entregues** do kanban `/cozinha` aos entregues recentes — uma única constante rege
-  as duas superfícies.
+- **Janela `AUTO_HIDE_MS`**: usada pela rota `public-ready` (Etapa 2/5) para esconder da TV
+  pedidos antigos em colunas `showOnTv`, **e também pelo `list.ts`** (Etapa 2) para limitar as
+  colunas **`isFinal`** do kanban `/cozinha` aos itens recentes (via `columnEnteredAt`) — uma
+  única constante rege as duas superfícies.
 
 ## Como validar a etapa
 

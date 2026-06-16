@@ -1,10 +1,12 @@
-import prisma from "@/lib/db";
 import { z } from "zod";
 import { base } from "@/app/middlewares/base";
 import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { ProductUnit } from "@/generated/prisma/enums";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { orpc } from "@/lib/orpc";
+import {
+  createProductForOrg,
+  ProductCreationError,
+} from "@/features/products/server/create-product";
 
 export const createProduct = base
   .use(requireAuthMiddleware)
@@ -51,7 +53,7 @@ export const createProduct = base
       trackStock: z.boolean().default(true),
       allowNegative: z.boolean().default(false),
       showOnCatalog: z.boolean().default(true),
-    })
+    }),
   )
   // .output(
   //   z.object({
@@ -62,85 +64,13 @@ export const createProduct = base
   // )
   .handler(async ({ input, context, errors }) => {
     try {
-      // Gerar slug a partir do nome
-      const slug = input.name
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^\w\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/--+/g, "-")
-        .trim();
-
-      // Verificar se o slug já existe
-      const existingProduct = await prisma.product.findUnique({
-        where: {
-          organizationId_slug: {
-            organizationId: context.org.id,
-            slug: slug,
-          },
-        },
-      });
-
-      let finalSlug = slug;
-      if (existingProduct) {
-        // Adicionar timestamp para tornar único
-        finalSlug = `${slug}-${Date.now()}`;
-      }
-
-      // Verificar se o SKU já existe (se fornecido)
-      if (input.sku) {
-        const existingSku = await prisma.product.findFirst({
-          where: {
-            organizationId: context.org.id,
-            sku: input.sku,
-          },
-        });
-
-        if (existingSku) {
-          throw errors.BAD_REQUEST({
-            message: "SKU já existe para outro produto",
-          });
-        }
-      }
-
-      // Criar o produto
-      const product = await prisma.product.create({
-        data: {
-          organizationId: context.org.id,
-          createdById: context.user.id,
-          name: input.name,
-          slug: finalSlug,
+      const product = await createProductForOrg(
+        {
+          ...input,
           categoryId: input.categoryId === "" ? null : input.categoryId,
-          description: input.description,
-          sku: input.sku,
-          barcode: input.barcode,
-          unit: input.unit,
-          costPrice: input.costPrice,
-          salePrice: input.salePrice,
-          promotionalPrice: input.promotionalPrice,
-          minStock: input.minStock,
-          maxStock: input.maxStock,
-          images: input.images,
-          thumbnail: input.thumbnail || input.images[0] || "",
-          weight: input.weight,
-          length: input.length,
-          width: input.width,
-          height: input.height,
-          isActive: input.isActive,
-          isFeatured: input.isFeatured,
-          trackStock: input.trackStock,
         },
-      });
-
-      if (input.currentStock > 0) {
-        orpc.stocks.create.entry.call({
-          productId: product.id,
-          quantity: input.currentStock,
-          type: "ENTRADA",
-          description: "Entrada de estoque",
-        });
-      }
+        { orgId: context.org.id, userId: context.user.id },
+      );
 
       return {
         id: product.id,
@@ -148,6 +78,10 @@ export const createProduct = base
         slug: product.slug,
       };
     } catch (error) {
+      // Regras de negócio (ex.: SKU duplicado) viram BAD_REQUEST.
+      if (error instanceof ProductCreationError) {
+        throw errors.BAD_REQUEST({ message: error.message });
+      }
       throw error;
     }
   });
