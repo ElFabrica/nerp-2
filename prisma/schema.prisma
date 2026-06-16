@@ -217,6 +217,14 @@ enum CatalogSortOrder {
   OLDEST
 }
 
+// Cenário de operação do catálogo:
+// - MARKETPLACE: pagamento confirmado gera apenas a venda (e-commerce de varejo)
+// - KITCHEN: pagamento confirmado também cria pedidos no KDS (restaurante/food)
+enum CatalogOperationMode {
+  MARKETPLACE
+  KITCHEN
+}
+
 enum DeliveryMethod {
   DELIVERY_HOME
   PICKUP_STORE
@@ -246,6 +254,8 @@ model CatalogSettings {
   showStock               Boolean           @default(false)
   allowOrders             Boolean           @default(false)
   sortOrder               CatalogSortOrder  @default(ASC)
+  // Modo de operação: MARKETPLACE (apenas venda) ou KITCHEN (envia pedidos pagos à cozinha)
+  operationMode           CatalogOperationMode @default(MARKETPLACE)
   // Contato
   whatsappNumber          String?
   showWhatsapp            Boolean           @default(true)
@@ -685,6 +695,7 @@ model KitchenOrder {
   // Timestamps
   createdAt        DateTime      @default(now())
   columnEnteredAt  DateTime      @default(now()) // Quando entrou na coluna atual (tempo decorrido + auto-hide)
+  archivedAt       DateTime? // Quando foi arquivado; null = ativo no board
   createdById      String?
   // Relações
   organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -695,6 +706,7 @@ model KitchenOrder {
   @@index([organizationId, columnId])
   @@index([columnId, position])
   @@index([createdAt])
+  @@index([organizationId, archivedAt])
   @@map("kitchen_orders")
 }
 

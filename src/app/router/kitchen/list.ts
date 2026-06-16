@@ -3,7 +3,6 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import type { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/db";
-import { AUTO_HIDE_MS } from "@/utils/kitchen-config";
 import z from "zod";
 
 export const listKitchenOrders = base
@@ -17,7 +16,8 @@ export const listKitchenOrders = base
   .input(
     z.object({
       columnId: z.string().optional(),
-      recentOnly: z.boolean().optional(),
+      // true = área de arquivados; padrão/false = board (só ativos)
+      archived: z.boolean().optional(),
     }),
   )
   .output(
@@ -31,41 +31,50 @@ export const listKitchenOrders = base
         position: z.number(),
         createdAt: z.string(),
         columnEnteredAt: z.string(),
+        archivedAt: z.string().nullable(),
       }),
     ),
   )
   .handler(async ({ context, input }) => {
-    const recentWindow = new Date(Date.now() - AUTO_HIDE_MS);
-
+    // O board mostra TODOS os pedidos ativos (inclusive os entregues na coluna
+    // final): eles só saem do board quando arquivados. O auto-some por tempo
+    // vale apenas para a TV (publicReady), não para a cozinha.
     const where: Prisma.KitchenOrderWhereInput = {
       organizationId: context.org.id,
       ...(input.columnId ? { columnId: input.columnId } : {}),
+      archivedAt: input.archived ? { not: null } : null,
     };
-
-    if (input.recentOnly) {
-      // Limita tudo à janela de recentes.
-      where.columnEnteredAt = { gte: recentWindow };
-    } else {
-      // Colunas terminais (isFinal) só mostram cards recentes; demais sem limite.
-      where.OR = [
-        { column: { isFinal: false } },
-        { columnEnteredAt: { gte: recentWindow } },
-      ];
-    }
 
     const orders = await prisma.kitchenOrder.findMany({
       where,
-      orderBy: [{ column: { position: "asc" } }, { position: "asc" }],
+      orderBy: input.archived
+        ? { archivedAt: "desc" }
+        : [{ column: { position: "asc" } }, { position: "asc" }],
     });
 
-    return orders.map((order) => ({
-      id: order.id,
-      columnId: order.columnId,
-      tableNumber: order.tableNumber,
-      dishName: order.dishName,
-      estimatedMinutes: order.estimatedMinutes,
-      position: order.position,
-      createdAt: order.createdAt.toISOString(),
-      columnEnteredAt: order.columnEnteredAt.toISOString(),
-    }));
+    return orders.map(serializeOrder);
   });
+
+function serializeOrder(order: {
+  id: string;
+  columnId: string;
+  tableNumber: string;
+  dishName: string;
+  estimatedMinutes: number | null;
+  position: number;
+  createdAt: Date;
+  columnEnteredAt: Date;
+  archivedAt: Date | null;
+}) {
+  return {
+    id: order.id,
+    columnId: order.columnId,
+    tableNumber: order.tableNumber,
+    dishName: order.dishName,
+    estimatedMinutes: order.estimatedMinutes,
+    position: order.position,
+    createdAt: order.createdAt.toISOString(),
+    columnEnteredAt: order.columnEnteredAt.toISOString(),
+    archivedAt: order.archivedAt ? order.archivedAt.toISOString() : null,
+  };
+}

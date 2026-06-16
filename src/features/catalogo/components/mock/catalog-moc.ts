@@ -4,6 +4,7 @@ import type { CatalogSettingsProps } from "@/features/catalogo/types/catalog-set
 
 import { GeneralTab } from "@/features/catalogo/components/tab-general";
 import { VisibilityTab } from "@/features/catalogo/components/tab-visibility";
+import { OperationTab } from "@/features/catalogo/components/tab-operation";
 import { TabContact } from "@/features/catalogo/components/tab-contact";
 import { TabCustomization } from "@/features/catalogo/components/tab-customization";
 import { TabDomain } from "@/features/catalogo/components/tab-domain";
@@ -33,6 +34,11 @@ export const tabs: TabEntry[] = [
     id: "visibility",
     label: "Visibilidade",
     component: VisibilityTab,
+  },
+  {
+    id: "operacao",
+    label: "Operação",
+    component: OperationTab,
   },
   {
     id: "contact",

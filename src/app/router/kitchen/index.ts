@@ -1,6 +1,7 @@
 import { createKitchenOrder } from "./create";
 import { listKitchenOrders } from "./list";
 import { moveKitchenOrder } from "./move";
+import { setArchivedKitchenOrder } from "./archive";
 import { publicReadyOrders } from "./public-ready";
 import { listKitchenColumns } from "./columns/list";
 import { createKitchenColumn } from "./columns/create";
@@ -12,6 +13,7 @@ export const kitchenRoutes = {
   list: listKitchenOrders,
   create: createKitchenOrder,
   move: moveKitchenOrder,
+  setArchived: setArchivedKitchenOrder,
   publicReady: publicReadyOrders,
   columns: {
     list: listKitchenColumns,

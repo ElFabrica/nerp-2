@@ -20,6 +20,8 @@ interface KitchenColumnProps {
   orders: KitchenOrder[];
   // próxima coluna por position (passada aos cards p/ o botão de avançar)
   nextColumn: KitchenColumnType | null;
+  // coluna terminal (isFinal) p/ a ação direta "Entregue" nos cards
+  finalColumn?: KitchenColumnType | null;
   onEdit?: (column: KitchenColumnType) => void;
 }
 
@@ -27,6 +29,7 @@ export function KitchenColumn({
   column,
   orders,
   nextColumn,
+  finalColumn,
   onEdit,
 }: KitchenColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -77,7 +80,12 @@ export function KitchenColumn({
         >
           <div className="flex flex-col gap-2">
             {orders.map((order) => (
-              <OrderCard key={order.id} order={order} nextColumn={nextColumn} />
+              <OrderCard
+                key={order.id}
+                order={order}
+                nextColumn={nextColumn}
+                finalColumn={finalColumn}
+              />
             ))}
             {count === 0 && (
               <p className="px-1 py-6 text-center text-xs text-muted-foreground">

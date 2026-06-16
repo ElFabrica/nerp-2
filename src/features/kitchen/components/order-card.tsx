@@ -3,42 +3,69 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useNow, formatElapsed } from "@/hooks/use-elapsed";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_PREP_MINUTES,
+  getOrderUrgency,
+  urgencyStyles,
+} from "@/utils/kitchen-config";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowRight, Clock, GripVertical } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  Archive,
+  ArrowRight,
+  CheckCheck,
+  Clock,
+  GripVertical,
+  MoreVertical,
+} from "lucide-react";
 import type { KitchenColumn } from "../hooks/use-kitchen-columns";
-import { useMutationMoveKitchenOrder } from "../hooks/use-kitchen";
+import {
+  useMutationMoveKitchenOrder,
+  useMutationSetArchivedKitchenOrder,
+} from "../hooks/use-kitchen";
 import type { KitchenOrder } from "../hooks/use-kitchen";
 
 interface OrderCardProps {
   order: KitchenOrder;
   // próxima coluna por position (p/ o botão de avançar); null em colunas isFinal
   nextColumn: KitchenColumn | null;
+  // coluna terminal (isFinal); alvo da ação direta "Entregue". null se a org não tiver
+  finalColumn?: KitchenColumn | null;
   // quando true, é só o "fantasma" do DragOverlay (sem listeners/sortable)
   overlay?: boolean;
-}
-
-// minutos decorridos desde uma data ISO, atualizando a cada 30s
-function useElapsedMinutes(sinceIso: string) {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return Math.max(0, Math.floor((now - new Date(sinceIso).getTime()) / 60_000));
 }
 
 export function OrderCard({
   order,
   nextColumn,
+  finalColumn = null,
   overlay = false,
 }: OrderCardProps) {
   const move = useMutationMoveKitchenOrder();
-  const elapsed = useElapsedMinutes(order.columnEnteredAt);
+  const setArchived = useMutationSetArchivedKitchenOrder();
+
+  // Pedido entregue (na coluna final): congela o contador no momento em que
+  // entrou na coluna e para de pulsar — não conta mais tempo nem alerta atraso.
+  const isDelivered = finalColumn != null && order.columnId === finalColumn.id;
+
+  // Relógio de 1s: o decorrido (mm:ss) e a urgência são recalculados no cliente
+  // a partir de createdAt/estimatedMinutes, sem depender do polling.
+  const now = useNow();
+  const refTime = isDelivered ? new Date(order.columnEnteredAt).getTime() : now;
+  const urgency = getOrderUrgency(
+    order.createdAt,
+    order.estimatedMinutes,
+    refTime,
+  );
+  const style = urgencyStyles[urgency];
 
   const {
     attributes,
@@ -53,23 +80,22 @@ export function OrderCard({
     disabled: overlay,
   });
 
-  const style = {
+  const dndStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
-  // estourou o tempo estimado? destaca o badge
-  const isLate =
-    order.estimatedMinutes != null && elapsed >= order.estimatedMinutes;
-
   return (
     <Card
       ref={overlay ? undefined : setNodeRef}
-      style={overlay ? undefined : style}
+      style={overlay ? undefined : dndStyle}
       className={cn(
-        "gap-2 p-3 shadow-sm",
+        "gap-2 border-2 p-3 shadow-sm",
+        style.border,
         isDragging && "opacity-40",
         overlay && "rotate-3 shadow-lg",
+        // entregue: para de pulsar (sobrescreve o animate-pulse do "overdue")
+        isDelivered && "animate-none",
       )}
     >
       <div className="flex items-start gap-2">
@@ -90,22 +116,51 @@ export function OrderCard({
           </p>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <Badge
-              variant={isLate ? "destructive" : "secondary"}
-              className="gap-1"
-            >
+            <Badge className={cn("gap-1", style.badge)}>
               <Clock className="size-3" />
-              {elapsed} min
+              {formatElapsed(order.createdAt, refTime)}
             </Badge>
-            {order.estimatedMinutes != null && (
-              <Badge variant="outline">~{order.estimatedMinutes} min</Badge>
+            <Badge variant="outline">
+              ~{order.estimatedMinutes ?? DEFAULT_PREP_MINUTES} min
+            </Badge>
+            {urgency !== "normal" && (
+              <Badge className={style.badge}>{style.label}</Badge>
             )}
           </div>
         </div>
+
+        {/* Menu de ações no canto superior direito (não inicia o arraste). */}
+        {!overlay && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className="-mr-1 -mt-1 shrink-0 text-muted-foreground"
+                aria-label="Ações do pedido"
+              >
+                <MoreVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={setArchived.isPending}
+                onClick={() =>
+                  setArchived.mutate({ id: order.id, archived: true })
+                }
+              >
+                <Archive className="size-4" />
+                Arquivar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
-      {/* Fallback por botão: avança p/ a próxima coluna sem arrastar. */}
-      {nextColumn && (
+      {/* Fallback por botão: avança p/ a próxima coluna sem arrastar.
+          Oculto quando a próxima já é a final — aí usamos o botão "Entregue". */}
+      {nextColumn && nextColumn.id !== finalColumn?.id && (
         <Button
           type="button"
           size="sm"
@@ -118,6 +173,22 @@ export function OrderCard({
         >
           <ArrowRight className="size-3.5" />
           {nextColumn.name}
+        </Button>
+      )}
+
+      {/* Ação direta: marca como entregue movendo o card p/ a coluna final. */}
+      {finalColumn && order.columnId !== finalColumn.id && (
+        <Button
+          type="button"
+          size="sm"
+          className="w-full justify-center"
+          disabled={move.isPending}
+          onClick={() =>
+            move.mutate({ id: order.id, toColumnId: finalColumn.id })
+          }
+        >
+          <CheckCheck className="size-3.5" />
+          Entregue
         </Button>
       )}
     </Card>

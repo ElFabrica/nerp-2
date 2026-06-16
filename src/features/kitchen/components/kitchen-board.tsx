@@ -22,13 +22,18 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { ExternalLink, LayoutGrid } from "lucide-react";
+import { Archive, ExternalLink, LayoutGrid } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useKanbanDnd } from "../hooks/use-kanban-dnd";
 import { useMutationCreateColumn } from "../hooks/use-kitchen-columns";
 import { useQueryKitchenColumns } from "../hooks/use-kitchen-columns";
-import { useQueryKitchenOrders } from "../hooks/use-kitchen";
+import {
+  useQueryArchivedKitchenOrders,
+  useQueryKitchenOrders,
+} from "../hooks/use-kitchen";
 import type { KitchenOrder } from "../hooks/use-kitchen";
+import { Badge } from "@/components/ui/badge";
+import { ArchivedOrders } from "./archived-orders";
 import { ColumnManager } from "./column-manager";
 import { KitchenColumn } from "./kitchen-column";
 import { OrderCard } from "./order-card";
@@ -46,7 +51,11 @@ export function KitchenBoard() {
   const { data: columns = [], isLoading: loadingColumns } =
     useQueryKitchenColumns(false);
   const { data: orders = [] } = useQueryKitchenOrders();
+  const { data: archivedOrders = [] } = useQueryArchivedKitchenOrders();
   const createColumn = useMutationCreateColumn();
+
+  // alterna a área de arquivados (botão de toggle no header)
+  const [showArchived, setShowArchived] = useState(false);
 
   // slug da org ativa p/ a URL pública da TV
   const [orgSlug, setOrgSlug] = useState<string | null>(null);
@@ -69,6 +78,9 @@ export function KitchenBoard() {
 
   const countIn = (columnId: string) =>
     ordersByColumn.get(columnId)?.length ?? 0;
+
+  // coluna terminal (isFinal) — alvo da ação direta "Entregue" nos cards
+  const finalColumn = columns.find((c) => c.isFinal) ?? null;
 
   const { activeId, onDragStart, onDragEnd } = useKanbanDnd({
     columns,
@@ -107,9 +119,19 @@ export function KitchenBoard() {
           <ExternalLink className="size-4" />
           Abrir painel da TV
         </Button>
+        <Button
+          variant={showArchived ? "secondary" : "outline"}
+          aria-pressed={showArchived}
+          onClick={() => setShowArchived((v) => !v)}
+        >
+          <Archive className="size-4" />
+          Arquivados
+          {archivedOrders.length > 0 && (
+            <Badge variant="secondary">{archivedOrders.length}</Badge>
+          )}
+        </Button>
+        <RegisterOrderForm />
       </PageHeader>
-
-      <RegisterOrderForm />
 
       {loadingColumns ? (
         <div className="flex gap-4">
@@ -157,6 +179,7 @@ export function KitchenBoard() {
                   column={column}
                   orders={ordersByColumn.get(column.id) ?? []}
                   nextColumn={nextColumn}
+                  finalColumn={finalColumn}
                 />
               );
             })}
@@ -170,6 +193,9 @@ export function KitchenBoard() {
           </DragOverlay>
         </DndContext>
       )}
+
+      {/* Área de arquivados (toggle no header) */}
+      {showArchived && <ArchivedOrders />}
     </div>
   );
 }

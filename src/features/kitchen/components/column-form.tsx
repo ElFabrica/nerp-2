@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -24,6 +25,30 @@ import {
   useMutationCreateColumn,
   useMutationUpdateColumn,
 } from "../hooks/use-kitchen-columns";
+import { ColumnIcon } from "./column-icon";
+
+// Ícones lucide sugeridos para as etapas da cozinha (o campo aceita qualquer
+// nome lucide ou emoji; estes são só atalhos de um clique).
+const ICON_PRESETS = [
+  "ChefHat",
+  "CookingPot",
+  "Flame",
+  "Soup",
+  "Utensils",
+  "UtensilsCrossed",
+  "BellRing",
+  "CheckCheck",
+  "Truck",
+  "Package",
+  "Clock",
+  "Hourglass",
+  "Pizza",
+  "Sandwich",
+  "Salad",
+  "Beef",
+  "Coffee",
+  "Beer",
+] as const;
 
 const columnFormSchema = z.object({
   name: z.string().min(1, "Informe o nome"),
@@ -163,6 +188,29 @@ export function ColumnForm({ column, children }: ColumnFormProps) {
                     placeholder="Ex.: ChefHat ou 🔥"
                     disabled={isLoading}
                   />
+                  {/* Presets: clique para preencher; clique de novo p/ limpar. */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {ICON_PRESETS.map((name) => {
+                      const selected = field.value === name;
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          aria-label={name}
+                          aria-pressed={selected}
+                          disabled={isLoading}
+                          onClick={() => field.onChange(selected ? "" : name)}
+                          className={cn(
+                            "flex size-8 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                            selected &&
+                              "border-primary bg-primary/10 text-foreground",
+                          )}
+                        >
+                          <ColumnIcon icon={name} className="size-4" />
+                        </button>
+                      );
+                    })}
+                  </div>
                 </Field>
               )}
             />

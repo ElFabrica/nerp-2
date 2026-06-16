@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,11 +10,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { orpc } from "@/lib/orpc";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { useMutationCreateKitchenOrder } from "../hooks/use-kitchen";
@@ -32,6 +42,7 @@ const registerOrderSchema = z.object({
 type RegisterOrderForm = z.infer<typeof registerOrderSchema>;
 
 export function RegisterOrderForm() {
+  const [open, setOpen] = useState(false);
   const createOrder = useMutationCreateKitchenOrder();
 
   // Reusa a query de produtos existente p/ o select opcional.
@@ -66,7 +77,10 @@ export function RegisterOrderForm() {
         // sem columnId ⇒ cai na coluna isInitial
       },
       {
-        onSuccess: () => form.reset(),
+        onSuccess: () => {
+          form.reset();
+          setOpen(false);
+        },
       },
     );
   };
@@ -74,17 +88,31 @@ export function RegisterOrderForm() {
   const isLoading = createOrder.isPending;
 
   return (
-    <Card>
-      <CardContent className="pt-6">
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button>
+          <Plus className="size-4" />
+          Novo pedido
+        </Button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Registrar pedido</SheetTitle>
+          <SheetDescription>
+            Adicione um pedido à cozinha. Ele entra na coluna inicial do kanban.
+          </SheetDescription>
+        </SheetHeader>
+
         <form
+          id="register-order-form"
           onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-wrap items-end gap-3"
+          className="flex flex-1 flex-col gap-4 overflow-y-auto px-4"
         >
           <Controller
             name="tableNumber"
             control={form.control}
             render={({ field, fieldState }) => (
-              <Field className="w-24">
+              <Field>
                 <FieldLabel htmlFor={field.name}>Mesa</FieldLabel>
                 <Input
                   {...field}
@@ -102,7 +130,7 @@ export function RegisterOrderForm() {
             name="dishName"
             control={form.control}
             render={({ field, fieldState }) => (
-              <Field className="min-w-48 flex-1">
+              <Field>
                 <FieldLabel htmlFor={field.name}>Prato</FieldLabel>
                 <Input
                   {...field}
@@ -120,7 +148,7 @@ export function RegisterOrderForm() {
             name="productId"
             control={form.control}
             render={({ field }) => (
-              <Field className="w-56">
+              <Field>
                 <FieldLabel htmlFor={field.name}>Produto (opcional)</FieldLabel>
                 <Select
                   value={field.value || NO_PRODUCT}
@@ -135,7 +163,7 @@ export function RegisterOrderForm() {
                   }}
                   disabled={isLoading}
                 >
-                  <SelectTrigger id={field.name}>
+                  <SelectTrigger id={field.name} className="w-full">
                     <SelectValue placeholder="Sem produto" />
                   </SelectTrigger>
                   <SelectContent>
@@ -155,7 +183,7 @@ export function RegisterOrderForm() {
             name="estimatedMinutes"
             control={form.control}
             render={({ field }) => (
-              <Field className="w-28">
+              <Field>
                 <FieldLabel htmlFor={field.name}>Min. estimados</FieldLabel>
                 <Input
                   {...field}
@@ -168,13 +196,24 @@ export function RegisterOrderForm() {
               </Field>
             )}
           />
+        </form>
 
-          <Button type="submit" disabled={isLoading}>
+        <SheetFooter>
+          <Button
+            type="submit"
+            form="register-order-form"
+            disabled={isLoading}
+          >
             {isLoading ? <Spinner /> : <Plus className="size-4" />}
             Registrar pedido
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+          <SheetClose asChild>
+            <Button variant="outline" disabled={isLoading}>
+              Cancelar
+            </Button>
+          </SheetClose>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

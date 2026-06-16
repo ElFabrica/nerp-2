@@ -26,6 +26,7 @@ import {
   LayoutDashboard,
   LogOut,
   Package,
+  Plus,
   ShoppingCart,
   Store,
   Tag,
@@ -434,16 +435,16 @@ function OrgMenu() {
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            {/* <DropdownMenuItem className="gap-2 p-2 cursor-pointer" asChild>
+            <DropdownMenuItem className="gap-2 p-2 cursor-pointer" asChild>
               <Link href="/create-organization">
                 <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                   <Plus className="size-4" />
                 </div>
                 <div className="text-muted-foreground font-medium">
-                  Adicionar empresa
+                  Criar nova empresa
                 </div>
               </Link>
-            </DropdownMenuItem> */}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

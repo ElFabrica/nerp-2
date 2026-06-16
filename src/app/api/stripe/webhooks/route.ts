@@ -2,7 +2,8 @@ import type { Stripe } from "stripe";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import prisma from "@/lib/db";
-import { ExpandedLineItem } from "@/context/checkout/types";
+import { createKitchenOrdersFromSale } from "@/lib/kitchen/create-orders-from-sale";
+import type { ExpandedLineItem } from "@/context/checkout/types";
 import { SaleStatus } from "@/generated/prisma/enums";
 
 export async function POST(req: Request) {
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(
       await (await req.blob()).text(),
       req.headers.get("stripe-signature") as string,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      process.env.STRIPE_WEBHOOK_SECRET!,
     );
   } catch (error) {
     const errorMessage =
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     console.log(`❌ Stripe webhook error: ${errorMessage}`);
     return NextResponse.json(
       { message: `Webhook error: ${errorMessage}` },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
 
     try {
       switch (event.type) {
-        case "checkout.session.completed":
+        case "checkout.session.completed": {
           data = event.data.object as Stripe.Checkout.Session;
 
           if (!data.metadata?.customerId) {
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
             data.id,
             {
               expand: ["line_items.data.price.product"],
-            }
+            },
           );
 
           if (
@@ -107,7 +108,7 @@ export async function POST(req: Request) {
 
           const saleNumber = lastSale?.saleNumber ? lastSale.saleNumber + 1 : 1;
 
-          await prisma.sale.create({
+          const sale = await prisma.sale.create({
             data: {
               organizationId: organization.id,
               customerId: customer.id,
@@ -129,7 +130,19 @@ export async function POST(req: Request) {
             },
           });
 
+          // Envia o pedido à cozinha quando o catálogo está no modo KITCHEN.
+          // Falha aqui não deve derrubar o webhook (a venda já foi criada).
+          try {
+            await createKitchenOrdersFromSale(sale.id);
+          } catch (kitchenError) {
+            console.error(
+              "Erro ao enviar pedido à cozinha (Stripe):",
+              kitchenError,
+            );
+          }
+
           break;
+        }
         default:
           throw new Error(`Unhandled event type: ${event.type}`);
       }
@@ -137,7 +150,7 @@ export async function POST(req: Request) {
       console.log(error);
       return NextResponse.json(
         { message: `Webhook handler failed: ${error}` },
-        { status: 500 }
+        { status: 500 },
       );
     }
   }

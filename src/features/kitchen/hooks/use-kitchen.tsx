@@ -13,6 +13,7 @@ export type KitchenOrder = {
   position: number;
   createdAt: string;
   columnEnteredAt: string;
+  archivedAt: string | null;
 };
 
 // Uma query só com todos os pedidos ativos; o board agrupa por columnId no cliente.
@@ -24,6 +25,51 @@ export function useQueryKitchenOrders() {
     orpc.kitchen.list.queryOptions({
       input: ordersInput,
       refetchInterval: POLL_MS, // polling: substitui websockets
+    }),
+  );
+}
+
+// Pedidos arquivados (finalizados fora do board), p/ a área de arquivados.
+export function useQueryArchivedKitchenOrders() {
+  return useQuery(
+    orpc.kitchen.list.queryOptions({
+      input: { archived: true },
+      refetchInterval: POLL_MS,
+    }),
+  );
+}
+
+export function useMutationSetArchivedKitchenOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation(
+    orpc.kitchen.setArchived.mutationOptions({
+      // Update otimista: arquivar tira o card do board na hora; restaurar idem.
+      onMutate: async ({ id, archived }) => {
+        await queryClient.cancelQueries({ queryKey: ordersQueryKey });
+        const previous =
+          queryClient.getQueryData<KitchenOrder[]>(ordersQueryKey);
+
+        if (archived) {
+          queryClient.setQueryData<KitchenOrder[]>(ordersQueryKey, (old) =>
+            old?.filter((order) => order.id !== id),
+          );
+        }
+
+        return { previous };
+      },
+      onError: (error, _vars, context) => {
+        if (context?.previous) {
+          queryClient.setQueryData(ordersQueryKey, context.previous);
+        }
+        toast.error(error.message);
+      },
+      onSuccess: (_data, { archived }) => {
+        toast.success(archived ? "Pedido arquivado!" : "Pedido restaurado!");
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({ queryKey: orpc.kitchen.list.key() });
+      },
     }),
   );
 }
