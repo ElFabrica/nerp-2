@@ -35,7 +35,7 @@ export function CheckoutPage({ subdomain }: CheckoutProps) {
     isFreeShippingApplied,
     catalogSettings,
     onCheckout,
-    purchase,
+    isCheckoutPending,
     router,
     cartItems,
     user,
@@ -108,7 +108,7 @@ export function CheckoutPage({ subdomain }: CheckoutProps) {
             freeShippingEnabled={catalogSettings?.freeShippingEnabled}
             freeShippingMinValue={catalogSettings?.freeShippingMinValue}
             onConfirm={onCheckout}
-            isLoading={purchase.isPending}
+            isLoading={isCheckoutPending}
             isDisabled={
               availablePaymentMethods?.length === 0 ||
               availableDeliveryMethods?.length === 0

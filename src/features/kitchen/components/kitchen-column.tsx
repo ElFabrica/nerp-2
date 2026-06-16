@@ -73,7 +73,7 @@ export function KitchenColumn({
         )}
       </div>
 
-      <ScrollArea className="h-[calc(100vh-18rem)] px-2 py-2">
+      <ScrollArea className="h-[calc(100vh-18rem)] px-2 py-2 [&>[data-slot=scroll-area-viewport]>div]:!block">
         <SortableContext
           items={orders.map((o) => o.id)}
           strategy={verticalListSortingStrategy}

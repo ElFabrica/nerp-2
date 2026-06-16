@@ -3,6 +3,11 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useNow, formatElapsed } from "@/hooks/use-elapsed";
 import { cn } from "@/lib/utils";
 import {
@@ -110,10 +115,17 @@ export function OrderCard({
           <GripVertical className="size-4" />
         </button>
 
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">
-            Mesa {order.tableNumber} · {order.dishName}
-          </p>
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <p className="block w-full truncate text-sm font-semibold">
+                Mesa {order.tableNumber} · {order.dishName}
+              </p>
+            </TooltipTrigger>
+            <TooltipContent>
+              Mesa {order.tableNumber} · {order.dishName}
+            </TooltipContent>
+          </Tooltip>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <Badge className={cn("gap-1", style.badge)}>

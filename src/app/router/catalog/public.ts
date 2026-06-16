@@ -1,5 +1,6 @@
 import { base } from "@/app/middlewares/base";
 import {
+  CatalogOperationMode,
   CatalogSortOrder,
   DeliveryMethod,
   FreightChargeType,
@@ -61,6 +62,7 @@ export const publicSettingsCatalog = base
         freeShippingEnabled: z.boolean(),
         deliverySpecialInfo: z.string().nullable(),
         cnpj: z.string().nullable(),
+        operationMode: z.enum(CatalogOperationMode),
       }),
     }),
   )
