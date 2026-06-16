@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import Link from "next/link";
 import { ProductsTable } from "./products-table";
 import { useConstructUrl } from "@/hooks/use-construct-url";
@@ -41,7 +41,13 @@ export function ProductsContainer() {
           </p>
         </div>
 
-        <div>
+        <div className="flex items-center gap-2">
+          <Button size={"sm"} variant={"outline"} asChild>
+            <Link href={"/produtos/importar"}>
+              <Upload className="size-4" />
+              Importar
+            </Link>
+          </Button>
           <Button size={"sm"} asChild>
             <Link href={"/produtos/novo"}>
               <Plus className="size-4" />

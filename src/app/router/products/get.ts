@@ -3,7 +3,7 @@ import { base } from "@/app/middlewares/base";
 import prisma from "@/lib/db";
 import { ProductUnit } from "@/generated/prisma/enums";
 import z from "zod";
-import { Decimal } from "@prisma/client/runtime/client";
+import type { Decimal } from "@prisma/client/runtime/client";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 
 // Helper para converter Decimals em números
@@ -66,13 +66,13 @@ export const getProduct = base
   .input(
     z.object({
       id: z.string(),
-    })
+    }),
   )
   .output(
     z.object({
       product: productOutputSchema,
       stockMovements: z.array(stockMovementOutputSchema),
-    })
+    }),
   )
   .handler(async ({ input, errors, context }) => {
     const product = await prisma.product.findFirst({

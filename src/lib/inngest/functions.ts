@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { deliver } from "@/lib/sync-deliver";
-import { inngest, syncNasaRequested } from "./client";
+import { runProductImport } from "@/features/products/server/import-runner";
+import { inngest, productImportRequested, syncNasaRequested } from "./client";
 
 /**
  * Entrega event-driven da SyncOutbox (NERP → NASA).
@@ -54,4 +55,42 @@ export const syncNasaDelivery = inngest.createFunction(
   },
 );
 
-export const functions = [syncNasaDelivery];
+/**
+ * Importação de produtos via planilha (CSV/XLSX).
+ *
+ * Disparada por `products/import.requested`. Processa o arquivo num único
+ * `step.run` — `runProductImport` faz importação parcial (erros por linha não
+ * abortam o lote), então o step só falha em erros de infraestrutura (S3/DB), que
+ * o Inngest reagenda com backoff. Como o step é memoizado quando bem-sucedido,
+ * ele não reexecuta após concluir. `onFailure` marca o registro como `FAILED`.
+ */
+export const productImportProcess = inngest.createFunction(
+  {
+    id: "product-import-process",
+    triggers: [productImportRequested],
+    retries: 2,
+    concurrency: { limit: 5 },
+    onFailure: async ({ event, error }) => {
+      const { importId } = event.data.event.data;
+      await prisma.productImport
+        .update({
+          where: { id: importId },
+          data: {
+            status: "FAILED",
+            completedAt: new Date(),
+          },
+        })
+        .catch(() => {});
+      console.error(`[product-import] falha em ${importId}:`, error);
+    },
+  },
+  async ({ event, step }) => {
+    const { importId } = event.data;
+
+    await step.run("process-import", () => runProductImport(importId));
+
+    return { importId, done: true };
+  },
+);
+
+export const functions = [syncNasaDelivery, productImportProcess];

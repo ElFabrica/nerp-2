@@ -24,7 +24,7 @@ export function Header() {
                 className="flex items-center space-x-2"
               >
                 <h2 className="font-bold">
-                  ERP <span className="text-yellow-500">Limas</span>
+                  <span className="text-yellow-500">N</span>ERP
                 </h2>
               </Link>
 

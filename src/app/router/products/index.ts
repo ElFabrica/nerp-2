@@ -4,6 +4,8 @@ import { duplicateProduct } from "./duplicate";
 import { getProduct } from "./get";
 import { listProducts } from "./list";
 import { updateProduct } from "./update";
+import { createImport } from "./import/create";
+import { getImport } from "./import/get";
 
 export const productsRoutes = {
   list: listProducts,
@@ -12,4 +14,8 @@ export const productsRoutes = {
   update: updateProduct,
   delete: deleteProduct,
   duplicate: duplicateProduct,
+  import: {
+    create: createImport,
+    get: getImport,
+  },
 };

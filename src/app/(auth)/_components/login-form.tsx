@@ -64,7 +64,7 @@ export function LoginForm({
         onError: () => {
           toast.error("Erro ao realizar login");
         },
-      }
+      },
     );
   };
 
@@ -72,6 +72,7 @@ export function LoginForm({
     await authClient.signIn.social({
       provider: "google",
       callbackURL: redirectTo,
+      newUserCallbackURL: "/create-organization",
     });
   };
 

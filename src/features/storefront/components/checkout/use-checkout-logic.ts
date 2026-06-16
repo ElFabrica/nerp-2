@@ -56,6 +56,18 @@ export function useCheckoutLogic(subdomain: string) {
     }),
   );
 
+  const kitchenPurchase = useMutation(
+    orpc.checkout.kitchenCheckout.mutationOptions({
+      onSuccess: () => {
+        clearOrganizationCart();
+        router.push("/checkout/sucesso");
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    }),
+  );
+
   const availablePaymentMethods = useMemo(() => {
     return catalogSettings?.paymentMethodSettings.filter(
       (method) => method in paymentMethodsConfig,
@@ -230,16 +242,31 @@ export function useCheckoutLogic(subdomain: string) {
     setTimeout(() => router.push("/"), 2000);
   };
 
-  const onCheckout = () =>
+  const isKitchenMode = catalogSettings?.operationMode === "KITCHEN";
+
+  const onCheckout = () => {
+    const products = productsOfCart?.map((item) => ({
+      id: item.id.toString(),
+      quantity: findAndConvertQuantity(item.id),
+    }));
+
+    if (isKitchenMode) {
+      kitchenPurchase.mutate({
+        domain: subdomain,
+        products,
+        customerId: user?.id || "",
+        notes: observations.trim() || undefined,
+      });
+      return;
+    }
+
     purchase.mutate({
       domain: subdomain,
-      products: productsOfCart?.map((item) => ({
-        id: item.id.toString(),
-        quantity: findAndConvertQuantity(item.id),
-      })),
+      products,
       customerId: user?.id || "",
       email: user?.email || "",
     });
+  };
 
   return {
     deliveryMethod,
@@ -261,6 +288,8 @@ export function useCheckoutLogic(subdomain: string) {
     handleConfirmOrder,
     onCheckout,
     purchase,
+    isKitchenMode,
+    isCheckoutPending: purchase.isPending || kitchenPurchase.isPending,
     router,
     userHasHydrated,
     user,

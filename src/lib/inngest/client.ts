@@ -36,3 +36,16 @@ export const inngest = new Inngest({
 export const syncNasaRequested = eventType("sync/nasa.requested", {
   schema: staticSchema<SyncRequestedData>(),
 });
+
+/**
+ * Importação de produtos via planilha (CSV/XLSX).
+ *
+ * Disparado por `products.import.create` após o upload do arquivo ao S3 e a
+ * criação da linha `ProductImport`. Carrega apenas o `importId`; a função
+ * `productImportProcess` busca o registro, baixa o arquivo e processa em lotes.
+ */
+export type ProductImportRequestedData = { importId: string };
+
+export const productImportRequested = eventType("products/import.requested", {
+  schema: staticSchema<ProductImportRequestedData>(),
+});

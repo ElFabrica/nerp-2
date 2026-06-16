@@ -1,6 +1,7 @@
 import { SaleStatus } from "@/generated/prisma/enums";
 import prisma from "@/lib/db";
-import { AsaasCheckoutEventType } from "@/schemas/assas";
+import { createKitchenOrdersFromSale } from "@/lib/kitchen/create-orders-from-sale";
+import type { AsaasCheckoutEventType } from "@/schemas/assas";
 import { NextResponse } from "next/server";
 
 /**
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     }
 
     switch (body.event) {
-      case "CHECKOUT_PAID":
+      case "CHECKOUT_PAID": {
         if (!body.checkout.externalReference.split("-")[0]) {
           throw new Error("Customer ID is required");
         }
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
 
         const subtotal = items.reduce(
           (acc, item) => acc + item.quantity * item.value,
-          0
+          0,
         );
 
         const total = subtotal;
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
 
         const saleNumber = lastSale?.saleNumber ? lastSale.saleNumber + 1 : 1;
 
-        await prisma.sale.create({
+        const sale = await prisma.sale.create({
           data: {
             organizationId: organization.id,
             customerId: customer.id,
@@ -117,7 +118,19 @@ export async function POST(req: Request) {
           },
         });
 
+        // Envia o pedido à cozinha quando o catálogo está no modo KITCHEN.
+        // Falha aqui não deve derrubar o webhook (a venda já foi criada).
+        try {
+          await createKitchenOrdersFromSale(sale.id);
+        } catch (kitchenError) {
+          console.error(
+            "Erro ao enviar pedido à cozinha (Asaas):",
+            kitchenError,
+          );
+        }
+
         break;
+      }
       default:
         console.warn("⚠️ Evento não tratado:", body.event);
     }

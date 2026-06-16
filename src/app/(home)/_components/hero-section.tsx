@@ -30,7 +30,7 @@ export default function HeroSection() {
               </p>
 
               <Button asChild size="lg">
-                <Link href="#">
+                <Link href="/login">
                   <span className="btn-label">Começar agora</span>
                 </Link>
               </Button>

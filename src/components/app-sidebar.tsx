@@ -19,12 +19,14 @@ import {
 import {
   Box,
   Building,
+  ChefHat,
   ChevronDown,
   ChevronsUpDown,
   GalleryVerticalEnd,
   LayoutDashboard,
   LogOut,
   Package,
+  Plus,
   ShoppingCart,
   Store,
   Tag,
@@ -46,7 +48,7 @@ import { authClient } from "@/lib/auth-client";
 import { Skeleton } from "./ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useEffect, useState } from "react";
-import { ActiveOrganization } from "@/lib/auth-types";
+import type { ActiveOrganization } from "@/lib/auth-types";
 import Image from "next/image";
 import {
   Collapsible,
@@ -76,6 +78,11 @@ const navigation = [
     name: "Frente de caixa",
     href: "/vendas",
     icon: ShoppingCart,
+  },
+  {
+    name: "Cozinha",
+    href: "/cozinha",
+    icon: ChefHat,
   },
   {
     name: "Estoque",
@@ -172,7 +179,7 @@ export function AppSidebar() {
                                     asChild
                                     className={cn(
                                       pathname === child.href &&
-                                        "bg-sidebar-accent text-sidebar-accent-foreground"
+                                        "bg-sidebar-accent text-sidebar-accent-foreground",
                                     )}
                                   >
                                     <Link href={child.href}>
@@ -195,7 +202,7 @@ export function AppSidebar() {
                       tooltip={item.name}
                       className={cn(
                         pathname.startsWith(item.href) &&
-                          "bg-sidebar-accent text-sidebar-accent-foreground"
+                          "bg-sidebar-accent text-sidebar-accent-foreground",
                       )}
                       asChild
                     >
@@ -428,16 +435,16 @@ function OrgMenu() {
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            {/* <DropdownMenuItem className="gap-2 p-2 cursor-pointer" asChild>
+            <DropdownMenuItem className="gap-2 p-2 cursor-pointer" asChild>
               <Link href="/create-organization">
                 <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                   <Plus className="size-4" />
                 </div>
                 <div className="text-muted-foreground font-medium">
-                  Adicionar empresa
+                  Criar nova empresa
                 </div>
               </Link>
-            </DropdownMenuItem> */}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

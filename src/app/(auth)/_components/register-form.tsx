@@ -78,7 +78,7 @@ export function RegisterForm({
         onError: () => {
           toast.error("Erro ao criar conta");
         },
-      }
+      },
     );
   };
 
@@ -86,6 +86,7 @@ export function RegisterForm({
     await authClient.signIn.social({
       provider: "google",
       callbackURL: successPath,
+      newUserCallbackURL: "/create-organization",
     });
   };
 

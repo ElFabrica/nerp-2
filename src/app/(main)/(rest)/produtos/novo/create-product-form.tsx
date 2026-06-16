@@ -22,7 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useCategory } from "@/context/category/hooks/use-categories";
 import { ProductUnit } from "@/generated/prisma/enums";
-import { ProductSchema, ProductType } from "@/schemas/product";
+import { ProductSchema, type ProductType } from "@/schemas/product";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

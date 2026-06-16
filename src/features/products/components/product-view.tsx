@@ -64,7 +64,7 @@ export function ProductView({ history }: { history: StockHistory[] }) {
       input: {
         id: params.id,
       },
-    })
+    }),
   );
 
   const { onOpen } = useProductModal();
@@ -306,7 +306,7 @@ export function ProductView({ history }: { history: StockHistory[] }) {
                     ? Number(
                         ((product.salePrice - product.costPrice) /
                           product.costPrice) *
-                          100
+                          100,
                       ).toFixed(0) + "%"
                     : "0%"}
                 </p>

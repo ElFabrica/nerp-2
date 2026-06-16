@@ -1,6 +1,7 @@
 import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import {
+  CatalogOperationMode,
   CatalogSortOrder,
   DeliveryMethod,
   FreightChargeType,
@@ -25,6 +26,7 @@ export const updateSettingsCatalog = base
       showPrices: z.boolean().optional(),
       showStock: z.boolean().optional(),
       sortOrder: z.enum(CatalogSortOrder).optional(),
+      operationMode: z.enum(CatalogOperationMode).optional(),
       allowOrders: z.boolean().optional(),
       whatsappNumber: z.string().optional(),
       showWhatsapp: z.boolean().optional(),

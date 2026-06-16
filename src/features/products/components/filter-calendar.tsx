@@ -8,8 +8,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarIcon, X } from "lucide-react";
-import { ReactNode, useMemo, useState } from "react";
-import { DateRange } from "react-day-picker";
+import { type ReactNode, useMemo, useState } from "react";
+import type { DateRange } from "react-day-picker";
 import dayjs from "dayjs";
 import { pt } from "react-day-picker/locale";
 import { useQueryState } from "nuqs";
@@ -32,7 +32,7 @@ export function CalendarFilter({ children }: CalendarFilterProps) {
   }, [dateInit, dateEnd]);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
-    initialDateRange
+    initialDateRange,
   );
 
   const handleApply = () => {
@@ -103,7 +103,7 @@ export function CalendarFilter({ children }: CalendarFilterProps) {
             <>
               <span className="hidden sm:block text-sm text-muted-foreground">
                 {`${dayjs(dateInit).format("DD/MM/YYYY")} - ${dayjs(
-                  dateEnd
+                  dateEnd,
                 ).format("DD/MM/YYYY")}`}
               </span>
             </>
