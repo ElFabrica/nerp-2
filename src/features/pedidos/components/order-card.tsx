@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,6 +45,8 @@ interface OrderCardProps {
   nextColumn: KitchenColumn | null;
   // coluna terminal (isFinal); alvo da ação direta "Entregue". null se a org não tiver
   finalColumn?: KitchenColumn | null;
+  // coluna inicial (isInitial) não mostra atalho "Entregue".
+  isInitialColumn?: boolean;
   // quando true, é só o "fantasma" do DragOverlay (sem listeners/sortable)
   overlay?: boolean;
 }
@@ -52,6 +55,7 @@ export function OrderCard({
   order,
   nextColumn,
   finalColumn = null,
+  isInitialColumn = false,
   overlay = false,
 }: OrderCardProps) {
   const move = useMutationMoveKitchenOrder();
@@ -116,10 +120,13 @@ export function OrderCard({
         </button>
 
         <div className="min-w-0 flex-1 overflow-hidden">
+          <p className="text-base font-bold leading-tight tracking-tight">
+            Mesa {order.tableNumber}
+          </p>
           <Tooltip>
             <TooltipTrigger asChild>
-              <p className="block w-full truncate text-sm font-semibold">
-                Mesa {order.tableNumber} · {order.dishName}
+              <p className="mt-0.5 block w-full truncate text-xs font-medium text-muted-foreground">
+                {order.dishName}
               </p>
             </TooltipTrigger>
             <TooltipContent>
@@ -127,18 +134,28 @@ export function OrderCard({
             </TooltipContent>
           </Tooltip>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <Badge className={cn("gap-1", style.badge)}>
-              <Clock className="size-3" />
-              {formatElapsed(order.createdAt, refTime)}
-            </Badge>
-            <Badge variant="outline">
-              ~{order.estimatedMinutes ?? DEFAULT_PREP_MINUTES} min
-            </Badge>
-            {urgency !== "normal" && (
-              <Badge className={style.badge}>{style.label}</Badge>
-            )}
-          </div>
+          {order.attendantName && (
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Avatar className="size-5">
+                {order.attendantPhoto && (
+                  <AvatarImage
+                    src={order.attendantPhoto}
+                    alt={order.attendantName}
+                  />
+                )}
+                <AvatarFallback className="text-[10px]">
+                  {order.attendantName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="truncate">{order.attendantName}</span>
+            </div>
+          )}
+
+          {order.notes && (
+            <p className="mt-1.5 whitespace-pre-wrap break-words rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground">
+              {order.notes}
+            </p>
+          )}
         </div>
 
         {/* Menu de ações no canto superior direito (não inicia o arraste). */}
@@ -188,21 +205,52 @@ export function OrderCard({
         </Button>
       )}
 
-      {/* Ação direta: marca como entregue movendo o card p/ a coluna final. */}
-      {finalColumn && order.columnId !== finalColumn.id && (
-        <Button
-          type="button"
-          size="sm"
-          className="w-full justify-center"
-          disabled={move.isPending}
-          onClick={() =>
-            move.mutate({ id: order.id, toColumnId: finalColumn.id })
-          }
+      <div className="flex min-w-0 items-center gap-1 text-[10px]">
+        <Badge
+          className={cn(
+            "shrink-0 gap-0.5 px-1.5 py-0 text-[10px] leading-4",
+            style.badge,
+          )}
         >
-          <CheckCheck className="size-3.5" />
-          Entregue
-        </Button>
-      )}
+          <Clock className="size-2.5" />
+          {formatElapsed(order.createdAt, refTime)}
+        </Badge>
+        <Badge
+          variant="outline"
+          className="shrink-0 px-1.5 py-0 text-[10px] leading-4"
+        >
+          ~{order.estimatedMinutes ?? DEFAULT_PREP_MINUTES}m
+        </Badge>
+        {urgency !== "normal" && (
+          <Badge
+            className={cn(
+              "min-w-0 truncate px-1.5 py-0 text-[10px] leading-4",
+              style.badge,
+            )}
+          >
+            {style.label}
+          </Badge>
+        )}
+      </div>
+
+      {/* Ação direta: marca como entregue movendo o card p/ a coluna final.
+          Sempre no rodapé do card; não aparece na coluna inicial. */}
+      {finalColumn &&
+        order.columnId !== finalColumn.id &&
+        !isInitialColumn && (
+          <Button
+            type="button"
+            size="sm"
+            className="mt-auto w-full justify-center"
+            disabled={move.isPending}
+            onClick={() =>
+              move.mutate({ id: order.id, toColumnId: finalColumn.id })
+            }
+          >
+            <CheckCheck className="size-3.5" />
+            Entregue
+          </Button>
+        )}
     </Card>
   );
 }

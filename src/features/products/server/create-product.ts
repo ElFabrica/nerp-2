@@ -28,6 +28,7 @@ export interface CreateProductInput {
   isActive?: boolean;
   isFeatured?: boolean;
   trackStock?: boolean;
+  prepTimeMinutes?: number;
 }
 
 /**
@@ -105,6 +106,7 @@ export async function createProductForOrg(
       isActive: input.isActive ?? true,
       isFeatured: input.isFeatured ?? false,
       trackStock: input.trackStock ?? true,
+      prepTimeMinutes: input.prepTimeMinutes,
     },
   });
 

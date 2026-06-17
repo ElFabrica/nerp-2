@@ -37,7 +37,12 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/fornecedores") ||
     pathname.startsWith("/catalogo") ||
     pathname.startsWith("/relatórios") ||
-    pathname.startsWith("/configurações")
+    pathname.startsWith("/configurações") ||
+    pathname.startsWith("/registrar-pedido") ||
+    pathname.startsWith("/pedido-cliente") ||
+    pathname.startsWith("/pedidos") ||
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/colaboradores")
   ) {
     return NextResponse.next();
   }

@@ -27,10 +27,12 @@ import {
   LogOut,
   Package,
   Plus,
+  Settings,
   ShoppingCart,
   Store,
   Tag,
   TrendingUp,
+  UserCircle2,
   UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,6 +47,9 @@ import {
 } from "./ui/dropdown-menu";
 import { usePathname, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { orpc } from "@/lib/orpc";
+import { hasFullAccess } from "@/lib/permissions";
+import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "./ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useEffect, useState } from "react";
@@ -59,16 +64,24 @@ import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const navigation = [
+const navigation: Array<{
+  name: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  permission?: string;
+  children?: Array<{ name: string; href: string; icon: typeof LayoutDashboard }>;
+}> = [
   {
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    permission: "dashboard",
   },
   {
     name: "Produtos",
     href: "/produtos",
     icon: Package,
+    permission: "produtos",
     children: [
       { name: "Produtos", href: "/produtos", icon: Package },
       { name: "Categorias", href: "/produtos/categorias", icon: Tag },
@@ -78,16 +91,19 @@ const navigation = [
     name: "Frente de caixa",
     href: "/vendas",
     icon: ShoppingCart,
+    permission: "vendas",
   },
   {
     name: "Pedidos",
     href: "/pedidos",
     icon: ChefHat,
+    permission: "pedidos",
   },
   {
     name: "Estoque",
     href: "/estoque",
     icon: Box,
+    permission: "estoque",
     children: [
       {
         name: "Movimentações",
@@ -110,6 +126,13 @@ const navigation = [
     name: "Clientes",
     href: "/clientes",
     icon: UsersIcon,
+    permission: "clientes",
+  },
+  {
+    name: "Colaborador",
+    href: "/colaboradores",
+    icon: UserCircle2,
+    permission: "colaboradores",
   },
   // {
   //   name: "Fornecedores",
@@ -120,6 +143,13 @@ const navigation = [
     name: "Catálogo Online",
     href: "/catalogo",
     icon: Store,
+    permission: "catalogo",
+  },
+  {
+    name: "Configurações",
+    href: "/configuracoes",
+    icon: Settings,
+    permission: "configuracoes",
   },
   // {
   //   name: "Relatórios",
@@ -137,6 +167,19 @@ export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Permissões do member ativo: filtra os itens do menu para que cada usuário
+  // veja apenas o que tem acesso. Owner/Admin sempre veem tudo.
+  const { data: currentMember } = useQuery(
+    orpc.members.getCurrent.queryOptions({ input: {} }),
+  );
+  const fullAccess = hasFullAccess(currentMember?.role);
+  const allowedPermissions = new Set(currentMember?.permissions ?? []);
+  const visibleNavigation = navigation.filter((item) => {
+    if (!item.permission) return true;
+    if (fullAccess) return true;
+    return allowedPermissions.has(item.permission);
+  });
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -148,7 +191,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <ScrollArea className="flex-1">
               <SidebarMenu>
-                {navigation.map((item) => {
+                {visibleNavigation.map((item) => {
                   // const isActive = pathname === item.href;
                   const hasChildren = item.children && item.children.length > 0;
 

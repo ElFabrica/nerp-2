@@ -9,8 +9,13 @@ export type KitchenOrder = {
   columnId: string;
   tableNumber: string;
   dishName: string;
+  notes: string | null;
   estimatedMinutes: number | null;
   position: number;
+  attendantId: string | null;
+  attendantName: string | null;
+  attendantPhoto: string | null;
+  createdByName: string | null;
   createdAt: string;
   columnEnteredAt: string;
   archivedAt: string | null;

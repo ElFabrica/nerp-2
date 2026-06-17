@@ -31,6 +31,7 @@ model User {
   createdStockMovements StockMovement[] @relation("CreatedStockMovements")
   createdPurchases      Purchase[]      @relation("CreatedPurchases")
   createdKitchenOrders  KitchenOrder[]  @relation("CreatedKitchenOrders")
+  kitchenEventsActed    KitchenOrderEvent[] @relation("KitchenEventsByUser")
 
   @@index([email])
   @@map("user")
@@ -154,6 +155,8 @@ model Organization {
   stockMovements          StockMovement[]
   kitchenColumns          KitchenColumn[]
   kitchenOrders           KitchenOrder[]
+  kitchenOrderEvents      KitchenOrderEvent[]
+  collaborators           Collaborator[]
   catalogSettings         CatalogSettings?
   financialAccounts       FinancialAccount[]
   transactions            Transaction[]
@@ -179,6 +182,7 @@ model Member {
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   role           String       @default("member")
+  permissions    String[]     @default([]) // chaves de páginas liberadas; owner/admin ignoram
   createdAt      DateTime     @default(now())
 
   @@unique([organizationId, userId])
@@ -692,6 +696,10 @@ model KitchenOrder {
   estimatedMinutes Int? // Snapshot do tempo de preparo na criação
   position         Int           @default(0) // Ordem do card dentro da coluna
   notes            String?
+  // Atendente (Collaborator) responsável pelo pedido
+  attendantId      String? // FK opcional para sobreviver ao soft-delete do colaborador
+  attendantName    String? // Snapshot do nome no momento do pedido
+  attendantPhoto   String? // Snapshot da foto no momento do pedido
   // Timestamps
   createdAt        DateTime      @default(now())
   columnEnteredAt  DateTime      @default(now()) // Quando entrou na coluna atual (tempo decorrido + auto-hide)
@@ -702,12 +710,80 @@ model KitchenOrder {
   column           KitchenColumn @relation(fields: [columnId], references: [id], onDelete: Restrict)
   product          Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
   createdBy        User?         @relation("CreatedKitchenOrders", fields: [createdById], references: [id])
+  attendant        Collaborator? @relation(fields: [attendantId], references: [id], onDelete: SetNull)
+  events           KitchenOrderEvent[]
 
   @@index([organizationId, columnId])
   @@index([columnId, position])
   @@index([createdAt])
   @@index([organizationId, archivedAt])
   @@map("kitchen_orders")
+}
+
+model Collaborator {
+  id             String              @id @default(cuid())
+  organizationId String
+  name           String
+  role           String // Função/cargo (ex: "Garçom", "Caixa")
+  photoUrl       String?
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kitchenOrders  KitchenOrder[]
+  kitchenEvents  KitchenOrderEvent[]
+
+  @@index([organizationId, isActive])
+  @@index([organizationId, name])
+  @@map("collaborators")
+}
+
+enum KitchenOrderEventType {
+  CREATED // Pedido criado
+  MOVED // Movido entre colunas intermediárias
+  READY // Marcado como pronto (entrou em coluna showOnTv)
+  DELIVERED // Entregue ao cliente (entrou em coluna isFinal)
+  ARCHIVED // Arquivado (sai do board)
+  RESTORED // Restaurado do arquivo
+}
+
+enum KitchenOrderActorType {
+  USER // Usuário Better Auth (admin/cozinha)
+  WAITER // Colaborador via kiosk público
+  SYSTEM // Ação automática
+}
+
+model KitchenOrderEvent {
+  id                  String                @id @default(cuid())
+  organizationId      String
+  orderId             String? // null se o pedido for removido depois
+  type                KitchenOrderEventType
+  // Snapshots do pedido (para o histórico continuar legível mesmo após edições)
+  tableNumber         String
+  dishName            String
+  fromColumnId        String?
+  fromColumnName      String?
+  toColumnId          String?
+  toColumnName        String?
+  attendantId         String?
+  attendantName       String?
+  attendantPhoto      String?
+  // Autor da ação
+  actorType           KitchenOrderActorType
+  actorUserId         String?
+  actorCollaboratorId String?
+  actorName           String
+  actorPhotoUrl       String?
+  createdAt           DateTime              @default(now())
+
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order            KitchenOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  actorUser        User?         @relation("KitchenEventsByUser", fields: [actorUserId], references: [id])
+  actorCollaborator Collaborator? @relation(fields: [actorCollaboratorId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([orderId, createdAt])
+  @@map("kitchen_order_events")
 }
 
 // ============================================

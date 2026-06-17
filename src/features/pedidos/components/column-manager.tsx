@@ -1,6 +1,9 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { KitchenHistory } from "./kitchen-history";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -27,7 +30,14 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, Plus, Settings2, Trash2 } from "lucide-react";
+import {
+  Archive,
+  GripVertical,
+  Pencil,
+  Plus,
+  Settings2,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import type { KitchenColumn } from "../hooks/use-pedidos-columns";
 import {
@@ -39,7 +49,17 @@ import {
 import { ColumnForm } from "./column-form";
 import { ColumnIcon } from "./column-icon";
 
-export function ColumnManager() {
+interface ColumnManagerProps {
+  archivedOpen: boolean;
+  onToggleArchived: () => void;
+  archivedCount: number;
+}
+
+export function ColumnManager({
+  archivedOpen,
+  onToggleArchived,
+  archivedCount,
+}: ColumnManagerProps) {
   const [open, setOpen] = useState(false);
   // a gestão mostra também as colunas escondidas (includeInactive: true)
   const { data: columns = [] } = useQueryKitchenColumns(true);
@@ -76,38 +96,77 @@ export function ColumnManager() {
       <SheetTrigger asChild>
         <Button variant="outline">
           <Settings2 className="size-4" />
-          Gerenciar colunas
+          Gerenciar
         </Button>
       </SheetTrigger>
       <SheetContent className="flex w-full flex-col gap-0 sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Gerenciar colunas</SheetTitle>
+          <SheetTitle>Gerenciar</SheetTitle>
           <SheetDescription>
-            Renomeie, recolorir, reordene (arraste), esconda ou apague as
-            colunas do kanban.
+            Colunas do kanban e histórico de alterações.
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-          >
-            <SortableContext
-              items={items.map((c) => c.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="flex flex-col gap-2 py-2">
-                {items.map((column) => (
-                  <ColumnRow key={column.id} column={column} />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </div>
+        <Tabs
+          defaultValue="colunas"
+          className="flex flex-1 flex-col overflow-hidden px-4"
+        >
+          <TabsList className="w-full">
+            <TabsTrigger value="colunas" className="flex-1">
+              Colunas
+            </TabsTrigger>
+            <TabsTrigger value="historico" className="flex-1">
+              Históricos
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="border-t p-4">
+          <TabsContent
+            value="colunas"
+            className="flex-1 overflow-y-auto data-[state=inactive]:hidden"
+          >
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={onDragEnd}
+            >
+              <SortableContext
+                items={items.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="flex flex-col gap-2 py-2">
+                  {items.map((column) => (
+                    <ColumnRow key={column.id} column={column} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </TabsContent>
+
+          <TabsContent
+            value="historico"
+            className="flex-1 overflow-y-auto data-[state=inactive]:hidden"
+          >
+            <KitchenHistory />
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex flex-col gap-2 border-t p-4">
+          <Button
+            type="button"
+            variant={archivedOpen ? "secondary" : "outline"}
+            aria-pressed={archivedOpen}
+            onClick={() => {
+              onToggleArchived();
+              setOpen(false);
+            }}
+            className={cn("w-full justify-center")}
+          >
+            <Archive className="size-4" />
+            Arquivados
+            {archivedCount > 0 && (
+              <Badge variant="secondary">{archivedCount}</Badge>
+            )}
+          </Button>
           <ColumnForm>
             <Button className="w-full">
               <Plus className="size-4" />

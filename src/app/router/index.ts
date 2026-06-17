@@ -8,6 +8,8 @@ import { dashboardRoutes } from "./dashboard";
 import { customerRoutes } from "./customer";
 import { SalesRoutes } from "./sales";
 import { kitchenRoutes } from "./pedidos";
+import { collaboratorRoutes } from "./collaborators";
+import { memberRoutes } from "./members";
 
 export const router = {
   products: productsRoutes,
@@ -20,4 +22,6 @@ export const router = {
   customer: customerRoutes,
   sales: SalesRoutes,
   kitchen: kitchenRoutes,
+  collaborators: collaboratorRoutes,
+  members: memberRoutes,
 };

@@ -27,8 +27,13 @@ export const listKitchenOrders = base
         columnId: z.string(),
         tableNumber: z.string(),
         dishName: z.string(),
+        notes: z.string().nullable(),
         estimatedMinutes: z.number().nullable(),
         position: z.number(),
+        attendantId: z.string().nullable(),
+        attendantName: z.string().nullable(),
+        attendantPhoto: z.string().nullable(),
+        createdByName: z.string().nullable(),
         createdAt: z.string(),
         columnEnteredAt: z.string(),
         archivedAt: z.string().nullable(),
@@ -50,6 +55,9 @@ export const listKitchenOrders = base
       orderBy: input.archived
         ? { archivedAt: "desc" }
         : [{ column: { position: "asc" } }, { position: "asc" }],
+      include: {
+        createdBy: { select: { name: true } },
+      },
     });
 
     return orders.map(serializeOrder);
@@ -60,8 +68,13 @@ function serializeOrder(order: {
   columnId: string;
   tableNumber: string;
   dishName: string;
+  notes: string | null;
   estimatedMinutes: number | null;
   position: number;
+  attendantId: string | null;
+  attendantName: string | null;
+  attendantPhoto: string | null;
+  createdBy: { name: string } | null;
   createdAt: Date;
   columnEnteredAt: Date;
   archivedAt: Date | null;
@@ -71,8 +84,13 @@ function serializeOrder(order: {
     columnId: order.columnId,
     tableNumber: order.tableNumber,
     dishName: order.dishName,
+    notes: order.notes,
     estimatedMinutes: order.estimatedMinutes,
     position: order.position,
+    attendantId: order.attendantId,
+    attendantName: order.attendantName,
+    attendantPhoto: order.attendantPhoto,
+    createdByName: order.createdBy?.name ?? null,
     createdAt: order.createdAt.toISOString(),
     columnEnteredAt: order.columnEnteredAt.toISOString(),
     archivedAt: order.archivedAt ? order.archivedAt.toISOString() : null,

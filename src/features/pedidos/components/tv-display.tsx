@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { Beer, BellRing, Loader2, TriangleAlert } from "lucide-react";
@@ -72,6 +73,21 @@ export function TvDisplay({ orgSlug }: { orgSlug: string }) {
                 <p className="mt-3 text-2xl font-medium text-white sm:text-3xl">
                   {order.dishName}
                 </p>
+                {order.attendantName && (
+                  <div className="mt-4 flex items-center justify-center text-zinc-300">
+                    <Avatar className="size-10">
+                      {order.attendantPhoto && (
+                        <AvatarImage
+                          src={order.attendantPhoto}
+                          alt={order.attendantName}
+                        />
+                      )}
+                      <AvatarFallback className="bg-emerald-800 text-emerald-100">
+                        {order.attendantName[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                )}
               </div>
             ))}
           </div>

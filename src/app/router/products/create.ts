@@ -53,6 +53,9 @@ export const createProduct = base
       trackStock: z.boolean().default(true),
       allowNegative: z.boolean().default(false),
       showOnCatalog: z.boolean().default(true),
+
+      // KDS — tempo médio de preparo (min)
+      prepTimeMinutes: z.number().int().positive().optional(),
     }),
   )
   // .output(

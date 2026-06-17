@@ -22,8 +22,14 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { Archive, ExternalLink, LayoutGrid } from "lucide-react";
+import { ExternalLink, LayoutGrid, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { useKanbanDnd } from "../hooks/use-kanban-dnd";
 import { useMutationCreateColumn } from "../hooks/use-pedidos-columns";
 import { useQueryKitchenColumns } from "../hooks/use-pedidos-columns";
@@ -32,7 +38,6 @@ import {
   useQueryKitchenOrders,
 } from "../hooks/use-pedidos";
 import type { KitchenOrder } from "../hooks/use-pedidos";
-import { Badge } from "@/components/ui/badge";
 import { ArchivedOrders } from "./archived-orders";
 import { ColumnManager } from "./column-manager";
 import { KitchenColumn } from "./pedidos-column";
@@ -57,6 +62,25 @@ export function KitchenBoard() {
   // alterna a área de arquivados (botão de toggle no header)
   const [showArchived, setShowArchived] = useState(false);
 
+  // busca livre por mesa, atendente, prato (produto) ou usuário que criou.
+  const [search, setSearch] = useState("");
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredOrders = useMemo(() => {
+    if (!normalizedSearch) return orders;
+    return orders.filter((order) => {
+      const haystack = [
+        order.tableNumber,
+        order.dishName,
+        order.attendantName,
+        order.createdByName,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }, [orders, normalizedSearch]);
+
   // slug da org ativa p/ a URL pública da TV
   const [orgSlug, setOrgSlug] = useState<string | null>(null);
   useEffect(() => {
@@ -65,16 +89,17 @@ export function KitchenBoard() {
     });
   }, []);
 
-  // agrupa pedidos por columnId (a lista já vem ordenada por position)
+  // agrupa pedidos por columnId (a lista já vem ordenada por position).
+  // Aplica o filtro de busca aqui — colunas vazias renderizam o empty-state.
   const ordersByColumn = useMemo(() => {
     const map = new Map<string, KitchenOrder[]>();
-    for (const order of orders) {
+    for (const order of filteredOrders) {
       const list = map.get(order.columnId);
       if (list) list.push(order);
       else map.set(order.columnId, [order]);
     }
     return map;
-  }, [orders]);
+  }, [filteredOrders]);
 
   const countIn = (columnId: string) =>
     ordersByColumn.get(columnId)?.length ?? 0;
@@ -111,34 +136,51 @@ export function KitchenBoard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Pedidos"
-        description="Registre os pedidos e acompanhe o preparo no kanban."
-      >
-        <ColumnManager />
+      <PageHeader title="Pedidos">
+        <ColumnManager
+          archivedOpen={showArchived}
+          onToggleArchived={() => setShowArchived((v) => !v)}
+          archivedCount={archivedOrders.length}
+        />
         <Button variant="outline" onClick={openTvPanel} disabled={!orgSlug}>
           <ExternalLink className="size-4" />
           Abrir painel da TV
         </Button>
-        <Button
-          variant={showArchived ? "secondary" : "outline"}
-          aria-pressed={showArchived}
-          onClick={() => setShowArchived((v) => !v)}
-        >
-          <Archive className="size-4" />
-          Arquivados
-          {archivedOrders.length > 0 && (
-            <Badge variant="secondary">{archivedOrders.length}</Badge>
-          )}
-        </Button>
         <RegisterOrderForm />
       </PageHeader>
 
+      <InputGroup>
+        <InputGroupAddon>
+          <Search className="size-4" />
+        </InputGroupAddon>
+        <InputGroupInput
+          placeholder="Buscar por mesa, garçom, produto ou usuário..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        {search && (
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              type="button"
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Limpar busca"
+              onClick={() => setSearch("")}
+            >
+              <X className="size-3.5" />
+            </InputGroupButton>
+          </InputGroupAddon>
+        )}
+      </InputGroup>
+
       {loadingColumns ? (
-        <div className="flex gap-4">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-96 w-72 shrink-0" />
-          ))}
+        <div className="grid h-[calc(100vh-14rem)] grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr] xl:grid-cols-[9fr_7fr]">
+          <Skeleton className="h-full w-full" />
+          <div className="flex flex-col gap-4">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-1/3 w-full" />
+            ))}
+          </div>
         </div>
       ) : columns.length === 0 ? (
         <Empty>
@@ -168,26 +210,50 @@ export function KitchenBoard() {
           onDragCancel={onDragCancel}
           onDragEnd={onDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {columns.map((column, index) => {
-              // próxima coluna por position p/ o botão de avançar (fallback)
-              const nextColumn =
-                !column.isFinal && index < columns.length - 1
-                  ? columns[index + 1]
-                  : null;
-              return (
-                <KitchenColumn
-                  key={column.id}
-                  column={column}
-                  orders={ordersByColumn.get(column.id) ?? []}
-                  nextColumn={nextColumn}
-                  finalColumn={finalColumn}
-                  isDragActive={activeId != null}
-                  activeColumnId={activeColumnId}
-                />
-              );
-            })}
-          </div>
+          {/* Layout iFood: primeira coluna (entrada) à esquerda em destaque,
+              demais empilhadas à direita de cima para baixo. */}
+          {(() => {
+            const mainColumn = columns[0];
+            const sideColumns = columns.slice(1);
+            const indexOf = (id: string) =>
+              columns.findIndex((c) => c.id === id);
+            const nextOf = (column: (typeof columns)[number]) => {
+              const idx = indexOf(column.id);
+              return !column.isFinal && idx < columns.length - 1
+                ? columns[idx + 1]
+                : null;
+            };
+            return (
+              <div className="grid h-[calc(100vh-14rem)] grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr] xl:grid-cols-[9fr_7fr]">
+                {mainColumn && (
+                  <KitchenColumn
+                    key={mainColumn.id}
+                    column={mainColumn}
+                    orders={ordersByColumn.get(mainColumn.id) ?? []}
+                    nextColumn={nextOf(mainColumn)}
+                    finalColumn={finalColumn}
+                    isDragActive={activeId != null}
+                    activeColumnId={activeColumnId}
+                    variant="main"
+                  />
+                )}
+                <div className="flex min-h-0 flex-col gap-4">
+                  {sideColumns.map((column) => (
+                    <KitchenColumn
+                      key={column.id}
+                      column={column}
+                      orders={ordersByColumn.get(column.id) ?? []}
+                      nextColumn={nextOf(column)}
+                      finalColumn={finalColumn}
+                      isDragActive={activeId != null}
+                      activeColumnId={activeColumnId}
+                      variant="side"
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Fantasma do card durante o arraste. dropAnimation desativado: o
               movimento entre colunas é otimista (react-query), então o card já

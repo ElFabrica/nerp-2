@@ -4,6 +4,13 @@ import { listKitchenOrders } from "./list";
 import { moveKitchenOrder } from "./move";
 import { setArchivedKitchenOrder } from "./archive";
 import { publicReadyOrders } from "./public-ready";
+import { publicCollaborators } from "./public-collaborators";
+import { publicCreate } from "./public-create";
+import { publicListForAttendant } from "./public-list";
+import { publicProducts } from "./public-products";
+import { publicCustomerOrder } from "./public-customer";
+import { publicDeliver } from "./public-deliver";
+import { listKitchenOrderEvents } from "./events-list";
 import { listKitchenColumns } from "./columns/list";
 import { createKitchenColumn } from "./columns/create";
 import { updateKitchenColumn } from "./columns/update";
@@ -17,6 +24,13 @@ export const kitchenRoutes = {
   move: moveKitchenOrder,
   setArchived: setArchivedKitchenOrder,
   publicReady: publicReadyOrders,
+  publicCollaborators,
+  publicCreate,
+  publicListForAttendant,
+  publicProducts,
+  publicCustomerOrder,
+  publicDeliver,
+  events: { list: listKitchenOrderEvents },
   columns: {
     list: listKitchenColumns,
     create: createKitchenColumn,

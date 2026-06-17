@@ -1,7 +1,12 @@
 import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import {
+  KitchenOrderActorType,
+  KitchenOrderEventType,
+} from "@/generated/prisma/enums";
 import prisma from "@/lib/db";
+import { recordOrderEvent } from "@/lib/pedidos/order-events";
 import z from "zod";
 
 export const createKitchenOrder = base
@@ -43,11 +48,11 @@ export const createKitchenOrder = base
     const column = input.columnId
       ? await prisma.kitchenColumn.findFirst({
           where: { id: input.columnId, organizationId },
-          select: { id: true },
+          select: { id: true, name: true },
         })
       : await prisma.kitchenColumn.findFirst({
           where: { organizationId, isInitial: true },
-          select: { id: true },
+          select: { id: true, name: true },
         });
 
     if (!column) {
@@ -75,6 +80,26 @@ export const createKitchenOrder = base
         position: (last._max.position ?? -1) + 1,
         columnEnteredAt: new Date(),
         createdById: context.session.userId,
+      },
+    });
+
+    await recordOrderEvent({
+      type: KitchenOrderEventType.CREATED,
+      order: {
+        id: order.id,
+        organizationId: order.organizationId,
+        tableNumber: order.tableNumber,
+        dishName: order.dishName,
+        attendantId: order.attendantId,
+        attendantName: order.attendantName,
+        attendantPhoto: order.attendantPhoto,
+      },
+      toColumn: { id: column.id, name: column.name },
+      actor: {
+        type: KitchenOrderActorType.USER,
+        userId: context.user.id,
+        name: context.user.name ?? context.user.email ?? "Usuário",
+        photoUrl: context.user.image ?? null,
       },
     });
 

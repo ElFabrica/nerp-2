@@ -96,6 +96,7 @@ export function CreateProductForm() {
         isFeatured: data.isFeatured,
         trackStock: data.trackStock,
         barcode: data.barcode,
+        prepTimeMinutes: data.prepTimeMinutes,
       },
       {
         onSuccess: () => {
@@ -278,6 +279,41 @@ export function CreateProductForm() {
                   )}
                 />
               </div>
+
+              <Controller
+                name="prepTimeMinutes"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="prepTimeMinutes">
+                      Tempo de preparo médio (min)
+                    </FieldLabel>
+                    <Input
+                      id="prepTimeMinutes"
+                      type="number"
+                      min={1}
+                      step={1}
+                      placeholder="Ex.: 15"
+                      disabled={isCreating}
+                      value={field.value ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value === ""
+                            ? undefined
+                            : Number(e.target.value),
+                        )
+                      }
+                    />
+                    <FieldDescription>
+                      Usado para estimar o tempo dos pedidos na cozinha. Quando
+                      vazio, o KDS usa 15 min como padrão.
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError>{fieldState.error?.message}</FieldError>
+                    )}
+                  </Field>
+                )}
+              />
             </CardContent>
           </Card>
 

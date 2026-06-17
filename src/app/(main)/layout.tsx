@@ -21,7 +21,12 @@ export default async function Layout({
         <AppHeader />
         <main className="flex-1 overflow-y-auto">
           {org ? (
-            <div className="container mx-auto p-6 space-y-6">
+            // Sem `container mx-auto`: o conteúdo ocupa toda a largura
+            // disponível do <main>. Quando a sidebar colapsa em modo icon,
+            // o <main> ganha largura via flex-1 do SidebarProvider e o
+            // conteúdo se expande junto. Páginas que precisam de largura
+            // contida (forms longos) podem usar max-w-* localmente.
+            <div className="w-full p-6 space-y-6">
               <BreadcrumbNav />
               {children}
             </div>

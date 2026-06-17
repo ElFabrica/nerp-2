@@ -37,6 +37,7 @@ const productOutputSchema = z.object({
   isActive: z.boolean(),
   isFeatured: z.boolean(),
   trackStock: z.boolean(),
+  prepTimeMinutes: z.number().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

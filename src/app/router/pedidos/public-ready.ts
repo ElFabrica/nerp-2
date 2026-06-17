@@ -21,6 +21,8 @@ export const publicReadyOrders = base
           id: z.string(),
           tableNumber: z.string(),
           dishName: z.string(),
+          attendantName: z.string().nullable(),
+          attendantPhoto: z.string().nullable(),
           readyAt: z.string(),
         }),
       ),
@@ -53,6 +55,8 @@ export const publicReadyOrders = base
         id: order.id,
         tableNumber: order.tableNumber,
         dishName: order.dishName,
+        attendantName: order.attendantName,
+        attendantPhoto: order.attendantPhoto,
         readyAt: order.columnEnteredAt.toISOString(),
       })),
     };

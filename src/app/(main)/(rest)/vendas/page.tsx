@@ -1,6 +1,8 @@
 import { SalesPage } from "@/features/sales/components/sales";
+import { requirePermission } from "@/lib/auth-utils";
 
-export default function Page() {
+export default async function Page() {
+  await requirePermission("vendas");
   return (
     <>
       <SalesPage />
