@@ -46,6 +46,11 @@ export function LoginForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = safeRedirect(searchParams.get("redirectTo"));
+  // Param cru (sem o default /dashboard) para repassar ao link de cadastro.
+  const rawRedirect = searchParams.get("redirectTo");
+  const signUpHref = rawRedirect
+    ? `/cadastro?redirectTo=${encodeURIComponent(rawRedirect)}`
+    : "/cadastro";
   const form = useForm<LoginSchema>({
     resolver: zodResolver(loginSchema),
   });
@@ -142,7 +147,7 @@ export function LoginForm({
               <Field>
                 <Button type="submit">Login</Button>
                 <FieldDescription className="text-center">
-                  Não tem uma conta? <Link href="/cadastro">Cadastrar</Link>
+                  Não tem uma conta? <Link href={signUpHref}>Cadastrar</Link>
                 </FieldDescription>
               </Field>
             </FieldGroup>

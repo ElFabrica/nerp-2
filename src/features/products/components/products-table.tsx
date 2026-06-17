@@ -73,6 +73,10 @@ export interface Categories {
 interface ProductTableProps {
   products: Product[];
   categories: Categories[];
+  hasNextPage?: boolean;
+  hasPreviousPage?: boolean;
+  onNextPage?: () => void;
+  onPreviousPage?: () => void;
 }
 
 function getStockStatus(current: number, min: number) {
@@ -92,7 +96,14 @@ function getStockStatus(current: number, min: number) {
   };
 }
 
-export function ProductsTable({ products, categories }: ProductTableProps) {
+export function ProductsTable({
+  products,
+  categories,
+  hasNextPage,
+  hasPreviousPage,
+  onNextPage,
+  onPreviousPage,
+}: ProductTableProps) {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -106,9 +117,7 @@ export function ProductsTable({ products, categories }: ProductTableProps) {
     orpc.products.duplicate.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({
-          queryKey: orpc.products.list.queryKey({
-            input: { page: 1, pageSize: 10 },
-          }),
+          queryKey: orpc.products.list.key(),
         });
 
         toast.success(`Produto duplicado com sucesso!`);
@@ -318,22 +327,23 @@ export function ProductsTable({ products, categories }: ProductTableProps) {
 
         <div className="mt-4 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Mostrando {filteredProducts.length} de {products.length} produtos
+            Mostrando {filteredProducts.length} produtos
           </p>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!hasPreviousPage}
+              onClick={onPreviousPage}
+            >
               Anterior
             </Button>
-            <Button variant="outline" size="sm">
-              1
-            </Button>
-            <Button variant="outline" size="sm">
-              2
-            </Button>
-            <Button variant="outline" size="sm">
-              3
-            </Button>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!hasNextPage}
+              onClick={onNextPage}
+            >
               Próximo
             </Button>
           </div>

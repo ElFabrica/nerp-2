@@ -32,7 +32,8 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { ArrowLeft, Save, Upload, X } from "lucide-react";
+import { ArrowLeft, Plus, Save, Upload, X } from "lucide-react";
+import { CreateStockMovimentModal } from "@/components/modals/stock/create-stock-moviment-modal";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -433,9 +434,33 @@ export function EditProductForm() {
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
-                    <Label htmlFor="currentStock">Estoque Atual</Label>
+                    <div className="flex h-7 items-center justify-between">
+                      <Label htmlFor="currentStock">Estoque Atual</Label>
+                      <CreateStockMovimentModal
+                        product={{ id: product.id, name: product.name }}
+                        onSuccess={() =>
+                          queryClient.invalidateQueries({
+                            queryKey: orpc.products.get.queryKey({
+                              input: { id: productId },
+                            }),
+                          })
+                        }
+                        trigger={
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-7"
+                            aria-label="Adicionar estoque"
+                          >
+                            <Plus className="size-4" />
+                          </Button>
+                        }
+                      />
+                    </div>
                     <Input
                       id="currentStock"
+                      key={product.currentStock}
                       type="number"
                       defaultValue={product.currentStock}
                       disabled
@@ -445,9 +470,12 @@ export function EditProductForm() {
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="minStock">
-                      Estoque Mínimo <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex h-7 items-center">
+                      <Label htmlFor="minStock">
+                        Estoque Mínimo{" "}
+                        <span className="text-destructive">*</span>
+                      </Label>
+                    </div>
                     <Input
                       id="minStock"
                       type="number"

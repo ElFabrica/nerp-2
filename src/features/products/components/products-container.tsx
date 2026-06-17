@@ -7,7 +7,9 @@ import { ProductsTable } from "./products-table";
 import { useConstructUrl } from "@/hooks/use-construct-url";
 import { useQueryState } from "nuqs";
 import dayjs from "dayjs";
+import { useEffect } from "react";
 import { useProducts } from "@/features/products/hooks/use-products";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { useCategory } from "@/context/category/hooks/use-categories";
 
 export function ProductsContainer() {
@@ -18,15 +20,28 @@ export function ProductsContainer() {
   const [dateInit] = useQueryState("date_init");
   const [dateEnd] = useQueryState("date_end");
 
-  const { data: products } = useProducts({
+  const { cursor, hasPrevious, goNext, goPrevious, reset } =
+    useCursorPagination();
+
+  // Volta para a primeira página sempre que algum filtro mudar.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: as deps de filtro são intencionais — reiniciam a paginação ao mudar qualquer filtro.
+  useEffect(() => {
+    reset();
+  }, [category, sku, minValue, maxValue, dateInit, dateEnd, reset]);
+
+  const {
+    data: products,
+    nextCursor,
+    hasNextPage,
+  } = useProducts({
     category: category?.split(",").map((c) => c.trim()),
     sku: sku ?? undefined,
     minValue: minValue ?? undefined,
     maxValue: maxValue ?? undefined,
     dateInit: dateInit ? dayjs(dateInit).startOf("day").toDate() : undefined,
     dateEnd: dateEnd ? dayjs(dateEnd).endOf("day").toDate() : undefined,
-    page: 1,
-    pageSize: 10,
+    cursor,
+    limit: 10,
   });
 
   const { categories } = useCategory();
@@ -63,6 +78,10 @@ export function ProductsContainer() {
           image: product.image ? useConstructUrl(product.image) : "",
         }))}
         categories={categories}
+        hasNextPage={hasNextPage}
+        hasPreviousPage={hasPrevious}
+        onNextPage={() => goNext(nextCursor)}
+        onPreviousPage={goPrevious}
       />
     </div>
   );

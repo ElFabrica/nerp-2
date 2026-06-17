@@ -16,6 +16,7 @@ import { createKitchenColumn } from "./columns/create";
 import { updateKitchenColumn } from "./columns/update";
 import { deleteKitchenColumn } from "./columns/delete";
 import { reorderKitchenColumns } from "./columns/reorder";
+import { waiterJoinLink } from "./waiter-join-link";
 
 export const kitchenRoutes = {
   list: listKitchenOrders,
@@ -23,6 +24,7 @@ export const kitchenRoutes = {
   createMany: createKitchenOrderMany,
   move: moveKitchenOrder,
   setArchived: setArchivedKitchenOrder,
+  waiterJoinLink,
   publicReady: publicReadyOrders,
   publicCollaborators,
   publicCreate,

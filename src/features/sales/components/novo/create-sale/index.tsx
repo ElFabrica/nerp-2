@@ -8,7 +8,7 @@ import { useProducts } from "@/features/products/hooks/use-products";
 import { PersonType } from "@/schemas/customer";
 import { ProductSection } from "./product-section";
 import { CartSale } from "./cart-sale";
-import { useQueryState } from "nuqs";
+import { useCursorPagination } from "@/hooks/use-cursor-pagination";
 import { SaleFormData, saleSchema } from "./schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -88,16 +88,17 @@ export default function CreateSalePage() {
 
   // Barcode scanner
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [page] = useQueryState("page");
+  const { cursor, pageIndex, hasPrevious, goNext, goPrevious } =
+    useCursorPagination();
 
   const {
     hasNextPage,
-    hasPreviousPage,
     data: products,
+    nextCursor,
     isLoading,
   } = useProducts({
-    page: Number(page) || 1,
-    pageSize: 12,
+    cursor,
+    limit: 12,
   });
 
   const mutation = useMutationCreateSale();
@@ -266,7 +267,10 @@ export default function CreateSalePage() {
         {/* Left Side - Product Selection */}
         <ProductSection
           hasNextPage={hasNextPage}
-          hasPreviousPage={hasPreviousPage}
+          hasPreviousPage={hasPrevious}
+          pageIndex={pageIndex}
+          onNextPage={() => goNext(nextCursor)}
+          onPreviousPage={goPrevious}
           searchInputRef={searchInputRef}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}

@@ -178,7 +178,7 @@ export function Footer({ settings }: FooterProps) {
         className="text-center text-xs mt-10 opacity-70"
         style={{ color: contrastColor }}
       >
-        ©2025. Shopping Limas. Todos os direitos reservados.
+        ©2025. nERP. Todos os direitos reservados.
       </div>
     </footer>
   );
