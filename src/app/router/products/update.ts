@@ -48,6 +48,9 @@ export const updateProduct = base
       isFeatured: z.boolean().default(false),
       trackStock: z.boolean().default(true),
       allowNegative: z.boolean().default(false),
+
+      // KDS — tempo médio de preparo (min)
+      prepTimeMinutes: z.number().int().positive().nullable().optional(),
     }),
   )
   .output(
@@ -96,6 +99,7 @@ export const updateProduct = base
         isActive: input.isActive,
         isFeatured: input.isFeatured,
         trackStock: input.trackStock,
+        prepTimeMinutes: input.prepTimeMinutes,
       },
     });
 

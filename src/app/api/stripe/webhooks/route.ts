@@ -2,7 +2,7 @@ import type { Stripe } from "stripe";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import prisma from "@/lib/db";
-import { createKitchenOrdersFromSale } from "@/lib/kitchen/create-orders-from-sale";
+import { createKitchenOrdersFromSale } from "@/lib/pedidos/create-orders-from-sale";
 import type { ExpandedLineItem } from "@/context/checkout/types";
 import { SaleStatus } from "@/generated/prisma/enums";
 

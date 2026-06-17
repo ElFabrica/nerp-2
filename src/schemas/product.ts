@@ -37,6 +37,9 @@ export const ProductSchema = z.object({
   isActive: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
   trackStock: z.boolean().optional(),
+
+  // KDS — tempo médio de preparo (min)
+  prepTimeMinutes: z.number().int().positive().optional(),
 });
 
 export type ProductType = z.infer<typeof ProductSchema>;

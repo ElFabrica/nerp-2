@@ -69,6 +69,12 @@ const productSchema = z.object({
   trackStock: z.boolean(),
   showOnCatalog: z.boolean(),
   thumbnail: z.string().optional(),
+  prepTimeMinutes: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .or(z.literal(NaN).transform(() => undefined)),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -125,6 +131,7 @@ export function EditProductForm() {
       isActive: product.isActive,
       trackStock: product.trackStock,
       showOnCatalog: product.isFeatured, // Mapping isFeatured to showOnCatalog
+      prepTimeMinutes: product.prepTimeMinutes ?? undefined,
     },
   });
 
@@ -339,6 +346,37 @@ export function EditProductForm() {
                     )}
                   />
                 </div>
+
+                <Controller
+                  name="prepTimeMinutes"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="prepTimeMinutes">
+                        Tempo de preparo médio (min)
+                      </FieldLabel>
+                      <Input
+                        id="prepTimeMinutes"
+                        type="number"
+                        min={1}
+                        step={1}
+                        placeholder="Ex.: 15"
+                        disabled={isUpdating}
+                        value={field.value ?? ""}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value === ""
+                              ? undefined
+                              : Number(e.target.value),
+                          )
+                        }
+                      />
+                      {fieldState.invalid && (
+                        <FieldError>{fieldState.error?.message}</FieldError>
+                      )}
+                    </Field>
+                  )}
+                />
               </CardContent>
             </Card>
 
