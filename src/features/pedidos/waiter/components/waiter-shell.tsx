@@ -2,6 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { constructUrl } from "@/hooks/use-construct-url";
 import { LogOut } from "lucide-react";
 import type { WaiterIdentity } from "../hooks/use-waiter-session";
 
@@ -17,7 +18,10 @@ export function WaiterShell({ orgName, identity, onSwitchIdentity }: Props) {
       <div className="flex min-w-0 items-center gap-3">
         <Avatar className="size-10">
           {identity.photoUrl && (
-            <AvatarImage src={identity.photoUrl} alt={identity.name} />
+            <AvatarImage
+              src={constructUrl(identity.photoUrl)}
+              alt={identity.name}
+            />
           )}
           <AvatarFallback>
             {identity.name[0]?.toUpperCase()}

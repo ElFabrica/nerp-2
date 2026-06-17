@@ -53,14 +53,25 @@ interface ColumnManagerProps {
   archivedOpen: boolean;
   onToggleArchived: () => void;
   archivedCount: number;
+  // Estado controlado (opcional) — permite abrir a partir do dropdown do header.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  // Renderiza o botão "Gerenciar" próprio. No header desativamos isso e o
+  // trigger passa a ficar no ButtonGroup / dropdown.
+  showTrigger?: boolean;
 }
 
 export function ColumnManager({
   archivedOpen,
   onToggleArchived,
   archivedCount,
+  open: openProp,
+  onOpenChange,
+  showTrigger = true,
 }: ColumnManagerProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   // a gestão mostra também as colunas escondidas (includeInactive: true)
   const { data: columns = [] } = useQueryKitchenColumns(true);
 
@@ -93,12 +104,14 @@ export function ColumnManager({
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="outline">
-          <Settings2 className="size-4" />
-          Gerenciar
-        </Button>
-      </SheetTrigger>
+      {showTrigger && (
+        <SheetTrigger asChild>
+          <Button variant="outline">
+            <Settings2 className="size-4" />
+            Gerenciar
+          </Button>
+        </SheetTrigger>
+      )}
       <SheetContent className="flex w-full flex-col gap-0 sm:max-w-md">
         <SheetHeader>
           <SheetTitle>Gerenciar</SheetTitle>

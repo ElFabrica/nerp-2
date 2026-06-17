@@ -96,9 +96,12 @@ export function KitchenColumn({
         )}
       </div>
 
+      {/* No mobile (sem altura fixa do board) a coluna cresce com o conteúdo,
+          então limitamos a ~4 cards antes de rolar dentro da própria coluna.
+          No desktop (lg+) o board tem altura fixa e a coluna usa flex-1. */}
       <ScrollArea
         className={cn(
-          "flex-1 min-h-0 px-2 py-2 [&>[data-slot=scroll-area-viewport]>div]:!block",
+          "min-h-56 max-h-128 flex-1 px-2 py-2 lg:min-h-0 lg:max-h-none [&>[data-slot=scroll-area-viewport]>div]:block!",
         )}
       >
         <SortableContext

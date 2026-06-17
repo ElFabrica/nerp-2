@@ -2,6 +2,13 @@
 
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyContent,
@@ -22,7 +29,15 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { ExternalLink, LayoutGrid, Search, X } from "lucide-react";
+import {
+  ExternalLink,
+  LayoutGrid,
+  MoreVertical,
+  Plus,
+  Search,
+  Settings2,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   InputGroup,
@@ -61,6 +76,12 @@ export function KitchenBoard() {
 
   // alterna a área de arquivados (botão de toggle no header)
   const [showArchived, setShowArchived] = useState(false);
+
+  // Estado dos sheets controlados pelo header (ButtonGroup no desktop, dropdown
+  // de elipse vertical no mobile). Mantidos aqui p/ um único sheet de cada,
+  // acionável pelos dois layouts.
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   // busca livre por mesa, atendente, prato (produto) ou usuário que criou.
   const [search, setSearch] = useState("");
@@ -137,16 +158,71 @@ export function KitchenBoard() {
   return (
     <div className="space-y-6">
       <PageHeader title="Pedidos">
+        {/* Desktop: grupo de botões unidos. */}
+        <ButtonGroup className="hidden sm:flex">
+          <Button variant="outline" onClick={() => setManagerOpen(true)}>
+            <Settings2 className="size-4" />
+            Gerenciar
+          </Button>
+          <Button variant="outline" onClick={openTvPanel} disabled={!orgSlug}>
+            <ExternalLink className="size-4" />
+            Abrir painel da TV
+          </Button>
+          <Button onClick={() => setRegisterOpen(true)}>
+            <Plus className="size-4" />
+            Novo pedido
+          </Button>
+        </ButtonGroup>
+
+        {/* Mobile (sm): elipse vertical com as mesmas ações no dropdown.
+            Abrimos os sheets no próximo tick (setTimeout) p/ o menu terminar de
+            fechar antes — evita o pointer-events travado do Radix ao encadear
+            menu → dialog. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="sm:hidden"
+              aria-label="Ações de pedidos"
+            >
+              <MoreVertical className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => setTimeout(() => setManagerOpen(true), 0)}
+            >
+              <Settings2 className="size-4" />
+              Gerenciar
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={openTvPanel} disabled={!orgSlug}>
+              <ExternalLink className="size-4" />
+              Abrir painel da TV
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => setTimeout(() => setRegisterOpen(true), 0)}
+            >
+              <Plus className="size-4" />
+              Novo pedido
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Sheets controlados — sem trigger próprio; acionados pelos layouts acima. */}
         <ColumnManager
+          open={managerOpen}
+          onOpenChange={setManagerOpen}
+          showTrigger={false}
           archivedOpen={showArchived}
           onToggleArchived={() => setShowArchived((v) => !v)}
           archivedCount={archivedOrders.length}
         />
-        <Button variant="outline" onClick={openTvPanel} disabled={!orgSlug}>
-          <ExternalLink className="size-4" />
-          Abrir painel da TV
-        </Button>
-        <RegisterOrderForm />
+        <RegisterOrderForm
+          open={registerOpen}
+          onOpenChange={setRegisterOpen}
+          showTrigger={false}
+        />
       </PageHeader>
 
       <InputGroup>
@@ -224,7 +300,7 @@ export function KitchenBoard() {
                 : null;
             };
             return (
-              <div className="grid h-[calc(100vh-14rem)] grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr] xl:grid-cols-[9fr_7fr]">
+              <div className="grid grid-cols-1 gap-4 lg:h-[calc(100vh-14rem)] lg:grid-cols-[1fr_1fr] xl:grid-cols-[9fr_7fr]">
                 {mainColumn && (
                   <KitchenColumn
                     key={mainColumn.id}

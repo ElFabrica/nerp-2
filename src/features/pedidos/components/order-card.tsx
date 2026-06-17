@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { constructUrl } from "@/hooks/use-construct-url";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -139,7 +140,7 @@ export function OrderCard({
               <Avatar className="size-5">
                 {order.attendantPhoto && (
                   <AvatarImage
-                    src={order.attendantPhoto}
+                    src={constructUrl(order.attendantPhoto)}
                     alt={order.attendantName}
                   />
                 )}
