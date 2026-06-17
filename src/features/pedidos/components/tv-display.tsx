@@ -45,8 +45,8 @@ export function TvDisplay({ orgSlug }: { orgSlug: string }) {
   return (
     <div className="flex flex-1 flex-col">
       <header className="border-b border-zinc-800 px-8 py-6 text-center">
-        <h1 className="flex items-center justify-center gap-3 text-4xl font-bold sm:text-5xl">
-          <Beer className="size-10 text-amber-400" />
+        <h1 className="flex items-center justify-center gap-3 text-5xl font-bold sm:text-7xl">
+          <Beer className="size-14 text-amber-400 sm:size-16" />
           {orgName}
         </h1>
         <p className="mt-2 text-xl font-semibold tracking-widest text-emerald-400 sm:text-2xl">
@@ -67,7 +67,7 @@ export function TvDisplay({ orgSlug }: { orgSlug: string }) {
                 key={order.id}
                 className="rounded-2xl border border-emerald-600/40 bg-emerald-950/40 px-6 py-8 text-center"
               >
-                <p className="text-3xl font-bold text-emerald-300 sm:text-4xl">
+                <p className="text-3xl font-bold uppercase text-emerald-300 sm:text-7xl">
                   Mesa {order.tableNumber}
                 </p>
                 <p className="mt-3 text-2xl font-medium text-white sm:text-3xl">
