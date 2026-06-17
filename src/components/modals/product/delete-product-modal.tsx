@@ -27,11 +27,9 @@ export function DeleteProductModal() {
       onSuccess: (data) => {
         onClose();
         onSucess?.();
-        queryClient.invalidateQueries(
-          orpc.products.list.queryOptions({
-            input: { page: 1, pageSize: 10 },
-          }),
-        );
+        queryClient.invalidateQueries({
+          queryKey: orpc.products.list.key(),
+        });
         return toast.success(
           `Produto ${data.productName} excluído com sucesso`,
         );

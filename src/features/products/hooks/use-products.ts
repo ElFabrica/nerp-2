@@ -4,19 +4,21 @@ import { toast } from "sonner";
 
 interface UseProductsProps {
   category?: string[];
+  name?: string;
   sku?: string;
   minValue?: string;
   maxValue?: string;
   dateInit?: Date;
   dateEnd?: Date;
-  page?: number;
-  pageSize?: number;
+  cursor?: string;
+  limit?: number;
 }
 
 export function useProducts({
-  page = 1,
-  pageSize = 2,
+  cursor,
+  limit = 10,
   category,
+  name,
   sku,
   minValue,
   maxValue,
@@ -27,24 +29,22 @@ export function useProducts({
     orpc.products.list.queryOptions({
       input: {
         category,
+        name,
         sku,
         minValue,
         maxValue,
         dateInit,
         dateEnd,
-        page,
-        pageSize,
+        cursor,
+        limit,
       },
     }),
   );
   return {
     data: data?.products || [],
-    page: data?.page,
-    pageSize: data?.pageSize,
     totalCount: data?.totalCount,
-    totalPages: data?.totalPages,
-    hasNextPage: data?.hasNextPage,
-    hasPreviousPage: data?.hasPreviousPage,
+    nextCursor: data?.nextCursor ?? null,
+    hasNextPage: data?.hasNextPage ?? false,
     isLoading,
   };
 }
@@ -80,11 +80,9 @@ export const useCreateProduct = () => {
       onSuccess: () => {
         // router.push("/produtos");
 
-        queryClient.invalidateQueries(
-          orpc.products.list.queryOptions({
-            input: { page: 1, pageSize: 10 },
-          }),
-        );
+        queryClient.invalidateQueries({
+          queryKey: orpc.products.list.key(),
+        });
       },
       onError: (error) => {
         toast.error(error.message);

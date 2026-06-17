@@ -15,13 +15,14 @@ export const listProducts = base
   .input(
     z.object({
       category: z.array(z.string()).optional(),
+      name: z.string().optional(),
       sku: z.string().optional(),
       minValue: z.string().optional(),
       maxValue: z.string().optional(),
       dateInit: z.date().optional(),
       dateEnd: z.date().optional(),
-      page: z.number(),
-      pageSize: z.number(),
+      cursor: z.string().optional(),
+      limit: z.number(),
     }),
   )
   .output(
@@ -43,18 +44,54 @@ export const listProducts = base
           isActive: z.boolean(),
         }),
       ),
-      page: z.number(),
-      pageSize: z.number(),
       totalCount: z.number(),
-      totalPages: z.number(),
+      nextCursor: z.string().nullable(),
       hasNextPage: z.boolean(),
-      hasPreviousPage: z.boolean(),
     }),
   )
   .handler(async ({ context, input }) => {
-    const { page, pageSize } = input;
+    const { limit } = input;
 
     try {
+      const where = {
+        organizationId: context.org.id,
+        ...(input.category && {
+          category: {
+            slug: {
+              in: input.category,
+            },
+          },
+        }),
+        ...(input.name && {
+          name: {
+            contains: input.name,
+            mode: "insensitive" as const,
+          },
+        }),
+        ...(input.sku && {
+          sku: {
+            contains: input.sku,
+          },
+        }),
+        ...(input.minValue && {
+          salePrice: {
+            gte: Number(input.minValue) / 100,
+          },
+        }),
+        ...(input.maxValue && {
+          salePrice: {
+            lte: Number(input.maxValue) / 100,
+          },
+        }),
+        ...(input.dateInit &&
+          input.dateEnd && {
+            createdAt: {
+              gte: input.dateInit,
+              lte: input.dateEnd,
+            },
+          }),
+      };
+
       const [products, totalCount] = await Promise.all([
         prisma.product.findMany({
           select: {
@@ -76,79 +113,23 @@ export const listProducts = base
             isActive: true,
             thumbnail: true,
           },
-          skip: (input.page - 1) * input.pageSize,
-          take: input.pageSize,
-
-          where: {
-            organizationId: context.org.id,
-            ...(input.category && {
-              category: {
-                slug: {
-                  in: input.category,
-                },
-              },
-            }),
-            ...(input.sku && {
-              sku: {
-                contains: input.sku,
-              },
-            }),
-            ...(input.minValue && {
-              salePrice: {
-                gte: Number(input.minValue) / 100,
-              },
-            }),
-            ...(input.maxValue && {
-              salePrice: {
-                lte: Number(input.maxValue) / 100,
-              },
-            }),
-            ...(input.dateInit &&
-              input.dateEnd && {
-                createdAt: {
-                  gte: input.dateInit,
-                  lte: input.dateEnd,
-                },
-              }),
-          },
+          // Busca um item extra para saber se há próxima página.
+          take: limit + 1,
+          ...(input.cursor && {
+            cursor: { id: input.cursor },
+            skip: 1,
+          }),
+          orderBy: [{ name: "asc" }, { id: "desc" }],
+          where,
         }),
-        prisma.product.count({
-          where: {
-            organizationId: context.org.id,
-            ...(input.category && {
-              category: {
-                slug: {
-                  in: input.category,
-                },
-              },
-            }),
-            ...(input.sku && {
-              sku: {
-                contains: input.sku,
-              },
-            }),
-            ...(input.minValue && {
-              salePrice: {
-                gte: Number(input.minValue) / 100,
-              },
-            }),
-            ...(input.maxValue && {
-              salePrice: {
-                lte: Number(input.maxValue) / 100,
-              },
-            }),
-            ...(input.dateInit &&
-              input.dateEnd && {
-                createdAt: {
-                  gte: input.dateInit,
-                  lte: input.dateEnd,
-                },
-              }),
-          },
-        }),
+        prisma.product.count({ where }),
       ]);
 
-      const productList = products.map((product) => ({
+      const hasNextPage = products.length > limit;
+      const items = hasNextPage ? products.slice(0, limit) : products;
+      const nextCursor = hasNextPage ? items[items.length - 1].id : null;
+
+      const productList = items.map((product) => ({
         id: product.id,
         name: product.name,
         sku: product.sku ?? "",
@@ -163,18 +144,11 @@ export const listProducts = base
         isActive: product.isActive,
       }));
 
-      const totalPages = Math.ceil(totalCount / pageSize);
-      const hasNextPage = page < totalPages;
-      const hasPreviousPage = page > 1;
-
       return {
         products: productList,
-        page,
-        pageSize,
         totalCount,
-        totalPages,
+        nextCursor,
         hasNextPage,
-        hasPreviousPage,
       };
     } catch (error) {
       throw error;

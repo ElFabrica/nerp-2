@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useProducts } from "@/features/products/hooks/use-products";
+import { useDebouncedValue } from "@/utils/use-debouced";
 import { MovementType } from "@/generated/prisma/enums";
 
 import { orpc } from "@/lib/orpc";
@@ -98,20 +99,38 @@ const Types = [
 
 type CreateMovimentSchemaType = z.infer<typeof CreateMovimentSchema>;
 
-export function CreateStockMovimentModal() {
+type CreateStockMovimentModalProps = {
+  product?: { id: string; name: string };
+  trigger?: React.ReactNode;
+  onSuccess?: () => void;
+};
+
+export function CreateStockMovimentModal({
+  product,
+  trigger,
+  onSuccess,
+}: CreateStockMovimentModalProps = {}) {
   const queryClient = useQueryClient();
   const [openModal, setOpenModal] = useState(false);
   const [openProduct, setOpenProduct] = useState(false);
+  const [searchProduct, setSearchProduct] = useState("");
+  const [selectedProductName, setSelectedProductName] = useState(
+    product?.name ?? "",
+  );
+  const debouncedSearch = useDebouncedValue(searchProduct, 400);
   const form = useForm<CreateMovimentSchemaType>({
     resolver: zodResolver(CreateMovimentSchema),
     defaultValues: {
       type: MovementType.ENTRADA,
-      productId: "",
+      productId: product?.id ?? "",
       description: "",
     },
   });
 
-  const { data, isLoading } = useProducts({});
+  const { data, isLoading } = useProducts({
+    name: debouncedSearch,
+    limit: 20,
+  });
 
   const onSucessFinish = () => {
     queryClient.invalidateQueries({
@@ -122,9 +141,16 @@ export function CreateStockMovimentModal() {
         },
       }),
     });
-    form.reset();
+    form.reset({
+      type: MovementType.ENTRADA,
+      productId: product?.id ?? "",
+      description: "",
+    });
+    setSearchProduct("");
+    setSelectedProductName(product?.name ?? "");
     setOpenModal(false);
     toast.success("Movimentação registrada com sucesso");
+    onSuccess?.();
   };
 
   const onErrorFinish = (message: string) => {
@@ -135,14 +161,14 @@ export function CreateStockMovimentModal() {
     orpc.stocks.create.entry.mutationOptions({
       onSuccess: () => onSucessFinish(),
       onError: (error) => onErrorFinish(error.message),
-    })
+    }),
   );
 
   const onRegisterOutput = useMutation(
     orpc.stocks.create.output.mutationOptions({
       onSuccess: () => onSucessFinish(),
       onError: (error) => onErrorFinish(error.message),
-    })
+    }),
   );
 
   const onSubmit = (data: CreateMovimentSchemaType) => {
@@ -166,16 +192,24 @@ export function CreateStockMovimentModal() {
 
   useEffect(() => {
     if (!openModal) {
-      form.reset();
+      form.reset({
+        type: MovementType.ENTRADA,
+        productId: product?.id ?? "",
+        description: "",
+      });
+      setSearchProduct("");
+      setSelectedProductName(product?.name ?? "");
     }
-  }, [openModal, form.reset]);
+  }, [openModal, form.reset, product?.id, product?.name]);
 
   return (
     <Dialog open={openModal} onOpenChange={setOpenModal}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" /> Nova Movimentação
-        </Button>
+        {trigger ?? (
+          <Button size="sm">
+            <Plus className="size-4" /> Nova Movimentação
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -228,11 +262,10 @@ export function CreateStockMovimentModal() {
                         variant="outline"
                         role="combobox"
                         className="w-full justify-between"
-                        disabled={isRegisterLoading}
+                        disabled={isRegisterLoading || !!product}
                       >
                         {field.value ? (
-                          data.find((product) => product.id === field.value)
-                            ?.name
+                          selectedProductName
                         ) : (
                           <span className="text-muted-foreground text-sm">
                             Selecione um produto
@@ -245,8 +278,12 @@ export function CreateStockMovimentModal() {
                       className="p-0  w-[310px] sm:w-[440px]"
                       align="start"
                     >
-                      <Command>
-                        <CommandInput placeholder="Buscar produto..." />
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder="Buscar produto..."
+                          value={searchProduct}
+                          onValueChange={setSearchProduct}
+                        />
                         <CommandList>
                           <CommandEmpty>
                             {isLoading ? "Carregando..." : "Nenhum produto"}
@@ -260,6 +297,7 @@ export function CreateStockMovimentModal() {
                                   className="cursor-pointer"
                                   onSelect={() => {
                                     field.onChange(product.id);
+                                    setSelectedProductName(product.name);
                                     setOpenProduct(false);
                                   }}
                                 >
@@ -268,7 +306,7 @@ export function CreateStockMovimentModal() {
                                       "size-4",
                                       field.value === product.id
                                         ? "opacity-100"
-                                        : "opacity-0"
+                                        : "opacity-0",
                                     )}
                                   />
                                   {product.name}

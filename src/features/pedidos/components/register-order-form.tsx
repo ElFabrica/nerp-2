@@ -22,7 +22,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
-import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
@@ -92,17 +91,25 @@ export function RegisterOrderForm({
   const setOpen = onOpenChange ?? setInternalOpen;
   const createOrders = useMutationCreateKitchenOrders();
 
-  // QR code para o app do garçom: precisa do slug da org ativa + origin atual.
-  const [orgSlug, setOrgSlug] = useState<string | null>(null);
+  // QR code para o app do garçom: precisa do slug da org ativa + origin atual +
+  // um joinToken assinado (server-side) que permite a quem escaneia deslogado se
+  // cadastrar e entrar na org direto na área do garçom.
   const [origin, setOrigin] = useState("");
   useEffect(() => {
     if (typeof window !== "undefined") setOrigin(window.location.origin);
-    authClient.organization.getFullOrganization().then(({ data }) => {
-      if (data?.slug) setOrgSlug(data.slug);
-    });
   }, []);
+  const { data: joinLink } = useQuery(
+    orpc.kitchen.waiterJoinLink.queryOptions({ input: {} }),
+  );
   const waiterUrl =
-    orgSlug && origin ? `${origin}/registrar-pedido/${orgSlug}` : "";
+    joinLink && origin
+      ? `${origin}/registrar-pedido/${joinLink.slug}?joinToken=${joinLink.joinToken}`
+      : "";
+
+  const waiterDisplayUrl =
+    joinLink && origin
+      ? `${origin}/registrar-pedido/${joinLink.slug}?<joinToken=hash>`
+      : "";
 
   const copyWaiterUrl = async () => {
     if (!waiterUrl) return;
@@ -116,7 +123,7 @@ export function RegisterOrderForm({
 
   // Reusa a query de produtos existente p/ o select opcional.
   const { data: productsData } = useQuery(
-    orpc.products.list.queryOptions({ input: { page: 1, pageSize: 100 } }),
+    orpc.products.list.queryOptions({ input: { limit: 100 } }),
   );
   const products = productsData?.products ?? [];
 
@@ -218,9 +225,9 @@ export function RegisterOrderForm({
             <p className="text-xs text-muted-foreground">
               Escaneie para abrir o app do garçom
             </p>
-            {waiterUrl && (
-              <p className="break-all text-[10px] text-muted-foreground">
-                {waiterUrl}
+            {waiterDisplayUrl && (
+              <p className="break-all text-[10px] text-muted-foreground select-none">
+                {waiterDisplayUrl}
               </p>
             )}
             <Button

@@ -11,7 +11,6 @@ import {
   PaginationContent,
   PaginationItem,
 } from "@/components/ui/pagination";
-import { useQueryState } from "nuqs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -27,6 +26,9 @@ interface ProductSessionProps {
   setViewMode: (mode: ViewMode) => void;
   hasNextPage?: boolean;
   hasPreviousPage?: boolean;
+  pageIndex?: number;
+  onNextPage?: () => void;
+  onPreviousPage?: () => void;
   isLoading?: boolean;
 }
 
@@ -40,10 +42,11 @@ export function ProductSection({
   setViewMode,
   hasNextPage,
   hasPreviousPage,
+  pageIndex,
+  onNextPage,
+  onPreviousPage,
   isLoading,
 }: ProductSessionProps) {
-  const [page, setPage] = useQueryState("page");
-
   const previousIsDisabled = !hasPreviousPage;
   const nextIsDisabled = !hasNextPage;
 
@@ -178,19 +181,19 @@ export function ProductSection({
                 <Button
                   variant={"secondary"}
                   disabled={previousIsDisabled}
-                  onClick={() => setPage(String((Number(page) || 1) - 1))}
+                  onClick={onPreviousPage}
                 >
                   Anterior
                 </Button>
               </PaginationItem>
               <Button variant={"secondary"} disabled>
-                {page || 1}
+                {pageIndex ?? 1}
               </Button>
               <PaginationItem>
                 <Button
                   variant={"secondary"}
                   disabled={nextIsDisabled}
-                  onClick={() => setPage(String((Number(page) || 1) + 1))}
+                  onClick={onNextPage}
                 >
                   Próximo
                 </Button>

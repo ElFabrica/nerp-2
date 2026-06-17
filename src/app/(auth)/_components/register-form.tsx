@@ -86,7 +86,9 @@ export function RegisterForm({
     await authClient.signIn.social({
       provider: "google",
       callbackURL: successPath,
-      newUserCallbackURL: "/create-organization",
+      // Quando veio de um QR de garçom (redirectTo), o novo usuário Google deve
+      // cair na área do garçom — não na criação de org.
+      newUserCallbackURL: redirectTo ?? "/create-organization",
     });
   };
 
@@ -188,7 +190,16 @@ export function RegisterForm({
                   Entrar com Google
                 </Button>
                 <FieldDescription className="text-center">
-                  Já tem uma conta? <Link href="/login">Entrar</Link>
+                  Já tem uma conta?{" "}
+                  <Link
+                    href={
+                      redirectTo
+                        ? `/login?redirectTo=${encodeURIComponent(redirectTo)}`
+                        : "/login"
+                    }
+                  >
+                    Entrar
+                  </Link>
                 </FieldDescription>
               </Field>
             </FieldGroup>
