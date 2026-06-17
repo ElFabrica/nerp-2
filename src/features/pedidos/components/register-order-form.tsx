@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { useQueryCollaborators } from "@/features/collaborators/hooks/use-collaborators";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { constructUrl } from "@/hooks/use-construct-url";
 import { useMutationCreateKitchenOrders } from "../hooks/use-pedidos";
 
 const NO_PRODUCT = "__none__";
@@ -72,8 +73,23 @@ const emptyItem = {
   quantity: "1",
 };
 
-export function RegisterOrderForm() {
-  const [open, setOpen] = useState(false);
+interface RegisterOrderFormProps {
+  // Estado controlado (opcional) — permite abrir a partir do dropdown do header.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  // Renderiza o botão "Novo pedido" próprio. No header desativamos isso e o
+  // trigger passa a ficar no ButtonGroup / dropdown.
+  showTrigger?: boolean;
+}
+
+export function RegisterOrderForm({
+  open: openProp,
+  onOpenChange,
+  showTrigger = true,
+}: RegisterOrderFormProps = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const createOrders = useMutationCreateKitchenOrders();
 
   // QR code para o app do garçom: precisa do slug da org ativa + origin atual.
@@ -163,18 +179,20 @@ export function RegisterOrderForm() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button>
-          <Plus className="size-4" />
-          Novo pedido
-        </Button>
-      </SheetTrigger>
+      {showTrigger && (
+        <SheetTrigger asChild>
+          <Button>
+            <Plus className="size-4" />
+            Novo pedido
+          </Button>
+        </SheetTrigger>
+      )}
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Registrar pedidos</SheetTitle>
           <SheetDescription>
-            Adicione um ou mais pratos para a mesma mesa. Cada prato vira um card
-            na coluna inicial do kanban.
+            Adicione um ou mais pratos para a mesma mesa. Cada prato vira um
+            card na coluna inicial do kanban.
           </SheetDescription>
         </SheetHeader>
 
@@ -194,7 +212,7 @@ export function RegisterOrderForm() {
                   aria-label="QR para o app do garçom"
                 />
               ) : (
-                <div className="size-[140px] animate-pulse rounded bg-muted" />
+                <div className="size-35 animate-pulse rounded bg-muted" />
               )}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -266,7 +284,10 @@ export function RegisterOrderForm() {
                         <div className="flex items-center gap-2">
                           <Avatar className="size-5">
                             {c.photoUrl && (
-                              <AvatarImage src={c.photoUrl} alt={c.name} />
+                              <AvatarImage
+                                src={constructUrl(c.photoUrl)}
+                                alt={c.name}
+                              />
                             )}
                             <AvatarFallback className="text-[10px]">
                               {c.name[0]?.toUpperCase()}
@@ -333,7 +354,9 @@ export function RegisterOrderForm() {
                           <SelectValue placeholder="Sem produto" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={NO_PRODUCT}>Sem produto</SelectItem>
+                          <SelectItem value={NO_PRODUCT}>
+                            Sem produto
+                          </SelectItem>
                           {products.map((product) => (
                             <SelectItem key={product.id} value={product.id}>
                               {product.name}
@@ -402,11 +425,7 @@ export function RegisterOrderForm() {
         </form>
 
         <SheetFooter>
-          <Button
-            type="submit"
-            form="register-order-form"
-            disabled={isLoading}
-          >
+          <Button type="submit" form="register-order-form" disabled={isLoading}>
             {isLoading ? <Spinner /> : <Plus className="size-4" />}
             Registrar pedidos
           </Button>

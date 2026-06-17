@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { constructUrl } from "@/hooks/use-construct-url";
 import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { Beer, BellRing, Loader2, TriangleAlert } from "lucide-react";
@@ -78,7 +79,7 @@ export function TvDisplay({ orgSlug }: { orgSlug: string }) {
                     <Avatar className="size-10">
                       {order.attendantPhoto && (
                         <AvatarImage
-                          src={order.attendantPhoto}
+                          src={constructUrl(order.attendantPhoto)}
                           alt={order.attendantName}
                         />
                       )}

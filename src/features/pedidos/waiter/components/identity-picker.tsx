@@ -9,6 +9,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { constructUrl } from "@/hooks/use-construct-url";
 import { UsersIcon } from "lucide-react";
 import {
   useWaiterCollaborators,
@@ -67,7 +68,9 @@ export function IdentityPicker({ orgSlug, onPick }: Props) {
               className="flex flex-col items-center gap-2 rounded-2xl border bg-card p-4 text-center shadow-sm transition active:scale-[0.98] hover:bg-accent"
             >
               <Avatar className="size-16">
-                {c.photoUrl && <AvatarImage src={c.photoUrl} alt={c.name} />}
+                {c.photoUrl && (
+                  <AvatarImage src={constructUrl(c.photoUrl)} alt={c.name} />
+                )}
                 <AvatarFallback className="text-xl">
                   {c.name[0]?.toUpperCase()}
                 </AvatarFallback>

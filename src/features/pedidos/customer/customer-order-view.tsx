@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { constructUrl } from "@/hooks/use-construct-url";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -169,7 +170,7 @@ export function CustomerOrderView({ orderId }: Props) {
           <Avatar className="size-6">
             {data.attendantPhoto && (
               <AvatarImage
-                src={data.attendantPhoto}
+                src={constructUrl(data.attendantPhoto)}
                 alt={data.attendantName}
               />
             )}

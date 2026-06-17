@@ -13,6 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { constructUrl } from "@/hooks/use-construct-url";
 import {
   Table,
   TableBody,
@@ -82,7 +83,10 @@ export function CollaboratorsList() {
                       <div className="flex items-center gap-3">
                         <Avatar className="size-9">
                           {c.photoUrl && (
-                            <AvatarImage src={c.photoUrl} alt={c.name} />
+                            <AvatarImage
+                              src={constructUrl(c.photoUrl)}
+                              alt={c.name}
+                            />
                           )}
                           <AvatarFallback>
                             {c.name[0]?.toUpperCase()}

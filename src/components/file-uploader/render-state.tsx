@@ -4,7 +4,26 @@ import Image from "next/image";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 
-export function RenderEmptyState({ isDragActive }: { isDragActive: boolean }) {
+export function RenderEmptyState({
+  isDragActive,
+  circular,
+}: {
+  isDragActive: boolean;
+  circular?: boolean;
+}) {
+  if (circular) {
+    return (
+      <div className="flex items-center justify-center size-full rounded-full bg-muted">
+        <UploadIcon
+          className={cn(
+            "size-4 text-muted-foreground",
+            isDragActive && "text-primary"
+          )}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="text-center">
       <div className="flex items-center mx-auto justify-center size-12 rounded-full bg-muted mb-4">
@@ -25,7 +44,15 @@ export function RenderEmptyState({ isDragActive }: { isDragActive: boolean }) {
   );
 }
 
-export function RenderErrorState() {
+export function RenderErrorState({ circular }: { circular?: boolean }) {
+  if (circular) {
+    return (
+      <div className="flex items-center justify-center size-full rounded-full bg-destructive/30">
+        <ImageIcon className="size-4 text-destructive" />
+      </div>
+    );
+  }
+
   return (
     <div className="text-destructive text-center">
       <div className="flex items-center mx-auto justify-center size-12 rounded-full bg-destructive/30 mb-4">
@@ -43,12 +70,38 @@ export function RenderUploadedState({
   isDeleting,
   handleDelete,
   fileType,
+  circular,
 }: {
   previewUrl: string;
   isDeleting: boolean;
   handleDelete: () => void;
   fileType: "image" | "video";
+  circular?: boolean;
 }) {
+  if (circular) {
+    return (
+      <div className="group size-full">
+        <Image
+          src={previewUrl}
+          alt="Uploaded file"
+          fill
+          className="rounded-full object-cover"
+        />
+
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon"
+          className="absolute -top-1 -right-1 size-6 rounded-full opacity-0 group-hover:opacity-100"
+          onClick={handleDelete}
+          disabled={isDeleting}
+        >
+          {isDeleting ? <Spinner /> : <Trash2 className="size-3" />}
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className=" group">
       {/* {fileType === "video" ? (

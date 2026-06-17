@@ -166,6 +166,12 @@ const navigation: Array<{
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  // Em telas mobile, fecha a sidebar ao clicar em uma opção do menu.
+  const handleNavClick = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   // Permissões do member ativo: filtra os itens do menu para que cada usuário
   // veja apenas o que tem acesso. Owner/Admin sempre veem tudo.
@@ -207,7 +213,10 @@ export function AppSidebar() {
                             <SidebarMenuButton tooltip={item.name}>
                               {item.icon && (
                                 <item.icon
-                                  onClick={() => router.push(item.href)}
+                                  onClick={() => {
+                                    router.push(item.href);
+                                    handleNavClick();
+                                  }}
                                 />
                               )}
                               <span>{item.name}</span>
@@ -225,7 +234,10 @@ export function AppSidebar() {
                                         "bg-sidebar-accent text-sidebar-accent-foreground",
                                     )}
                                   >
-                                    <Link href={child.href}>
+                                    <Link
+                                      href={child.href}
+                                      onClick={handleNavClick}
+                                    >
                                       <child.icon />
                                       <span>{child.name}</span>
                                     </Link>
@@ -249,7 +261,7 @@ export function AppSidebar() {
                       )}
                       asChild
                     >
-                      <Link href={item.href}>
+                      <Link href={item.href} onClick={handleNavClick}>
                         {item.icon && <item.icon />}
                         <span>{item.name}</span>
                       </Link>

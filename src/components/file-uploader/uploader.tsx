@@ -31,13 +31,16 @@ interface UploaderProps {
   value?: string;
   onChange?: (value: string) => void;
   fileTypeAccepted?: "image" | "video";
+  variant?: "default" | "avatar";
 }
 
 export function Uploader({
   value,
   onChange,
   fileTypeAccepted = "image",
+  variant = "default",
 }: UploaderProps) {
+  const isAvatar = variant === "avatar";
   const fileUrl = useConstructUrl(value || "");
   const [fileState, setFileState] = useState<UploaderState>({
     error: false,
@@ -258,7 +261,7 @@ export function Uploader({
     }
 
     if (fileState.error) {
-      return <RenderErrorState />;
+      return <RenderErrorState circular={isAvatar} />;
     }
 
     if (fileState.objectUrl) {
@@ -268,11 +271,12 @@ export function Uploader({
           isDeleting={fileState.isDeleting}
           handleDelete={removeFile}
           fileType={fileState.fileType}
+          circular={isAvatar}
         />
       );
     }
 
-    return <RenderEmptyState isDragActive={isDragActive} />;
+    return <RenderEmptyState isDragActive={isDragActive} circular={isAvatar} />;
   }
 
   useEffect(() => {
@@ -297,13 +301,21 @@ export function Uploader({
     <Card
       {...getRootProps()}
       className={cn(
-        "relative border-2 border-dashed transition-colors duration-200 ease-in-out w-full h-40",
+        "relative border-2 border-dashed transition-colors duration-200 ease-in-out cursor-pointer",
+        isAvatar
+          ? "size-16 min-w-16 min-h-16 shrink-0 grow-0 aspect-square rounded-full p-0 overflow-hidden"
+          : "w-full h-40",
         isDragActive
           ? "border-primary bg-primary/10 border-solid"
           : "border-border hover:border-primary"
       )}
     >
-      <CardContent className="flex items-center justify-center h-full w-full p-4">
+      <CardContent
+        className={cn(
+          "flex items-center justify-center h-full w-full p-4",
+          isAvatar && "p-0"
+        )}
+      >
         <input {...getInputProps()} />
 
         {renderContent()}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { constructUrl } from "@/hooks/use-construct-url";
 import { Badge } from "@/components/ui/badge";
 import {
   Empty,
@@ -96,7 +97,7 @@ export function KitchenHistory() {
             <Avatar className="size-8 shrink-0">
               {event.actorPhotoUrl && (
                 <AvatarImage
-                  src={event.actorPhotoUrl}
+                  src={constructUrl(event.actorPhotoUrl)}
                   alt={event.actorName}
                 />
               )}
