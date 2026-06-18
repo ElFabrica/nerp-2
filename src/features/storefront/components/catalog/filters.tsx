@@ -101,7 +101,7 @@ export function FiltersCatalog({
       handleRemove(id);
       return;
     }
-    setSelectedIds((prev) => [...prev, id]);
+    setSelectedIds([id]);
   };
 
   const isSelected = (id: string) => selectedIds.includes(id);
