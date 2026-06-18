@@ -87,7 +87,7 @@ export function ProductCard({
       <div className="flex flex-col w-full px-5">
         <Tooltip>
           <TooltipTrigger asChild>
-            <h2 className="text-sm font-semibold line-clamp-1 min-h-7.5">
+            <h2 className="text-sm font-semibold line-clamp-1 min-h-7.5 truncate">
               {name}
             </h2>
           </TooltipTrigger>

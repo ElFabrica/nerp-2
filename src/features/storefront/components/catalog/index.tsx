@@ -75,7 +75,7 @@ export function Catalog({ subdomain }: CatalogProps) {
     const normalized = slug.toLowerCase();
     const next = activeSlugs.includes(normalized)
       ? activeSlugs.filter((s) => s !== normalized)
-      : [...activeSlugs, normalized];
+      : [normalized];
     setCategoriesSlugs(next.length > 0 ? next.join(",") : null);
   };
 
