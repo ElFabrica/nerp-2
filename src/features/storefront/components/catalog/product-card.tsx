@@ -14,6 +14,23 @@ import placeholder from "@/assets/background-default-image.svg";
 import Link from "next/link";
 import { useCart } from "@/hooks/use-cart";
 import { ButtonSale } from "../button-sale";
+import { SafeContent } from "@/components/rich-text/safe-content";
+import { type JSONContent, generateText } from "@tiptap/react";
+import { baseExtensions } from "@/components/rich-text/extensions";
+
+function parseDescription(raw: string | null | undefined): {
+  plainText: string;
+  json: JSONContent | null;
+} {
+  if (!raw) return { plainText: "", json: null };
+  try {
+    const json: JSONContent = JSON.parse(raw);
+    const plainText = generateText(json, baseExtensions);
+    return { plainText, json };
+  } catch {
+    return { plainText: raw, json: null };
+  }
+}
 
 interface ProductCardProps extends ProductCatalog {
   allowsOrders?: boolean;
@@ -25,6 +42,7 @@ interface ProductCardProps extends ProductCatalog {
 export function ProductCard({
   id,
   name,
+  description,
   salePrice,
   promotionalPrice,
   thumbnail,
@@ -35,13 +53,13 @@ export function ProductCard({
 }: ProductCardProps) {
   const { toggleProduct, isProductInCart } = useCart(subdomain);
   const [isMounted, setIsMounted] = useState(false);
+  const parsedDescription = parseDescription(description);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   const showAsInCart = isMounted && isProductInCart(id);
-  const isDisabled = isMounted && isProductInCart(id);
 
   const imageSrc =
     thumbnail && thumbnail.trim() !== ""
@@ -69,7 +87,7 @@ export function ProductCard({
       <div className="flex flex-col w-full px-5">
         <Tooltip>
           <TooltipTrigger asChild>
-            <h2 className="text-sm font-semibold line-clamp-1 min-h-[30px]">
+            <h2 className="text-sm font-semibold line-clamp-1 min-h-7.5">
               {name}
             </h2>
           </TooltipTrigger>
@@ -77,6 +95,34 @@ export function ProductCard({
             <p>{name}</p>
           </TooltipContent>
         </Tooltip>
+        <div className="min-h-8">
+          {parsedDescription.plainText ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-[11px] text-muted-foreground line-clamp-2 leading-tight mb-1 cursor-default">
+                  {parsedDescription.plainText}
+                </p>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-60 bg-popover text-popover-foreground border border-border shadow-md">
+                {parsedDescription.json ? (
+                  <SafeContent
+                    content={parsedDescription.json}
+                    className="prose prose-sm prose-p:my-0.5 prose-ul:my-0.5 prose-ol:my-0.5 text-xs max-w-none"
+                  />
+                ) : (
+                  <p>{parsedDescription.plainText}</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Link
+              href={`/${slug}`}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors leading-tight"
+            >
+              ver detalhes
+            </Link>
+          )}
+        </div>
         {promotionalPrice ? (
           <div className="flex items-center gap-x-2">
             <p className="text-lg font-bold">

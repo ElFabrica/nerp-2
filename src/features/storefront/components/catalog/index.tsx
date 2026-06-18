@@ -19,7 +19,7 @@ interface CatalogProps {
 }
 export function Catalog({ subdomain }: CatalogProps) {
   const options: EmblaOptionsType = { loop: true };
-  const [categoriesSlugs] = useQueryState("categories");
+  const [categoriesSlugs, setCategoriesSlugs] = useQueryState("categories");
   const [minValue] = useQueryState("min_value");
   const [maxValue] = useQueryState("max_value");
 
@@ -67,18 +67,27 @@ export function Catalog({ subdomain }: CatalogProps) {
     );
   }
 
+  const activeSlugs = categoriesSlugs
+    ? categoriesSlugs.split(",").map((s) => s.trim().toLowerCase())
+    : [];
+
+  const toggleCategory = (slug: string) => {
+    const normalized = slug.toLowerCase();
+    const next = activeSlugs.includes(normalized)
+      ? activeSlugs.filter((s) => s !== normalized)
+      : [...activeSlugs, normalized];
+    setCategoriesSlugs(next.length > 0 ? next.join(",") : null);
+  };
+
   if (catalogSettings === undefined) {
-    console.log("Espera 01");
     return notFound();
   }
 
   if (data === undefined) {
-    console.log("Espera 02");
     return notFound();
   }
 
   if (catalogSettings.isActive === false) {
-    console.log("Espera 03");
     return notFound();
   }
 
@@ -106,10 +115,33 @@ export function Catalog({ subdomain }: CatalogProps) {
               ))}
           </div>
         </div>
-        <div className="flex flex-row w-full items-center justify-between gap-x-3 py-6 ">
-          <span className="hidden sm:block text-sm text-muted-foreground">
+        <div className="flex flex-row w-full items-center justify-between gap-x-3 py-6">
+          <span className="hidden sm:block text-sm text-muted-foreground shrink-0">
             {products.length} produto(s) encontrado(s)
           </span>
+          {categories.length > 0 && (
+            <div className="scroll-on-hover flex gap-2 overflow-x-auto flex-1 sm:mx-3">
+              {categories.map((category) => {
+                const isActive = activeSlugs.includes(
+                  category.slug.toLowerCase(),
+                );
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => toggleCategory(category.slug)}
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      isActive
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-background text-foreground border-border hover:bg-accent"
+                    }`}
+                  >
+                    {category.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <FiltersCatalog categories={categories} />
         </div>
         <ul className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
@@ -121,6 +153,7 @@ export function Catalog({ subdomain }: CatalogProps) {
               isDisponile={product.productIsDisponile}
               organizationId={product.organizationId}
               name={product.name}
+              description={product.description ?? undefined}
               slug={product.slug}
               salePrice={product.salePrice}
               promotionalPrice={product.promotionalPrice}

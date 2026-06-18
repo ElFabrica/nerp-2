@@ -3,8 +3,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { Header } from "./header";
+import { authClient } from "@/lib/auth-client";
 
 export default function HeroSection() {
+  const { data: session } = authClient.useSession();
   return (
     <>
       <Header />
@@ -30,7 +32,7 @@ export default function HeroSection() {
               </p>
 
               <Button asChild size="lg">
-                <Link href="/login">
+                <Link href={session?.user ? "/dashboard" : "/login"}>
                   <span className="btn-label">Começar agora</span>
                 </Link>
               </Button>

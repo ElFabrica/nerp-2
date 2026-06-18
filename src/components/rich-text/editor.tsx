@@ -1,6 +1,7 @@
 "use client";
 
 import { EditorContent, useEditor } from "@tiptap/react";
+import { useEffect } from "react";
 import { editorExtensions } from "./extensions";
 import { MenuToolbar } from "./menu-toolbar";
 
@@ -10,6 +11,15 @@ interface RichTextEditorProps {
   disabled?: boolean;
 }
 
+function parseContent(raw: string | undefined) {
+  if (!raw) return "";
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export function RichTextEditor({
   field,
   onChange,
@@ -17,15 +27,7 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const editor = useEditor({
     immediatelyRender: false,
-    content: (() => {
-      if (!field) return "";
-
-      try {
-        return JSON.parse(field);
-      } catch {
-        return "";
-      }
-    })(),
+    content: parseContent(field),
     onUpdate: ({ editor }) => {
       if (onChange) {
         onChange(JSON.stringify(editor.getJSON()));
@@ -40,6 +42,14 @@ export function RichTextEditor({
       },
     },
   });
+
+  // Sync editor when field changes from outside (e.g. edit form loading saved data)
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const serialized = JSON.stringify(editor.getJSON());
+    if (serialized === field) return;
+    editor.commands.setContent(parseContent(field));
+  }, [editor, field]);
 
   return (
     <div className="relative w-full border border-input rounded-lg overflow-hidden dark:bg-input/30 flex flex-col">

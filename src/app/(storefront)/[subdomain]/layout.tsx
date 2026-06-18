@@ -39,12 +39,9 @@ export async function generateMetadata({
   return {
     title: catalogSettings?.metaTitle || org.name,
     description: catalogSettings?.metaDescription || org.name,
-    icons: [
-      {
-        url: useConstructUrl(catalogSettings?.logo || ""),
-        type: "image/png",
-      },
-    ],
+    icons: catalogSettings?.logo
+      ? [{ url: useConstructUrl(catalogSettings.logo), type: "image/png" }]
+      : [],
   };
 }
 

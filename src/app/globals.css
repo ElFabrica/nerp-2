@@ -147,3 +147,18 @@
 .animate-ready-flash {
   animation: ready-flash 0.6s steps(1, end) infinite;
 }
+
+.scroll-on-hover::-webkit-scrollbar {
+  height: 6px;
+}
+.scroll-on-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-on-hover::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.3s ease;
+}
+.scroll-on-hover:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.5);
+}

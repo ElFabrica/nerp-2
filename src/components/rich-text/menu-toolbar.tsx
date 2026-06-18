@@ -54,7 +54,7 @@ export function MenuToolbar({ editor }: MenuToolbarProps) {
         textAlignLeft: editor.isActive({ textAlign: "left" }),
         textAlignCenter: editor.isActive({ textAlign: "center" }),
         textAlignRight: editor.isActive({ textAlign: "right" }),
-        canUndo: editor.can().redo(),
+        canUndo: editor.can().undo(),
         canRedo: editor.can().redo(),
       };
     },

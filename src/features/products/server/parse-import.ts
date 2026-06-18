@@ -69,6 +69,24 @@ const NUMBER_KEYS = new Set(
 );
 
 /**
+ * Converte texto puro em JSON no formato TipTap (ProseMirror doc).
+ * Cada linha do texto vira um parágrafo separado.
+ */
+function plainTextToTiptap(text: string): string {
+  const lines = text.split(/\r?\n/);
+  const content = lines.map((line) => {
+    if (!line.trim()) {
+      return { type: "paragraph" };
+    }
+    return {
+      type: "paragraph",
+      content: [{ type: "text", text: line }],
+    };
+  });
+  return JSON.stringify({ type: "doc", content });
+}
+
+/**
  * Aplica o mapeamento a uma linha da planilha e valida os campos obrigatórios e
  * numéricos. Não toca no banco — apenas transforma e valida.
  */
@@ -123,11 +141,16 @@ export function mapRow(row: SheetRow, mapping: ImportMapping): MappedRow {
 
   const categoryName = asString("category");
 
+  const rawDescription = asString("description");
+  const description = rawDescription
+    ? plainTextToTiptap(rawDescription)
+    : undefined;
+
   const input: Omit<CreateProductInput, "categoryId"> = {
     name,
     sku: asString("sku"),
     barcode: asString("barcode"),
-    description: asString("description"),
+    description,
     unit: parseUnit(get("unit")),
     costPrice: numbers.costPrice,
     salePrice: numbers.salePrice,
