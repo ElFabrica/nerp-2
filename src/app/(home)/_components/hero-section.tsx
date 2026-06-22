@@ -7,7 +7,6 @@ import { authClient } from "@/lib/auth-client";
 
 export default function HeroSection() {
   const { data: session } = authClient.useSession();
-  console.log(process.env.NEXT_PUBLIC_NASA_S2S_ENCRYPTION_KEY);
   return (
     <>
       <Header />
