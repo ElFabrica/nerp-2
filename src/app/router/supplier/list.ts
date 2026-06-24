@@ -28,6 +28,7 @@ export const listSupplier = base
           city: z.string().nullable(),
           state: z.string().nullable(),
           isActive: z.boolean(),
+          logo: z.string().nullable(),
         }),
       ),
     }),
@@ -55,6 +56,7 @@ export const listSupplier = base
         city: true,
         state: true,
         isActive: true,
+        logo: true,
       },
     });
 
