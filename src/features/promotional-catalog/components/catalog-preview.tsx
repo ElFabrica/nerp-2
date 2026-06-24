@@ -93,6 +93,7 @@ export const CatalogPreview = forwardRef<HTMLDivElement, CatalogPreviewProps>(
   ({ config, products, supplierLogos = [] }, ref) => {
     const outerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
+    const [bgDataUrl, setBgDataUrl] = useState<string>("");
 
     const pageH = PAGE_H[config.pageSize];
 
@@ -105,6 +106,35 @@ export const CatalogPreview = forwardRef<HTMLDivElement, CatalogPreviewProps>(
       observer.observe(el);
       return () => observer.disconnect();
     }, []);
+
+    useEffect(() => {
+      const key = config.backgroundImage;
+      if (!key) {
+        setBgDataUrl("");
+        return;
+      }
+      let cancelled = false;
+      fetch(`/api/s3/image?key=${encodeURIComponent(key)}`)
+        .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`${res.status}`))))
+        .then(
+          (blob) =>
+            new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = () => reject(new Error("FileReader error"));
+              reader.readAsDataURL(blob);
+            }),
+        )
+        .then((dataUrl) => {
+          if (!cancelled) setBgDataUrl(dataUrl);
+        })
+        .catch(() => {
+          if (!cancelled) setBgDataUrl(constructUrl(key));
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [config.backgroundImage]);
 
     const isFeatured = config.layout === "featured";
     const titleColor = getContrastColor(config.backgroundColor);
@@ -147,9 +177,11 @@ export const CatalogPreview = forwardRef<HTMLDivElement, CatalogPreviewProps>(
               flexDirection: "column",
               boxSizing: "border-box",
               backgroundColor: config.backgroundColor,
-              backgroundImage: config.backgroundImage
-                ? `url(${constructUrl(config.backgroundImage)})`
-                : undefined,
+              backgroundImage: bgDataUrl
+                ? `url('${bgDataUrl}')`
+                : config.backgroundImage
+                  ? `url('${constructUrl(config.backgroundImage)}')`
+                  : undefined,
               backgroundSize: config.backgroundFit,
               backgroundRepeat: "no-repeat",
               backgroundPosition: "center",
