@@ -19,6 +19,7 @@ import {
   usePromotionalProducts,
 } from "./hooks/use-catalog";
 import { useExport } from "./hooks/use-export";
+import { useSupplier } from "@/features/supplier/hooks/use-supplier";
 import type { CatalogConfig } from "./types";
 import { DEFAULT_CONFIG } from "./types";
 
@@ -148,6 +149,8 @@ export function CatalogEditor({ catalogId }: CatalogEditorProps) {
   // Fetch estável: excludedProductIds e sortBy não entram na query key.
   // Mudar esses campos nunca dispara um novo fetch — o useMemo abaixo
   // recalcula em tempo real, garantindo UI otimista sem reset.
+  const { suppliers } = useSupplier();
+
   const { data: rawProducts = [] } = usePromotionalProducts({
     manuallyAddedIds: config.manuallyAddedIds,
     categoryFilter: config.categoryFilter,
@@ -196,6 +199,13 @@ export function CatalogEditor({ catalogId }: CatalogEditorProps) {
       config.showDescription, config.showCategory, config.showStock, config.showSku,
     ],
   );
+
+  const selectedSupplierLogos = useMemo(() => {
+    const ids = new Set(config.footerSupplierIds ?? []);
+    return suppliers
+      .filter((s) => ids.has(s.id) && s.logo)
+      .map((s) => ({ id: s.id, name: s.tradeName || s.name, logo: s.logo! }));
+  }, [suppliers, config.footerSupplierIds]);
 
   const [currentPage, setCurrentPage] = useState(0);
 
@@ -331,6 +341,7 @@ export function CatalogEditor({ catalogId }: CatalogEditorProps) {
             ref={(el) => { allPageRefs.current[i] = el; }}
             config={config}
             products={prods}
+            supplierLogos={selectedSupplierLogos}
           />
         ))}
       </div>
@@ -377,7 +388,7 @@ export function CatalogEditor({ catalogId }: CatalogEditorProps) {
             </div>
           )}
           <div className="flex-1 overflow-auto bg-muted/30 p-6">
-            <CatalogPreview ref={previewRef} config={config} products={pageProducts} />
+            <CatalogPreview ref={previewRef} config={config} products={pageProducts} supplierLogos={selectedSupplierLogos} />
           </div>
         </div>
       </div>

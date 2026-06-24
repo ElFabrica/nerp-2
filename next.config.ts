@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
-const s3BucketHostname = process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL;
+const s3BucketHostname =
+  process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL ?? "";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -12,7 +13,7 @@ const nextConfig: NextConfig = {
         protocol: "https",
       },
       {
-        hostname: process.env.NEXT_PUBLIC_S3_BUCKET_CONSTRUCTOR_URL ?? "",
+        hostname: s3BucketHostname,
         port: "",
         protocol: "https",
       },

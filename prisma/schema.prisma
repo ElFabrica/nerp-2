@@ -393,9 +393,11 @@ model Product {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   createdById      String
+  supplierId       String?
   // Relações
   organization     Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   category         Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  supplier         Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   createdBy        User            @relation("CreatedProducts", fields: [createdById], references: [id])
   saleItems        SaleItem[]
   purchaseItems    PurchaseItem[]
@@ -408,6 +410,7 @@ model Product {
   @@index([categoryId])
   @@index([barcode])
   @@index([isActive])
+  @@index([supplierId])
   @@map("products")
 }
 
@@ -498,6 +501,7 @@ model Customer {
   // Relações
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sales           Sale[]
+  suppliers       Supplier[]
   userCatalog     CatalogUser? @relation(fields: [clientId], references: [id])
   clientId        String?      @unique
 
@@ -513,12 +517,13 @@ model Customer {
 // ============================================
 
 model Supplier {
-  id             String       @id @default(cuid())
+  id             String     @id @default(cuid())
   organizationId String
   // Identificação
   name           String
   tradeName      String?
-  document       String // CNPJ
+  personType     PersonType @default(JURIDICA)
+  document       String? // CPF ou CNPJ
   email          String?
   phone          String?
   // Endereço
@@ -530,17 +535,20 @@ model Supplier {
   state          String?
   zipCode        String?
   // Informações adicionais
+  logo           String?
   contactPerson  String?
-  notes          String?      @db.Text
-  isActive       Boolean      @default(true)
+  notes          String?    @db.Text
+  isActive       Boolean    @default(true)
   // Timestamps
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
   // Relações
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   purchases      Purchase[]
+  products       Product[]
+  customerId     String?
+  customer       Customer?  @relation(fields: [customerId], references: [id])
 
-  @@unique([organizationId, document])
   @@index([organizationId])
   @@index([document])
   @@map("suppliers")

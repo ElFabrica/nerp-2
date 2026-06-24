@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { RichTextEditor } from "../../../../../components/rich-text/editor";
 import { useCreateProduct } from "@/features/products/hooks/use-products";
+import { useSupplier } from "@/features/supplier/hooks/use-supplier";
 
 const unitLabels: Record<ProductUnit, string> = {
   UN: "Unidade",
@@ -64,11 +65,13 @@ export function CreateProductForm() {
       isActive: true,
       isFeatured: false,
       trackStock: true,
+      supplierId: "",
     },
   });
   const router = useRouter();
 
   const { categories } = useCategory();
+  const { suppliers } = useSupplier();
 
   const mutation = useCreateProduct();
 
@@ -97,6 +100,7 @@ export function CreateProductForm() {
         trackStock: data.trackStock,
         barcode: data.barcode,
         prepTimeMinutes: data.prepTimeMinutes,
+        supplierId: data.supplierId || undefined,
       },
       {
         onSuccess: () => {
@@ -180,6 +184,35 @@ export function CreateProductForm() {
                   )}
                 />
               </div>
+
+              <Controller
+                name="supplierId"
+                control={form.control}
+                render={({ field }) => (
+                  <Field>
+                    <FieldLabel htmlFor="supplierId">Fornecedor</FieldLabel>
+                    <Select
+                      value={field.value ?? ""}
+                      onValueChange={(val) =>
+                        field.onChange(val === "__none__" ? "" : val)
+                      }
+                      disabled={isCreating}
+                    >
+                      <SelectTrigger id="supplierId">
+                        <SelectValue placeholder="Selecione um fornecedor (opcional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nenhum</SelectItem>
+                        {suppliers.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.id}>
+                            {supplier.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              />
               <Controller
                 name="description"
                 control={form.control}

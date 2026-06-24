@@ -56,6 +56,8 @@ export const createProduct = base
 
       // KDS — tempo médio de preparo (min)
       prepTimeMinutes: z.number().int().positive().optional(),
+
+      supplierId: z.string().optional(),
     }),
   )
   // .output(

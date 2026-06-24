@@ -22,6 +22,9 @@ export type CatalogConfig = {
   excludedProductIds: string[];
   manuallyAddedIds: string[];
   categoryFilter: string[];
+  footerText: string;
+  footerTextSize: CatalogConfig["textSize"];
+  footerSupplierIds: string[];
 };
 
 export const TEXT_SIZE_CSS: Record<CatalogConfig["textSize"], string> = {
@@ -80,4 +83,7 @@ export const DEFAULT_CONFIG: CatalogConfig = {
   excludedProductIds: [],
   manuallyAddedIds: [],
   categoryFilter: [],
+  footerText: "",
+  footerTextSize: "xs",
+  footerSupplierIds: [],
 };

@@ -3,7 +3,6 @@
 import { Uploader } from "@/components/file-uploader/uploader";
 import { PageHeader } from "@/components/page-header";
 import { RichTextEditor } from "@/components/rich-text/editor";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,8 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { useCategory } from "@/context/category/hooks/use-categories";
+import { useSupplier } from "@/features/supplier/hooks/use-supplier";
 import { ProductUnit } from "@/generated/prisma/enums";
 import { orpc } from "@/lib/orpc";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,11 +31,11 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Save, Upload, X } from "lucide-react";
+import { ArrowLeft, Plus, Save } from "lucide-react";
 import { CreateStockMovimentModal } from "@/components/modals/stock/create-stock-moviment-modal";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -76,6 +75,7 @@ const productSchema = z.object({
     .positive()
     .optional()
     .or(z.literal(NaN).transform(() => undefined)),
+  supplierId: z.string().optional(),
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -115,6 +115,7 @@ export function EditProductForm() {
   );
 
   const { categories, isLoadingCategories } = useCategory();
+  const { suppliers } = useSupplier();
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema) as Resolver<ProductFormValues>,
@@ -133,6 +134,7 @@ export function EditProductForm() {
       trackStock: product.trackStock,
       showOnCatalog: product.isFeatured, // Mapping isFeatured to showOnCatalog
       prepTimeMinutes: product.prepTimeMinutes ?? undefined,
+      supplierId: product.supplierId ?? "",
     },
   });
 
@@ -157,6 +159,7 @@ export function EditProductForm() {
       id: productId,
       ...data,
       isFeatured: data.showOnCatalog,
+      supplierId: data.supplierId || null,
     });
   };
 
@@ -250,6 +253,35 @@ export function EditProductForm() {
                     />
                   </div>
                 </div>
+
+                <Controller
+                  name="supplierId"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel htmlFor="supplierId">Fornecedor</FieldLabel>
+                      <Select
+                        value={field.value ?? ""}
+                        onValueChange={(val) =>
+                          field.onChange(val === "__none__" ? "" : val)
+                        }
+                        disabled={isUpdating}
+                      >
+                        <SelectTrigger id="supplierId" className="w-full">
+                          <SelectValue placeholder="Selecione um fornecedor (opcional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Nenhum</SelectItem>
+                          {suppliers.map((supplier) => (
+                            <SelectItem key={supplier.id} value={supplier.id}>
+                              {supplier.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  )}
+                />
 
                 <Controller
                   name="description"

@@ -29,6 +29,7 @@ export interface CreateProductInput {
   isFeatured?: boolean;
   trackStock?: boolean;
   prepTimeMinutes?: number;
+  supplierId?: string | null;
 }
 
 /**
@@ -107,6 +108,7 @@ export async function createProductForOrg(
       isFeatured: input.isFeatured ?? false,
       trackStock: input.trackStock ?? true,
       prepTimeMinutes: input.prepTimeMinutes,
+      supplierId: input.supplierId ?? null,
     },
   });
 

@@ -40,6 +40,8 @@ export const ProductSchema = z.object({
 
   // KDS — tempo médio de preparo (min)
   prepTimeMinutes: z.number().int().positive().optional(),
+
+  supplierId: z.string().optional(),
 });
 
 export type ProductType = z.infer<typeof ProductSchema>;

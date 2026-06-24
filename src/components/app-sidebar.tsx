@@ -19,6 +19,7 @@ import {
 import {
   Box,
   Building,
+  Building2,
   ChefHat,
   ChevronDown,
   ChevronsUpDown,
@@ -51,6 +52,7 @@ import { orpc } from "@/lib/orpc";
 import { hasFullAccess } from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "./ui/skeleton";
+import { Spinner } from "./ui/spinner";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useEffect, useState } from "react";
 import type { ActiveOrganization } from "@/lib/auth-types";
@@ -129,16 +131,17 @@ const navigation: Array<{
     permission: "clientes",
   },
   {
+    name: "Fornecedores",
+    href: "/fornecedores",
+    icon: Building2,
+    permission: "fornecedores",
+  },
+  {
     name: "Colaborador",
     href: "/colaboradores",
     icon: UserCircle2,
     permission: "colaboradores",
   },
-  // {
-  //   name: "Fornecedores",
-  //   href: "/fornecedores",
-  //   icon: Building2,
-  // },
   {
     name: "Catálogo Online",
     href: "/catalogo",
@@ -181,7 +184,7 @@ export function AppSidebar() {
 
   // Permissões do member ativo: filtra os itens do menu para que cada usuário
   // veja apenas o que tem acesso. Owner/Admin sempre veem tudo.
-  const { data: currentMember } = useQuery(
+  const { data: currentMember, isPending: isMemberPending } = useQuery(
     orpc.members.getCurrent.queryOptions({ input: {} }),
   );
   const fullAccess = hasFullAccess(currentMember?.role);
@@ -202,6 +205,11 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <ScrollArea className="flex-1">
+              {isMemberPending ? (
+                <div className="flex items-center justify-center py-6">
+                  <Spinner className="size-5 text-muted-foreground" />
+                </div>
+              ) : (
               <SidebarMenu>
                 {visibleNavigation.map((item) => {
                   // const isActive = pathname === item.href;
@@ -275,6 +283,7 @@ export function AppSidebar() {
                   );
                 })}
               </SidebarMenu>
+              )}
             </ScrollArea>
           </SidebarGroupContent>
         </SidebarGroup>

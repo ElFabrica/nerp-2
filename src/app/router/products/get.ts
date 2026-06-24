@@ -38,6 +38,7 @@ const productOutputSchema = z.object({
   isFeatured: z.boolean(),
   trackStock: z.boolean(),
   prepTimeMinutes: z.number().nullable(),
+  supplierId: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -125,6 +126,7 @@ export const getProduct = base
         length: decimalToNumber(product.length),
         width: decimalToNumber(product.width),
         height: decimalToNumber(product.height),
+        supplierId: product.supplierId ?? null,
         // Converter Dates para strings
         createdAt: product.createdAt.toISOString(),
         updatedAt: product.updatedAt.toISOString(),

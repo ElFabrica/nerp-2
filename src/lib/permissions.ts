@@ -42,6 +42,11 @@ export const PAGE_PERMISSIONS = [
     href: "/catalogo-promocional",
   },
   {
+    key: "fornecedores",
+    label: "Fornecedores",
+    href: "/fornecedores",
+  },
+  {
     key: "colaboradores",
     label: "Colaboradores",
     href: "/colaboradores",

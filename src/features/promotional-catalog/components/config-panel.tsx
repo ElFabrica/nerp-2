@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronDown, X, CaseSensitive, Bold, Tag } from "lucide-react";
+import { ChevronDown, X, CaseSensitive, Bold, Tag, Building2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +27,8 @@ import { AddProductDialog } from "./add-product-dialog";
 import { BackgroundImageUploader } from "./background-image-uploader";
 import { formatPrice } from "./cards/price-badge";
 import { useUpdateProductPrice } from "../hooks/use-catalog";
+import { useSupplier } from "@/features/supplier/hooks/use-supplier";
+import { constructUrl } from "@/hooks/use-construct-url";
 import type { CatalogConfig, CatalogProduct } from "../types";
 
 function ProductPricePopover({ product }: { product: CatalogProduct }) {
@@ -163,6 +165,9 @@ const LAYOUTS: Array<{ value: CatalogConfig["layout"]; label: string }> = [
 ];
 
 export function ConfigPanel({ config, products, onConfigChange }: ConfigPanelProps) {
+  const { suppliers } = useSupplier();
+  const suppliersWithLogo = suppliers.filter((s) => s.logo);
+
   return (
     <Tabs defaultValue="geral" className="flex flex-col h-full overflow-hidden">
       <TabsList className="w-full rounded-none border-b shrink-0 h-10 bg-transparent justify-start px-2 gap-1">
@@ -196,6 +201,78 @@ export function ConfigPanel({ config, products, onConfigChange }: ConfigPanelPro
                 placeholder="Válido até..."
               />
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="catalog-footer">Rodapé</Label>
+              <Input
+                id="catalog-footer"
+                value={config.footerText}
+                onChange={(e) => onConfigChange({ footerText: e.target.value })}
+                placeholder="Ex: Consulte condições. Sujeito a estoque."
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full justify-between font-normal">
+                    {TEXT_SIZES.find((s) => s.value === config.footerTextSize)?.label ?? "Mínimo (12px)"}
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-48">
+                  <DropdownMenuRadioGroup
+                    value={config.footerTextSize}
+                    onValueChange={(v) =>
+                      onConfigChange({ footerTextSize: v as CatalogConfig["textSize"] })
+                    }
+                  >
+                    {TEXT_SIZES.map((s) => (
+                      <DropdownMenuRadioItem key={s.value} value={s.value}>
+                        {s.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {suppliersWithLogo.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <Label className="flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5" />
+                  Logos de fornecedores no rodapé
+                </Label>
+                <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+                  {suppliersWithLogo.map((s) => {
+                    const selected = config.footerSupplierIds.includes(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() =>
+                          onConfigChange({
+                            footerSupplierIds: selected
+                              ? config.footerSupplierIds.filter((id) => id !== s.id)
+                              : [...config.footerSupplierIds, s.id],
+                          })
+                        }
+                        className={`flex items-center gap-2 rounded border px-2 py-1.5 text-sm transition-colors ${
+                          selected
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:bg-muted/50"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={constructUrl(s.logo!)}
+                          alt={s.name}
+                          className="h-6 w-6 object-contain rounded"
+                        />
+                        <span className="truncate flex-1 text-left">{s.tradeName || s.name}</span>
+                        {selected && <X className="h-3 w-3 shrink-0 text-primary" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="flex flex-col gap-3">

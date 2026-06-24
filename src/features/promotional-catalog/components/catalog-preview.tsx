@@ -2,6 +2,7 @@
 
 import { forwardRef, useRef, useState, useEffect } from "react";
 import type { CatalogConfig, CatalogProduct } from "../types";
+import { TEXT_SIZE_CSS } from "../types";
 import { CardStandard } from "./cards/card-standard";
 import { CardCompact } from "./cards/card-compact";
 import { CardList } from "./cards/card-list";
@@ -9,9 +10,12 @@ import { CardMinimal } from "./cards/card-minimal";
 import { getContrastColor } from "@/utils/get-contrast-color";
 import { constructUrl } from "@/hooks/use-construct-url";
 
+export type SupplierLogo = { id: string; name: string; logo: string };
+
 interface CatalogPreviewProps {
   config: CatalogConfig;
   products: CatalogProduct[];
+  supplierLogos?: SupplierLogo[];
 }
 
 const gridClass: Record<string, string> = {
@@ -86,7 +90,7 @@ const PAGE_H: Record<CatalogConfig["pageSize"], number> = {
 };
 
 export const CatalogPreview = forwardRef<HTMLDivElement, CatalogPreviewProps>(
-  ({ config, products }, ref) => {
+  ({ config, products, supplierLogos = [] }, ref) => {
     const outerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
 
@@ -106,6 +110,10 @@ export const CatalogPreview = forwardRef<HTMLDivElement, CatalogPreviewProps>(
     const titleColor = getContrastColor(config.backgroundColor);
     const cardStyle = { backgroundColor: config.cardColor };
     const cardColor = config.cardColor;
+
+    const mid = Math.ceil(supplierLogos.length / 2);
+    const logosLeft = supplierLogos.slice(0, mid);
+    const logosRight = supplierLogos.slice(mid);
 
     // O transform fica no wrapper intermediário, nunca no ref exportado.
     // html-to-image usa getBoundingClientRect() no ref — se ele tivesse
@@ -134,6 +142,7 @@ export const CatalogPreview = forwardRef<HTMLDivElement, CatalogPreviewProps>(
               width: PAGE_W,
               height: pageH,
               overflow: "hidden",
+              position: "relative",
               display: "flex",
               flexDirection: "column",
               boxSizing: "border-box",
@@ -192,6 +201,51 @@ export const CatalogPreview = forwardRef<HTMLDivElement, CatalogPreviewProps>(
             ) : (
               <div className={gridClass[config.layout] ?? "grid grid-cols-3 gap-4"}>
                 {products.map((p) => renderCard(p, config))}
+              </div>
+            )}
+
+            {config.footerText && (
+              <div
+                className="mt-4 text-center shrink-0"
+                style={{ color: titleColor, opacity: 0.6, fontSize: TEXT_SIZE_CSS[config.footerTextSize ?? "xs"] }}
+              >
+                {config.footerText}
+              </div>
+            )}
+
+            {logosLeft.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: config.paddingBottom,
+                  left: config.paddingLeft,
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: 12,
+                }}
+              >
+                {logosLeft.map((s) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={s.id} src={constructUrl(s.logo)} alt={s.name} style={{ height: 56, maxWidth: 140, objectFit: "contain" }} />
+                ))}
+              </div>
+            )}
+
+            {logosRight.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: config.paddingBottom,
+                  right: config.paddingRight,
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: 12,
+                }}
+              >
+                {logosRight.map((s) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={s.id} src={constructUrl(s.logo)} alt={s.name} style={{ height: 56, maxWidth: 140, objectFit: "contain" }} />
+                ))}
               </div>
             )}
           </div>
