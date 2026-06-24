@@ -22,25 +22,106 @@ import { useExport } from "./hooks/use-export";
 import type { CatalogConfig } from "./types";
 import { DEFAULT_CONFIG } from "./types";
 
-// Calcula itens por página com base no layout e no tamanho do canvas.
-// As estimativas refletem o nº de cards que cabem verticalmente dentro
-// de 1080×1080 (square) ou 1080×1920 (story) considerando a altura
-// típica de cada card + espaçamento + cabeçalho.
+const PAGE_W = 1080;
+const PAGE_H_VALUES: Record<CatalogConfig["pageSize"], number> = { square: 1080, story: 1920 };
+// Espaço fixo do cabeçalho: h2 text-2xl (~36px) + mb-6 (24px) + subtitle (~20px)
+const HEADER_H = 80;
+// Margem de segurança: impede que a última linha corte o rodapé do canvas.
+const BOTTOM_BUFFER = 32;
+const GAP4 = 16; // gap-4 (Tailwind)
+const GAP3 = 12; // gap-3
+
+// Altura em px de cada opção de textSize (base para estimativa de line-height).
+const TEXT_SIZE_PX: Record<CatalogConfig["textSize"], number> = {
+  xs: 12, sm: 16, base: 22, lg: 30, xl: 40, "2xl": 52, "3xl": 64, "4xl": 80,
+};
+
+// Retorna a altura estimada de um card em pixels, considerando o cardStyle,
+// largura disponível, tamanho de fonte e campos opcionais habilitados na config.
+function estimateCardHeight(
+  cardStyle: CatalogConfig["cardStyle"],
+  cardWidth: number,
+  config: CatalogConfig,
+): number {
+  // line-height ≈ 1.4× o font-size
+  const lineH = (TEXT_SIZE_PX[config.textSize] ?? 16) * 1.4;
+
+  switch (cardStyle) {
+    case "compact":
+      // h-16(64) + p-2*2(16) + border; nome em 1 linha
+      return Math.max(90, 80 + lineH);
+    case "list": {
+      // h-20(80) + p-3*2(24) + border; nome + campos opcionais
+      let h = Math.max(116, 80 + 24 + lineH);
+      if (config.showCategory) h += lineH;
+      if (config.showStock)    h += lineH;
+      return h;
+    }
+    case "minimal":
+      // aspect-square + p-2*2(16) + nome(1 linha) + preço(1 linha)
+      return cardWidth + 16 + lineH * 2 + 8;
+    default: { // standard, countdown, badge-hot
+      // p-3*2(24) + nome(2 linhas) + preço(1 linha)
+      let contentH = 24 + lineH * 2 + lineH;
+      if (config.showCategory)    contentH += lineH;
+      if (config.showSku)         contentH += lineH;
+      if (config.showDescription) contentH += lineH * 2; // line-clamp-2
+      if (config.showStock)       contentH += lineH;
+      contentH += lineH * 2; // preço original riscado + economia (promo)
+      return cardWidth + contentH;
+    }
+  }
+}
+
+// Calcula proporcionalmente quantos itens cabem por página, maximizando
+// o aproveitamento do canvas considerando padding, cabeçalho e tamanho real dos cards.
 function getItemsPerPage(
   layout: CatalogConfig["layout"],
   pageSize: CatalogConfig["pageSize"],
+  config: CatalogConfig,
 ): number {
-  const story = pageSize === "story";
+  const pageH = PAGE_H_VALUES[pageSize];
+  const availH = Math.max(0, pageH - config.paddingTop - config.paddingBottom - HEADER_H - BOTTOM_BUFFER);
+  const availW = Math.max(1, PAGE_W - config.paddingLeft - config.paddingRight);
+
+  const gridItems = (cols: number, gap: number) => {
+    const cardW = (availW - (cols - 1) * gap) / cols;
+    const cardH = estimateCardHeight(config.cardStyle, cardW, config);
+    const rows = Math.floor(availH / (cardH + gap));
+    return Math.max(cols, rows * cols);
+  };
+
   switch (layout) {
-    case "grid-2":   return story ? 4  : 2;
-    case "grid-3":   return story ? 9  : 6;
-    case "grid-4":   return story ? 16 : 8;
-    case "list":     return story ? 12 : 6;
-    case "featured": return story ? 10 : 5;
-    case "carousel": return story ? 8  : 4;
-    case "masonry":  return story ? 9  : 6;
-    case "table":    return story ? 20 : 10;
-    default:         return 6;
+    case "grid-2":  return gridItems(2, GAP4);
+    case "grid-3":  return gridItems(3, GAP4);
+    case "grid-4":  return gridItems(4, GAP3);
+    case "masonry": return gridItems(3, GAP4);
+    case "list": {
+      const cardH = estimateCardHeight(config.cardStyle, availW, config);
+      const rows = Math.floor(availH / (cardH + GAP3));
+      return Math.max(1, rows);
+    }
+    case "table": {
+      const cardH = estimateCardHeight(config.cardStyle, availW, config);
+      return Math.max(1, Math.floor(availH / Math.max(1, cardH)));
+    }
+    case "carousel": {
+      // horizontal: estima quantos cards são visíveis na largura disponível
+      const cardW = Math.min(availW / 2, 280);
+      return Math.max(4, Math.floor(availW / (cardW + GAP4)));
+    }
+    case "featured": {
+      // 1º card: CardStandard em largura total; demais em grid-3
+      const featH = estimateCardHeight("standard", availW, config);
+      const remainH = availH - featH - GAP4;
+      if (remainH <= 0) return 1;
+      const secCardW = (availW - 2 * GAP4) / 3;
+      const secCardH = estimateCardHeight(config.cardStyle, secCardW, config);
+      const secRows = Math.floor(remainH / (secCardH + GAP4));
+      return Math.max(1, 1 + secRows * 3);
+    }
+    default:
+      return 6;
   }
 }
 
@@ -105,10 +186,15 @@ export function CatalogEditor({ catalogId }: CatalogEditorProps) {
     return list;
   }, [rawProducts, config.excludedProductIds, config.sortBy]);
 
-  // Paginação — quantos itens cabem por página (baseado no layout + canvas)
+  // Paginação — quantos itens cabem por página (calculado proporcionalmente)
   const itemsPerPage = useMemo(
-    () => getItemsPerPage(config.layout, config.pageSize),
-    [config.layout, config.pageSize],
+    () => getItemsPerPage(config.layout, config.pageSize, config),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      config.layout, config.pageSize, config.cardStyle, config.textSize,
+      config.paddingTop, config.paddingRight, config.paddingBottom, config.paddingLeft,
+      config.showDescription, config.showCategory, config.showStock, config.showSku,
+    ],
   );
 
   const [currentPage, setCurrentPage] = useState(0);

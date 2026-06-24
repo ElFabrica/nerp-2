@@ -134,11 +134,14 @@ interface ConfigPanelProps {
 }
 
 const TEXT_SIZES: Array<{ value: CatalogConfig["textSize"]; label: string }> = [
-  { value: "xs", label: "Muito pequeno" },
-  { value: "sm", label: "Pequeno" },
-  { value: "base", label: "Médio" },
-  { value: "lg", label: "Grande" },
-  { value: "xl", label: "Muito grande" },
+  { value: "xs",   label: "Mínimo (12px)" },
+  { value: "sm",   label: "Pequeno (16px)" },
+  { value: "base", label: "Médio (22px)" },
+  { value: "lg",   label: "Grande (30px)" },
+  { value: "xl",   label: "Muito grande (40px)" },
+  { value: "2xl",  label: "Enorme (52px)" },
+  { value: "3xl",  label: "Gigante (64px)" },
+  { value: "4xl",  label: "Máximo (80px)" },
 ];
 
 const FONT_WEIGHTS: Array<{ value: CatalogConfig["fontWeight"]; label: string }> = [

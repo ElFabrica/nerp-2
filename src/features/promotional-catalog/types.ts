@@ -7,7 +7,7 @@ export type CatalogConfig = {
   sortBy: "discount-desc" | "price-asc" | "price-desc" | "name-asc" | "savings-desc";
   backgroundColor: string;
   cardColor: string;
-  textSize: "xs" | "sm" | "base" | "lg" | "xl";
+  textSize: "xs" | "sm" | "base" | "lg" | "xl" | "2xl" | "3xl" | "4xl";
   fontWeight: "normal" | "medium" | "semibold" | "bold";
   backgroundImage: string;
   backgroundFit: "cover" | "contain";
@@ -25,11 +25,14 @@ export type CatalogConfig = {
 };
 
 export const TEXT_SIZE_CSS: Record<CatalogConfig["textSize"], string> = {
-  xs: "0.75rem",
-  sm: "0.875rem",
-  base: "1rem",
-  lg: "1.125rem",
-  xl: "1.25rem",
+  xs:   "0.75rem",   // 12px
+  sm:   "1rem",      // 16px
+  base: "1.375rem",  // 22px
+  lg:   "1.875rem",  // 30px
+  xl:   "2.5rem",    // 40px
+  "2xl": "3.25rem",  // 52px
+  "3xl": "4rem",     // 64px
+  "4xl": "5rem",     // 80px
 };
 
 export const FONT_WEIGHT_CSS: Record<CatalogConfig["fontWeight"], string> = {
