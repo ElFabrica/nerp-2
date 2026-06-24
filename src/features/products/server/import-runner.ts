@@ -5,6 +5,7 @@ import { S3 } from "@/lib/s3-client";
 import type { ImportMapping } from "@/features/products/import-fields";
 import { createProductForOrg } from "./create-product";
 import { mapRow, parseSheet, type SheetRow } from "./parse-import";
+import { uploadImageFromUrl } from "./upload-image-from-url";
 
 interface RowError {
   row: number;
@@ -112,8 +113,21 @@ export async function runProductImport(importId: string): Promise<void> {
           );
         }
 
+        const [thumbnailKey, ...extraImageKeys] = await Promise.all([
+          mapped.thumbnailUrl
+            ? uploadImageFromUrl(mapped.thumbnailUrl)
+            : Promise.resolve(null),
+          ...(mapped.imageUrls ?? []).map(uploadImageFromUrl),
+        ]);
+        const imageKeys = extraImageKeys.filter((k): k is string => k !== null);
+
         await createProductForOrg(
-          { ...mapped.input, categoryId },
+          {
+            ...mapped.input,
+            categoryId,
+            thumbnail: thumbnailKey ?? undefined,
+            images: imageKeys.length ? imageKeys : undefined,
+          },
           { orgId: record.organizationId, userId: record.createdById },
         );
         createdRows++;

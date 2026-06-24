@@ -32,6 +32,7 @@ model User {
   createdPurchases      Purchase[]      @relation("CreatedPurchases")
   createdKitchenOrders  KitchenOrder[]  @relation("CreatedKitchenOrders")
   kitchenEventsActed    KitchenOrderEvent[] @relation("KitchenEventsByUser")
+  promotionalCatalogs   PromotionalCatalog[]
 
   @@index([email])
   @@map("user")
@@ -164,6 +165,7 @@ model Organization {
   // Integração NASA (S2S)
   nasaIntegrationConsents NasaIntegrationConsent[]
   nasaIntegrationKeys     NasaIntegrationKey[]
+  promotionalCatalogs     PromotionalCatalog[]
 
   @@index([slug])
   @@index([subdomain])
@@ -1055,4 +1057,20 @@ model ProductImport {
 
   @@index([organizationId, status])
   @@map("product_imports")
+}
+
+model PromotionalCatalog {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  config         Json
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@map("promotional_catalogs")
 }

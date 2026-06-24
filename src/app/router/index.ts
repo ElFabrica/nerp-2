@@ -10,6 +10,7 @@ import { SalesRoutes } from "./sales";
 import { kitchenRoutes } from "./pedidos";
 import { collaboratorRoutes } from "./collaborators";
 import { memberRoutes } from "./members";
+import { promotionalCatalogRouter } from "./promotional-catalog";
 
 export const router = {
   products: productsRoutes,
@@ -24,4 +25,5 @@ export const router = {
   kitchen: kitchenRoutes,
   collaborators: collaboratorRoutes,
   members: memberRoutes,
+  promotionalCatalog: promotionalCatalogRouter,
 };

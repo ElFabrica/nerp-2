@@ -62,6 +62,20 @@ export const PRODUCT_IMPORT_FIELDS: ImportField[] = [
   { key: "length", label: "Comprimento", required: false, type: "number" },
   { key: "width", label: "Largura", required: false, type: "number" },
   { key: "height", label: "Altura", required: false, type: "number" },
+  {
+    key: "thumbnail",
+    label: "URL da thumbnail",
+    required: false,
+    type: "string",
+    hint: "URL externa da imagem principal do produto",
+  },
+  {
+    key: "images",
+    label: "URLs de imagens adicionais",
+    required: false,
+    type: "string",
+    hint: "URLs separadas por vírgula",
+  },
 ];
 
 /** Mapeamento { chaveDoCampo: nomeDaColunaNoArquivo }. */
