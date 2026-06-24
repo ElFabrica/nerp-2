@@ -60,6 +60,10 @@ export interface MappedRow {
   input: Omit<CreateProductInput, "categoryId">;
   /** Nome da categoria informado (resolvido pelo chamador para um id). */
   categoryName?: string;
+  /** URL externa para thumbnail (baixada e enviada ao R2 pelo import-runner). */
+  thumbnailUrl?: string;
+  /** URLs externas para imagens adicionais (separadas por vírgula no CSV). */
+  imageUrls?: string[];
   /** Mensagem de validação; se presente, a linha deve ser pulada. */
   error?: string;
 }
@@ -164,5 +168,14 @@ export function mapRow(row: SheetRow, mapping: ImportMapping): MappedRow {
     height: numbers.height,
   };
 
-  return { input, categoryName };
+  const thumbnailUrl = asString("thumbnail");
+  const rawImages = asString("images");
+  const imageUrls = rawImages
+    ? rawImages
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean)
+    : undefined;
+
+  return { input, categoryName, thumbnailUrl, imageUrls };
 }

@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "context7-cli": {
+      "source": "upstash/context7",
+      "sourceType": "github",
+      "skillPath": "skills/context7-cli/SKILL.md",
+      "computedHash": "6077b3c638fb7efb31d9b2c815436650de4aef73e7b671edec2f1c63f6a1e105"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",

@@ -146,6 +146,12 @@ const navigation: Array<{
     permission: "catalogo",
   },
   {
+    name: "Catálogo Promocional",
+    href: "/catalogo-promocional",
+    icon: Tag,
+    permission: "catalogo-promocional",
+  },
+  {
     name: "Configurações",
     href: "/configuracoes",
     icon: Settings,
@@ -206,7 +212,7 @@ export function AppSidebar() {
                       <Collapsible
                         key={item.name}
                         asChild
-                        defaultOpen={pathname.startsWith(item.href)}
+                        defaultOpen={pathname === item.href || pathname.startsWith(item.href + "/")}
                       >
                         <SidebarMenuItem>
                           <CollapsibleTrigger asChild>
@@ -256,7 +262,7 @@ export function AppSidebar() {
                       key={item.name}
                       tooltip={item.name}
                       className={cn(
-                        pathname.startsWith(item.href) &&
+                        (pathname === item.href || pathname.startsWith(item.href + "/")) &&
                           "bg-sidebar-accent text-sidebar-accent-foreground",
                       )}
                       asChild
