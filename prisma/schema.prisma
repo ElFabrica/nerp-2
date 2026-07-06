@@ -166,6 +166,9 @@ model Organization {
   nasaIntegrationConsents NasaIntegrationConsent[]
   nasaIntegrationKeys     NasaIntegrationKey[]
   promotionalCatalogs     PromotionalCatalog[]
+  // Ranking de Equipes (metas de venda)
+  salesGoalPeriods         SalesGoalPeriod[]
+  salesGoalRankingSettings SalesGoalRankingSettings?
 
   @@index([slug])
   @@index([subdomain])
@@ -186,6 +189,8 @@ model Member {
   role           String       @default("member")
   permissions    String[]     @default([]) // chaves de páginas liberadas; owner/admin ignoram
   createdAt      DateTime     @default(now())
+
+  salesGoalEntries SalesGoalEntry[]
 
   @@unique([organizationId, userId])
   @@index([organizationId])
@@ -1081,4 +1086,113 @@ model PromotionalCatalog {
 
   @@index([organizationId])
   @@map("promotional_catalogs")
+}
+
+// ============================================
+// RANKING DE EQUIPES — METAS DE VENDA
+// Metas importadas de planilha (Winthor/Totvs); vendido calculado
+// automaticamente de Sale quando a entry está vinculada a um Member.
+// ============================================
+
+enum SalesGoalPeriodType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+}
+
+enum SalesGoalEntryKind {
+  SELLER // vendedor real (código de vendedor no Winthor)
+  BUCKET // linha não-pessoa: treinamento, checkout, etc.
+}
+
+enum SalesGoalRankingTheme {
+  GAMING
+  LIGHT
+  DARK
+  GALAXY
+}
+
+model SalesGoalPeriod {
+  id               String              @id @default(cuid())
+  organizationId   String
+  periodType       SalesGoalPeriodType
+  periodStart      DateTime
+  periodEnd        DateTime
+  label            String?
+  sourceFileName   String?
+  importedAt       DateTime            @default(now())
+  importedByUserId String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branches     SalesGoalBranch[]
+
+  @@unique([organizationId, periodType, periodStart])
+  @@index([organizationId])
+  @@map("sales_goal_periods")
+}
+
+model SalesGoalBranch {
+  id        String   @id @default(cuid())
+  periodId  String
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  period  SalesGoalPeriod  @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  entries SalesGoalEntry[]
+
+  @@unique([periodId, name])
+  @@index([periodId])
+  @@map("sales_goal_branches")
+}
+
+model SalesGoalEntry {
+  id             String             @id @default(cuid())
+  branchId       String
+  externalCode   String
+  goalName       String
+  sellerName     String
+  entryKind      SalesGoalEntryKind @default(SELLER)
+  goalAmount     Decimal            @db.Decimal(15, 2)
+  achievedAmount Decimal?           @db.Decimal(15, 2) // manual; ignorado quando memberId presente (vendido vem de Sale)
+  memberId       String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  branch SalesGoalBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  member Member?         @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([branchId, externalCode])
+  @@index([branchId])
+  @@index([memberId])
+  @@map("sales_goal_entries")
+}
+
+// Configuração de exibição do Ranking de Equipes (1 por organização)
+model SalesGoalRankingSettings {
+  id                String                @id @default(cuid())
+  organizationId    String                @unique
+  displayName       String                @default("Ranking de Equipes")
+  theme             SalesGoalRankingTheme @default(GAMING)
+  activePeriodTypes SalesGoalPeriodType[]
+  soundEnabled      Boolean               @default(true)
+  scoreSoundUrl     String?
+  overtakeSoundUrl  String?
+  victorySoundUrl   String?
+  soundVolume       Float                 @default(0.6)
+  prizes            Json                  @default("[]") // [{ position, label, imageUrl? }]
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("sales_goal_ranking_settings")
 }
