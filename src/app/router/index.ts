@@ -11,6 +11,7 @@ import { kitchenRoutes } from "./pedidos";
 import { collaboratorRoutes } from "./collaborators";
 import { memberRoutes } from "./members";
 import { promotionalCatalogRouter } from "./promotional-catalog";
+import { rankingRouter } from "./ranking";
 import { supplierRoutes } from "./supplier";
 
 export const router = {
@@ -27,5 +28,6 @@ export const router = {
   collaborators: collaboratorRoutes,
   members: memberRoutes,
   promotionalCatalog: promotionalCatalogRouter,
+  ranking: rankingRouter,
   supplier: supplierRoutes,
 };

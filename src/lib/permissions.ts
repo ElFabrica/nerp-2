@@ -52,6 +52,11 @@ export const PAGE_PERMISSIONS = [
     href: "/colaboradores",
   },
   {
+    key: "ranking",
+    label: "Ranking de Equipes",
+    href: "/ranking",
+  },
+  {
     key: "configuracoes",
     label: "Configurações",
     href: "/configuracoes",

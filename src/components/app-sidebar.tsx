@@ -33,6 +33,7 @@ import {
   Store,
   Tag,
   TrendingUp,
+  Trophy,
   UserCircle2,
   UsersIcon,
 } from "lucide-react";
@@ -71,7 +72,11 @@ const navigation: Array<{
   href: string;
   icon: typeof LayoutDashboard;
   permission?: string;
-  children?: Array<{ name: string; href: string; icon: typeof LayoutDashboard }>;
+  children?: Array<{
+    name: string;
+    href: string;
+    icon: typeof LayoutDashboard;
+  }>;
 }> = [
   {
     name: "Dashboard",
@@ -143,6 +148,12 @@ const navigation: Array<{
     permission: "colaboradores",
   },
   {
+    name: "Ranking de Equipes",
+    href: "/ranking",
+    icon: Trophy,
+    permission: "ranking",
+  },
+  {
     name: "Catálogo Online",
     href: "/catalogo",
     icon: Store,
@@ -210,79 +221,84 @@ export function AppSidebar() {
                   <Spinner className="size-5 text-muted-foreground" />
                 </div>
               ) : (
-              <SidebarMenu>
-                {visibleNavigation.map((item) => {
-                  // const isActive = pathname === item.href;
-                  const hasChildren = item.children && item.children.length > 0;
+                <SidebarMenu>
+                  {visibleNavigation.map((item) => {
+                    // const isActive = pathname === item.href;
+                    const hasChildren =
+                      item.children && item.children.length > 0;
 
-                  if (hasChildren) {
-                    return (
-                      <Collapsible
-                        key={item.name}
-                        asChild
-                        defaultOpen={pathname === item.href || pathname.startsWith(item.href + "/")}
-                      >
-                        <SidebarMenuItem>
-                          <CollapsibleTrigger asChild>
-                            <SidebarMenuButton tooltip={item.name}>
-                              {item.icon && (
-                                <item.icon
-                                  onClick={() => {
-                                    router.push(item.href);
-                                    handleNavClick();
-                                  }}
-                                />
-                              )}
-                              <span>{item.name}</span>
-                              <ChevronDown className="ml-auto transition-transform duration-200 data-[state=open]:rotate-180" />
-                            </SidebarMenuButton>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <SidebarMenuSub>
-                              {item.children?.map((child) => (
-                                <SidebarMenuSubItem key={child.name}>
-                                  <SidebarMenuSubButton
-                                    asChild
-                                    className={cn(
-                                      pathname === child.href &&
-                                        "bg-sidebar-accent text-sidebar-accent-foreground",
-                                    )}
-                                  >
-                                    <Link
-                                      href={child.href}
-                                      onClick={handleNavClick}
+                    if (hasChildren) {
+                      return (
+                        <Collapsible
+                          key={item.name}
+                          asChild
+                          defaultOpen={
+                            pathname === item.href ||
+                            pathname.startsWith(item.href + "/")
+                          }
+                        >
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger asChild>
+                              <SidebarMenuButton tooltip={item.name}>
+                                {item.icon && (
+                                  <item.icon
+                                    onClick={() => {
+                                      router.push(item.href);
+                                      handleNavClick();
+                                    }}
+                                  />
+                                )}
+                                <span>{item.name}</span>
+                                <ChevronDown className="ml-auto transition-transform duration-200 data-[state=open]:rotate-180" />
+                              </SidebarMenuButton>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <SidebarMenuSub>
+                                {item.children?.map((child) => (
+                                  <SidebarMenuSubItem key={child.name}>
+                                    <SidebarMenuSubButton
+                                      asChild
+                                      className={cn(
+                                        pathname === child.href &&
+                                          "bg-sidebar-accent text-sidebar-accent-foreground",
+                                      )}
                                     >
-                                      <child.icon />
-                                      <span>{child.name}</span>
-                                    </Link>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          </CollapsibleContent>
-                        </SidebarMenuItem>
-                      </Collapsible>
-                    );
-                  }
+                                      <Link
+                                        href={child.href}
+                                        onClick={handleNavClick}
+                                      >
+                                        <child.icon />
+                                        <span>{child.name}</span>
+                                      </Link>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                ))}
+                              </SidebarMenuSub>
+                            </CollapsibleContent>
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      );
+                    }
 
-                  return (
-                    <SidebarMenuButton
-                      key={item.name}
-                      tooltip={item.name}
-                      className={cn(
-                        (pathname === item.href || pathname.startsWith(item.href + "/")) &&
-                          "bg-sidebar-accent text-sidebar-accent-foreground",
-                      )}
-                      asChild
-                    >
-                      <Link href={item.href} onClick={handleNavClick}>
-                        {item.icon && <item.icon />}
-                        <span>{item.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  );
-                })}
-              </SidebarMenu>
+                    return (
+                      <SidebarMenuButton
+                        key={item.name}
+                        tooltip={item.name}
+                        className={cn(
+                          (pathname === item.href ||
+                            pathname.startsWith(item.href + "/")) &&
+                            "bg-sidebar-accent text-sidebar-accent-foreground",
+                        )}
+                        asChild
+                      >
+                        <Link href={item.href} onClick={handleNavClick}>
+                          {item.icon && <item.icon />}
+                          <span>{item.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    );
+                  })}
+                </SidebarMenu>
               )}
             </ScrollArea>
           </SidebarGroupContent>
