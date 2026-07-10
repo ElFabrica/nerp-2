@@ -10,7 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { useBrands } from "@/features/brands/hooks/use-brands";
+import { PdvPhotoSection } from "@/features/pdv-photos/components/pdv-photo-section";
 import { useSupplier } from "@/features/supplier/hooks/use-supplier";
 import { Trash2 } from "lucide-react";
 import { useSceneStore } from "../engine/scene-store";
@@ -38,6 +40,7 @@ export function ObjectPropertiesPanel() {
   const objects = useSceneStore((state) => state.objects);
   const updateObject = useSceneStore((state) => state.updateObject);
   const removeSelected = useSceneStore((state) => state.removeSelected);
+  const storeId = useSceneStore((state) => state.floorPlan?.storeId);
 
   const object = selectedIds.length === 1 ? objects[selectedIds[0]] : undefined;
   const { suppliers } = useSupplier();
@@ -202,6 +205,18 @@ export function ObjectPropertiesPanel() {
           />
         </Field>
       </div>
+
+      {storeId && (
+        <>
+          <Separator />
+          <PdvPhotoSection
+            storeId={storeId}
+            mapObjectId={object.id}
+            defaultSupplierId={object.supplierId}
+            defaultSection={object.category}
+          />
+        </>
+      )}
     </div>
   );
 }

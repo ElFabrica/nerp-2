@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
+import { uploadToR2 } from "@/lib/upload-to-r2";
 import { ImageIcon, Ruler, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -16,29 +17,6 @@ import { useUpdateFloorPlan } from "../hooks/use-floor-plans";
 
 interface BackgroundControlsProps {
   floorPlanId: string;
-}
-
-async function uploadImage(file: File): Promise<string> {
-  const presigned = await fetch("/api/s3/upload", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      fileName: file.name,
-      contentType: file.type,
-      size: file.size,
-      isImage: true,
-    }),
-  });
-  if (!presigned.ok) throw new Error("Falha ao gerar URL de upload");
-  const { presignedUrl, key } = await presigned.json();
-
-  const put = await fetch(presignedUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
-  });
-  if (!put.ok) throw new Error("Falha ao enviar a imagem");
-  return key;
 }
 
 function measureNaturalWidth(file: File): Promise<number> {
@@ -73,7 +51,7 @@ export function BackgroundControls({ floorPlanId }: BackgroundControlsProps) {
     setUploading(true);
     try {
       const naturalWidth = await measureNaturalWidth(file);
-      const key = await uploadImage(file);
+      const key = await uploadToR2(file);
       const backgroundTransform = {
         x: 0,
         y: 0,

@@ -147,8 +147,8 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 | **M3** | Engine (types, geometry, scene-store) + routers floorPlan/mapLayer/mapObject | ✅ completo |
 | **M4** | Editor React-Konva (zoom/pan, grid, snap, desenhar, Transformer, multi-seleção, camadas, autosave, painel básico) | ✅ completo |
 | **M5** | Import de planta (imagem de fundo) + **calibração de escala** (2 cliques → medida real reescala o `backgroundTransform`) + opacidade + leitura de coordenadas em metros | ✅ completo (régua com ticks fica p/ M9) |
-| **M6** | Painel lateral completo: vincular **Indústria (Supplier)** e **Marca (Brand)**, aba **Fotos do PDV** | ⏳ pendente |
-| **M7** | **Fotos do PDV**: `MultiPhotoUploader`, router `pdvPhoto/` (create/list filtrado/getOne/update/delete/`filterOptions`), histórico por objeto, fallback na loja | ⏳ pendente |
+| **M6** | Painel lateral: vincular **Indústria (Supplier)** e **Marca (Brand)** + seção **Fotos do PDV** | ✅ completo |
+| **M7** | **Fotos do PDV**: `MultiPhotoUploader`, router `pdvPhoto/` (create/list filtrado/update/delete/`filterOptions`), histórico por objeto, página `/lojas/[storeId]` (fallback na loja) | ✅ completo |
 | **M8** | **Book em PDF** server-side: router `book/` (create/list/getOne/update/`importPhotos`/`removeItem`/`reorderItems`/`generate`), `@react-pdf/renderer`, `uploadBufferToR2`, função Inngest `book/generate`, polling/download; rota `/books` | ⏳ pendente |
 | **M9** | Extras: minimapa, snapping/guias, culling de viewport, anotações (`MapAnnotation`), dashboard (contagens), refinos | ⏳ pendente |
 
@@ -156,19 +156,13 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 
 ## 8. Próximos passos detalhados (para retomar)
 
-> M5 concluído. Componentes: `background-controls.tsx` (popover: importar/opacidade/calibrar/remover),
-> `scale-calibration-dialog.tsx`, e overlays de coordenadas/calibração em `renderers/konva/map-stage.tsx`.
-> Estado no store: `calibrating`, `calibrationPoints`, `patchFloorPlan`, `begin/push/endCalibration`.
-
-### M6 — Painel lateral completo
-- Em `object-properties-panel.tsx`, adicionar selects de **Indústria** (usa `useSuppliers`) e **Marca** (usa `useBrands(supplierId)`), gravando `supplierId`/`brandId` via `updateObject`.
-- Adicionar aba/seção **Fotos do PDV** (depende de M7).
-- Passar `storeId` de volta ao painel (removido em M4 para evitar prop sem uso).
-
-### M7 — Fotos do PDV
-- `MultiPhotoUploader` (envolver o padrão confirmar-e-anexar de `src/features/catalogo/components/file-uploader/carousel-uploader.tsx`, gerenciando `string[]`).
-- Router `pdvPhoto/` + hooks; histórico ao clicar na gôndola; fallback na loja.
-- `filterOptions` para autocomplete/filtros (seção, empresa, coordenador, consultor, código).
+> **M5–M7 concluídos.** Próximo: **M8 (Book em PDF)**, depois **M9 (extras)**.
+>
+> Feito no editor: `background-controls.tsx`, `scale-calibration-dialog.tsx`, overlays de coordenadas/calibração
+> (`map-stage.tsx`); painel com Indústria/Marca (`object-properties-panel.tsx`).
+> Fotos do PDV em `src/features/pdv-photos/` (`multi-photo-uploader`, `pdv-photo-dialog`, `pdv-photo-history`,
+> `pdv-photo-section`, hook `use-pdv-photos`) + router `src/app/router/pdv-photo/` + página `/lojas/[storeId]`.
+> Helper compartilhado de upload: `src/lib/upload-to-r2.ts`.
 
 ### M8 — Book em PDF (server-side)
 - Dep `@react-pdf/renderer`. Template `src/features/books/pdf/book-document.tsx` (capa: logo distribuidora=`Organization.logo` + logo indústria=`Supplier.logo` + nome + mês/ano; páginas: metadados + fotos + logos de marcas).

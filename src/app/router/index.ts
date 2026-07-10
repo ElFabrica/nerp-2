@@ -18,6 +18,7 @@ import { brandRoutes } from "./brand";
 import { floorPlanRoutes } from "./floor-plan";
 import { mapLayerRoutes } from "./map-layer";
 import { mapObjectRoutes } from "./map-object";
+import { pdvPhotoRoutes } from "./pdv-photo";
 
 export const router = {
   products: productsRoutes,
@@ -40,4 +41,5 @@ export const router = {
   floorPlan: floorPlanRoutes,
   mapLayer: mapLayerRoutes,
   mapObject: mapObjectRoutes,
+  pdvPhoto: pdvPhotoRoutes,
 };
