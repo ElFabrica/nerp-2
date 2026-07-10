@@ -3,9 +3,20 @@
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useBrands } from "@/features/brands/hooks/use-brands";
+import { useSupplier } from "@/features/supplier/hooks/use-supplier";
 import { Trash2 } from "lucide-react";
 import { useSceneStore } from "../engine/scene-store";
 import type { MapObjectType } from "../engine/types";
+
+const NONE = "__none__";
 
 const TYPE_LABELS: Record<MapObjectType, string> = {
   WALL: "Parede",
@@ -27,6 +38,10 @@ export function ObjectPropertiesPanel() {
   const objects = useSceneStore((state) => state.objects);
   const updateObject = useSceneStore((state) => state.updateObject);
   const removeSelected = useSceneStore((state) => state.removeSelected);
+
+  const object = selectedIds.length === 1 ? objects[selectedIds[0]] : undefined;
+  const { suppliers } = useSupplier();
+  const { brands } = useBrands(object?.supplierId ?? undefined);
 
   if (selectedIds.length === 0) {
     return (
@@ -53,15 +68,24 @@ export function ObjectPropertiesPanel() {
     );
   }
 
-  const object = objects[selectedIds[0]];
   if (!object) return null;
 
+  const size =
+    object.geometry.kind === "RECT"
+      ? `${object.geometry.width.toFixed(2)} × ${object.geometry.height.toFixed(2)} m`
+      : null;
+
   return (
-    <div className="space-y-4 p-4" key={object.id}>
+    <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
-        <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium">
-          {TYPE_LABELS[object.type]}
-        </span>
+        <div className="flex flex-col">
+          <span className="rounded bg-muted px-2 py-0.5 text-xs font-medium">
+            {TYPE_LABELS[object.type]}
+          </span>
+          {size && (
+            <span className="mt-1 text-xs text-muted-foreground">{size}</span>
+          )}
+        </div>
         <Button
           type="button"
           variant="ghost"
@@ -74,55 +98,110 @@ export function ObjectPropertiesPanel() {
         </Button>
       </div>
 
-      <Field>
-        <FieldLabel htmlFor="object-name">Nome</FieldLabel>
-        <Input
-          id="object-name"
-          defaultValue={object.name ?? ""}
-          placeholder="Ex.: Gôndola A12"
-          onBlur={(event) =>
-            updateObject(object.id, { name: event.target.value || null })
-          }
-        />
-      </Field>
+      <div className="space-y-4" key={object.id}>
+        <Field>
+          <FieldLabel htmlFor="object-name">Nome</FieldLabel>
+          <Input
+            id="object-name"
+            defaultValue={object.name ?? ""}
+            placeholder="Ex.: Gôndola A12"
+            onBlur={(event) =>
+              updateObject(object.id, { name: event.target.value || null })
+            }
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="object-category">Categoria</FieldLabel>
+          <Input
+            id="object-category"
+            defaultValue={object.category ?? ""}
+            placeholder="Ex.: Bebidas"
+            onBlur={(event) =>
+              updateObject(object.id, { category: event.target.value || null })
+            }
+          />
+        </Field>
+      </div>
 
       <Field>
-        <FieldLabel htmlFor="object-category">Categoria</FieldLabel>
-        <Input
-          id="object-category"
-          defaultValue={object.category ?? ""}
-          placeholder="Ex.: Bebidas"
-          onBlur={(event) =>
-            updateObject(object.id, { category: event.target.value || null })
-          }
-        />
-      </Field>
-
-      <Field>
-        <FieldLabel htmlFor="object-status">Status</FieldLabel>
-        <Input
-          id="object-status"
-          defaultValue={object.status ?? ""}
-          placeholder="Ex.: Ativo / Pendente"
-          onBlur={(event) =>
-            updateObject(object.id, { status: event.target.value || null })
-          }
-        />
-      </Field>
-
-      <Field>
-        <FieldLabel htmlFor="object-responsible">Responsável</FieldLabel>
-        <Input
-          id="object-responsible"
-          defaultValue={object.responsibleName ?? ""}
-          placeholder="Ex.: João (consultor)"
-          onBlur={(event) =>
+        <FieldLabel>Empresa / Indústria</FieldLabel>
+        <Select
+          value={object.supplierId ?? NONE}
+          onValueChange={(value) =>
             updateObject(object.id, {
-              responsibleName: event.target.value || null,
+              supplierId: value === NONE ? null : value,
+              brandId: null,
             })
           }
-        />
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione a indústria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NONE}>Nenhuma</SelectItem>
+            {suppliers.map((supplier) => (
+              <SelectItem key={supplier.id} value={supplier.id}>
+                {supplier.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </Field>
+
+      {object.supplierId && (
+        <Field>
+          <FieldLabel>Marca</FieldLabel>
+          <Select
+            value={object.brandId ?? NONE}
+            onValueChange={(value) =>
+              updateObject(object.id, {
+                brandId: value === NONE ? null : value,
+              })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione a marca" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Nenhuma</SelectItem>
+              {brands.map((brand) => (
+                <SelectItem key={brand.id} value={brand.id}>
+                  {brand.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      )}
+
+      <div className="space-y-4" key={`${object.id}-meta`}>
+        <Field>
+          <FieldLabel htmlFor="object-status">Status</FieldLabel>
+          <Input
+            id="object-status"
+            defaultValue={object.status ?? ""}
+            placeholder="Ex.: Ativo / Pendente"
+            onBlur={(event) =>
+              updateObject(object.id, { status: event.target.value || null })
+            }
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="object-responsible">Responsável</FieldLabel>
+          <Input
+            id="object-responsible"
+            defaultValue={object.responsibleName ?? ""}
+            placeholder="Ex.: João (consultor)"
+            onBlur={(event) =>
+              updateObject(object.id, {
+                responsibleName: event.target.value || null,
+              })
+            }
+          />
+        </Field>
+      </div>
     </div>
   );
 }
