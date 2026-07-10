@@ -3,7 +3,7 @@
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Layer, Rect, Stage, Transformer } from "react-konva";
+import { Circle, Layer, Line, Rect, Stage, Transformer } from "react-konva";
 import { useSceneStore } from "../../engine/scene-store";
 import { snapToGrid } from "../../engine/geometry";
 import { CREATE_TOOLS_BY_TYPE } from "../../engine/tools";
@@ -36,6 +36,11 @@ export function MapStage() {
   const snapEnabled = useSceneStore((state) => state.snapEnabled);
   const gridSizeM = useSceneStore((state) => state.gridSizeM);
   const activeLayerId = useSceneStore((state) => state.activeLayerId);
+  const calibrating = useSceneStore((state) => state.calibrating);
+  const calibrationPoints = useSceneStore((state) => state.calibrationPoints);
+  const pushCalibrationPoint = useSceneStore(
+    (state) => state.pushCalibrationPoint,
+  );
 
   const addObject = useSceneStore((state) => state.addObject);
   const panBy = useSceneStore((state) => state.panBy);
@@ -50,6 +55,7 @@ export function MapStage() {
   const transformerRef = useRef<Konva.Transformer>(null);
   const panLast = useRef<Vec2 | null>(null);
   const draftStart = useRef<Vec2 | null>(null);
+  const readoutRef = useRef<HTMLDivElement>(null);
 
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [draft, setDraft] = useState<DraftRect | null>(null);
@@ -123,6 +129,11 @@ export function MapStage() {
     const world = getWorldPoint();
     if (!screen || !world) return;
 
+    if (calibrating) {
+      pushCalibrationPoint(world);
+      return;
+    }
+
     if (tool === "PAN") {
       panLast.current = screen;
       return;
@@ -157,6 +168,11 @@ export function MapStage() {
   };
 
   const handleMove = () => {
+    const world = getWorldPoint();
+    if (world && readoutRef.current) {
+      readoutRef.current.textContent = `${world.x.toFixed(2)} m · ${world.y.toFixed(2)} m`;
+    }
+
     if (panLast.current) {
       const screen = getScreenPoint();
       if (!screen) return;
@@ -164,9 +180,7 @@ export function MapStage() {
       panLast.current = screen;
       return;
     }
-    if (draftStart.current) {
-      const world = getWorldPoint();
-      if (!world) return;
+    if (draftStart.current && world) {
       const start = draftStart.current;
       const currentX = snap(world.x);
       const currentY = snap(world.y);
@@ -231,7 +245,7 @@ export function MapStage() {
     <div
       ref={containerRef}
       className="relative h-full w-full bg-[#f8fafc]"
-      style={{ cursor: cursorFor(tool) }}
+      style={{ cursor: calibrating ? "crosshair" : cursorFor(tool) }}
     >
       {size.width > 0 && floorPlan && (
         <Stage
@@ -284,6 +298,33 @@ export function MapStage() {
                 listening={false}
               />
             )}
+            {calibrating && calibrationPoints.length === 2 && (
+              <Line
+                points={[
+                  calibrationPoints[0].x,
+                  calibrationPoints[0].y,
+                  calibrationPoints[1].x,
+                  calibrationPoints[1].y,
+                ]}
+                stroke="#ef4444"
+                strokeWidth={2}
+                dash={[0.3, 0.2]}
+                strokeScaleEnabled={false}
+                listening={false}
+              />
+            )}
+            {calibrating &&
+              calibrationPoints.map((point, index) => (
+                <Circle
+                  key={`calib-${index}-${point.x}-${point.y}`}
+                  x={point.x}
+                  y={point.y}
+                  radius={0.15}
+                  fill="#ef4444"
+                  strokeScaleEnabled={false}
+                  listening={false}
+                />
+              ))}
             <Transformer
               ref={transformerRef}
               rotateEnabled
@@ -295,6 +336,17 @@ export function MapStage() {
           </Layer>
         </Stage>
       )}
+
+      {calibrating && (
+        <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground shadow">
+          Clique em dois pontos de uma medida conhecida na planta
+        </div>
+      )}
+
+      <div
+        ref={readoutRef}
+        className="pointer-events-none absolute bottom-2 left-2 rounded bg-background/80 px-2 py-1 text-xs tabular-nums text-muted-foreground"
+      />
     </div>
   );
 }

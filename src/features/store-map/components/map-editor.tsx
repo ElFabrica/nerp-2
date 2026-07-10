@@ -5,9 +5,11 @@ import dynamic from "next/dynamic";
 import { useEffect } from "react";
 import { useSceneStore } from "../engine/scene-store";
 import { useFloorPlanScene } from "../hooks/use-floor-plan-scene";
+import { BackgroundControls } from "./background-controls";
 import { EditorToolbar } from "./editor-toolbar";
 import { LayersPanel } from "./layers-panel";
 import { ObjectPropertiesPanel } from "./object-properties-panel";
+import { ScaleCalibrationDialog } from "./scale-calibration-dialog";
 
 const MapStage = dynamic(
   () => import("../renderers/konva/map-stage").then((mod) => mod.MapStage),
@@ -79,7 +81,12 @@ export function MapEditor({ floorPlanId }: MapEditorProps) {
               <Spinner />
             </div>
           ) : (
-            <MapStage />
+            <>
+              <MapStage />
+              <div className="absolute left-2 top-2 z-10">
+                <BackgroundControls floorPlanId={floorPlanId} />
+              </div>
+            </>
           )}
         </div>
         <aside className="flex w-72 shrink-0 flex-col border-l">
@@ -91,6 +98,7 @@ export function MapEditor({ floorPlanId }: MapEditorProps) {
           </div>
         </aside>
       </div>
+      <ScaleCalibrationDialog floorPlanId={floorPlanId} />
     </div>
   );
 }

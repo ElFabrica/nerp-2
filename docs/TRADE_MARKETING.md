@@ -146,7 +146,7 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 | **M2** | Store + Brand (routers, hooks, UI, BrandsManager) | ✅ completo |
 | **M3** | Engine (types, geometry, scene-store) + routers floorPlan/mapLayer/mapObject | ✅ completo |
 | **M4** | Editor React-Konva (zoom/pan, grid, snap, desenhar, Transformer, multi-seleção, camadas, autosave, painel básico) | ✅ completo |
-| **M5** | Import de planta (imagem/PDF de fundo) + **calibração de escala** (pixelsPerMeter) + régua/coordenadas | ⏳ pendente |
+| **M5** | Import de planta (imagem de fundo) + **calibração de escala** (2 cliques → medida real reescala o `backgroundTransform`) + opacidade + leitura de coordenadas em metros | ✅ completo (régua com ticks fica p/ M9) |
 | **M6** | Painel lateral completo: vincular **Indústria (Supplier)** e **Marca (Brand)**, aba **Fotos do PDV** | ⏳ pendente |
 | **M7** | **Fotos do PDV**: `MultiPhotoUploader`, router `pdvPhoto/` (create/list filtrado/getOne/update/delete/`filterOptions`), histórico por objeto, fallback na loja | ⏳ pendente |
 | **M8** | **Book em PDF** server-side: router `book/` (create/list/getOne/update/`importPhotos`/`removeItem`/`reorderItems`/`generate`), `@react-pdf/renderer`, `uploadBufferToR2`, função Inngest `book/generate`, polling/download; rota `/books` | ⏳ pendente |
@@ -156,10 +156,9 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 
 ## 8. Próximos passos detalhados (para retomar)
 
-### M5 — Import de planta + escala
-- `BackgroundImporter`: upload da imagem (reusa fluxo presigned `/api/s3/upload`), salva `backgroundImageKey` via `floorPlan.update`. Já existe render em `renderers/konva/map-background.tsx`.
-- `ScaleCalibrator`: usuário traça uma linha de referência sobre a planta e informa a medida real (m) → calcula `pixelsPerMeter` e salva.
-- Régua + leitura de coordenadas em metros na borda do stage.
+> M5 concluído. Componentes: `background-controls.tsx` (popover: importar/opacidade/calibrar/remover),
+> `scale-calibration-dialog.tsx`, e overlays de coordenadas/calibração em `renderers/konva/map-stage.tsx`.
+> Estado no store: `calibrating`, `calibrationPoints`, `patchFloorPlan`, `begin/push/endCalibration`.
 
 ### M6 — Painel lateral completo
 - Em `object-properties-panel.tsx`, adicionar selects de **Indústria** (usa `useSuppliers`) e **Marca** (usa `useBrands(supplierId)`), gravando `supplierId`/`brandId` via `updateObject`.

@@ -44,6 +44,9 @@ export interface SceneState {
   viewport: Viewport;
   stageSize: { width: number; height: number };
   tool: EditorTool;
+  // Calibração de escala (medir uma referência real sobre a planta)
+  calibrating: boolean;
+  calibrationPoints: Vec2[];
   gridEnabled: boolean;
   snapEnabled: boolean;
   gridSizeM: number;
@@ -56,6 +59,10 @@ export interface SceneState {
   future: Snapshot[];
 
   hydrate: (scene: FloorPlanScene) => void;
+  patchFloorPlan: (patch: Partial<FloorPlanMeta>) => void;
+  beginCalibration: () => void;
+  pushCalibrationPoint: (point: Vec2) => void;
+  endCalibration: () => void;
   setViewport: (viewport: Viewport) => void;
   setStageSize: (size: { width: number; height: number }) => void;
   panBy: (dx: number, dy: number) => void;
@@ -103,6 +110,8 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   viewport: { x: 0, y: 0, zoom: 1 },
   stageSize: { width: 0, height: 0 },
   tool: "SELECT",
+  calibrating: false,
+  calibrationPoints: [],
   gridEnabled: true,
   snapEnabled: true,
   gridSizeM: 0.5,
@@ -129,6 +138,20 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       future: [],
     });
   },
+
+  patchFloorPlan: (patch) =>
+    set((state) =>
+      state.floorPlan ? { floorPlan: { ...state.floorPlan, ...patch } } : {},
+    ),
+
+  beginCalibration: () =>
+    set({ calibrating: true, calibrationPoints: [], tool: "SELECT" }),
+  pushCalibrationPoint: (point) =>
+    set((state) => {
+      if (!state.calibrating || state.calibrationPoints.length >= 2) return {};
+      return { calibrationPoints: [...state.calibrationPoints, point] };
+    }),
+  endCalibration: () => set({ calibrating: false, calibrationPoints: [] }),
 
   setViewport: (viewport) => set({ viewport }),
   setStageSize: (stageSize) => set({ stageSize }),
