@@ -19,6 +19,7 @@ import { floorPlanRoutes } from "./floor-plan";
 import { mapLayerRoutes } from "./map-layer";
 import { mapObjectRoutes } from "./map-object";
 import { pdvPhotoRoutes } from "./pdv-photo";
+import { bookRoutes } from "./book";
 
 export const router = {
   products: productsRoutes,
@@ -42,4 +43,5 @@ export const router = {
   mapLayer: mapLayerRoutes,
   mapObject: mapObjectRoutes,
   pdvPhoto: pdvPhotoRoutes,
+  book: bookRoutes,
 };
