@@ -4,8 +4,8 @@ import {
   Filter,
   Maximize2,
   Minimize2,
+  Palette,
   RotateCcw,
-  Settings,
   Sliders,
   Upload,
 } from "lucide-react";
@@ -252,7 +252,7 @@ export function RankingPage() {
             <Upload className="size-4" /> Importar planilha
           </Button>
           <Button onClick={() => setSettingsOpen(true)} className="gap-2">
-            <Settings className="size-4" /> Configurações
+            <Palette className="size-4" /> Personalizações
           </Button>
         </div>
       </div>
@@ -501,7 +501,6 @@ export function RankingPage() {
       <SalesGoalSettingsSheet
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        currentPeriodType={periodType}
         onOpenWizard={() => {
           setSettingsOpen(false);
           setWizardOpen(true);

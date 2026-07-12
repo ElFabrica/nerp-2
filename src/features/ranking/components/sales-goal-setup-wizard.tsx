@@ -45,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import {
@@ -87,6 +88,7 @@ interface WizardEntry {
 interface WizardTeam {
   key: string;
   name: string;
+  isActive: boolean;
   entries: WizardEntry[];
 }
 
@@ -183,6 +185,7 @@ interface ExistingPeriodData {
   label: string | null;
   branches: {
     name: string;
+    isActive: boolean;
     entries: {
       externalCode: string;
       goalName: string;
@@ -258,6 +261,7 @@ export function SalesGoalSetupWizard({
         existing.branches.map((branch) => ({
           key: newKey(),
           name: branch.name,
+          isActive: branch.isActive,
           entries: branch.entries.map((entry) => ({
             key: newKey(),
             externalCode: entry.externalCode,
@@ -315,7 +319,10 @@ export function SalesGoalSetupWizard({
   const addTeam = () => {
     const name = newTeamName.trim();
     if (!name) return;
-    setTeams((current) => [...current, { key: newKey(), name, entries: [] }]);
+    setTeams((current) => [
+      ...current,
+      { key: newKey(), name, isActive: true, entries: [] },
+    ]);
     setNewTeamName("");
   };
 
@@ -465,6 +472,7 @@ export function SalesGoalSetupWizard({
         prune: true,
         branches: teams.map((team) => ({
           name: team.name.trim(),
+          isActive: team.isActive,
           entries: team.entries.map((entry) => ({
             externalCode: entry.externalCode,
             sellerName: entry.sellerName.trim(),
@@ -670,10 +678,21 @@ export function SalesGoalSetupWizard({
                           updateTeam(team.key, { name: event.target.value })
                         }
                       />
-                      <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                      <span className="w-20 shrink-0 text-right text-xs text-muted-foreground">
                         {team.entries.length}{" "}
                         {team.entries.length === 1 ? "vendedor" : "vendedores"}
                       </span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Label className="text-xs text-muted-foreground">
+                          Ativa
+                        </Label>
+                        <Switch
+                          checked={team.isActive}
+                          onCheckedChange={(checked) =>
+                            updateTeam(team.key, { isActive: checked })
+                          }
+                        />
+                      </div>
                       <Button
                         type="button"
                         variant="ghost"

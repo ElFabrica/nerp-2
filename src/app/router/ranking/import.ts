@@ -22,6 +22,9 @@ const importEntrySchema = z.object({
 
 const importBranchSchema = z.object({
   name: z.string().min(1),
+  // Enviado só pelo assistente de configuração. undefined = não mexe no
+  // estado atual (import de planilha preserva equipes ativas/inativas).
+  isActive: z.boolean().optional(),
   entries: z.array(importEntrySchema),
 });
 
@@ -118,8 +121,14 @@ export const importSalesGoalRanking = base
               periodId: period.id,
               name: branchInput.name,
               sortOrder: index,
+              isActive: branchInput.isActive ?? true,
             },
-            update: { sortOrder: index },
+            update: {
+              sortOrder: index,
+              ...(branchInput.isActive !== undefined
+                ? { isActive: branchInput.isActive }
+                : {}),
+            },
           });
           branchesCount += 1;
           keptBranchIds.push(branch.id);

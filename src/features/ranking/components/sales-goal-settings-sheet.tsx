@@ -32,15 +32,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowDown, ArrowUp, Loader2, Play, Sliders } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
+import { Loader2, Play, Sliders } from "lucide-react";
 import {
   useSalesGoalRankingSettings,
   useUpdateSalesGoalRankingSettings,
-  useSalesGoalRanking,
-  useUpdateSalesGoalBranch,
-  useUpsertSalesGoalEntry,
   useSalesGoalEvolution,
 } from "../hooks/use-ranking";
 import type { SalesGoalPeriodType } from "../lib/sales-goal-xlsx-parser";
@@ -180,277 +175,6 @@ function SoundPresetPicker({
   );
 }
 
-function TeamsTab({ periodType }: { periodType: SalesGoalPeriodType }) {
-  const query = useSalesGoalRanking(periodType, undefined, true);
-  const updateBranch = useUpdateSalesGoalBranch();
-  const branches = query.data?.branches ?? [];
-
-  if (query.isLoading)
-    return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
-  if (branches.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Nenhuma equipe importada ainda para este período.
-      </p>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs text-muted-foreground">
-        Renomear/reordenar aqui vale até o próximo import da planilha (que
-        recria a equipe pelo nome original).
-      </p>
-      {branches.map((branch, index) => (
-        <div
-          key={branch.id}
-          className="flex items-center gap-2 rounded-md border p-2"
-        >
-          <div className="flex flex-col gap-1">
-            <button
-              type="button"
-              className="disabled:opacity-30"
-              disabled={index === 0}
-              onClick={() =>
-                updateBranch.mutate({
-                  branchId: branch.id,
-                  sortOrder: index - 1,
-                })
-              }
-            >
-              <ArrowUp className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              className="disabled:opacity-30"
-              disabled={index === branches.length - 1}
-              onClick={() =>
-                updateBranch.mutate({
-                  branchId: branch.id,
-                  sortOrder: index + 1,
-                })
-              }
-            >
-              <ArrowDown className="size-3.5" />
-            </button>
-          </div>
-          <Input
-            defaultValue={branch.name}
-            className="flex-1"
-            onBlur={(event) => {
-              if (event.target.value !== branch.name) {
-                updateBranch.mutate({
-                  branchId: branch.id,
-                  name: event.target.value,
-                });
-              }
-            }}
-          />
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Label className="text-xs">Ativa</Label>
-            <Switch
-              checked={branch.isActive}
-              onCheckedChange={(checked) =>
-                updateBranch.mutate({ branchId: branch.id, isActive: checked })
-              }
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const UNLINKED_MEMBER_VALUE = "__unlinked__";
-
-function SellersTab({ periodType }: { periodType: SalesGoalPeriodType }) {
-  const rankingQuery = useSalesGoalRanking(periodType, undefined, true);
-  const membersQuery = useQuery(orpc.members.list.queryOptions({ input: {} }));
-  const upsertEntry = useUpsertSalesGoalEntry();
-  const branches = rankingQuery.data?.branches ?? [];
-  const members = membersQuery.data ?? [];
-
-  if (rankingQuery.isLoading || membersQuery.isLoading) {
-    return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
-  }
-  if (branches.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Nenhuma equipe importada ainda para este período.
-      </p>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-xs text-muted-foreground">
-        Edite nome, meta e tipo de cada participante direto aqui — as alterações
-        são salvas automaticamente. Vincule a um membro do NERP para o vendido
-        ser calculado das vendas do sistema; sem vínculo, informe o vendido
-        manualmente.
-      </p>
-      {branches.map((branch) => (
-        <div key={branch.id} className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground">
-            {branch.name}
-          </p>
-          {branch.entries.map((entry) => (
-            <div key={entry.id} className="space-y-2 rounded-md border p-2">
-              <div className="flex items-center gap-2">
-                <SalesGoalPhotoUploader
-                  value={entry.photoUrl}
-                  onChange={(key) =>
-                    upsertEntry.mutate({ entryId: entry.id, photoUrl: key })
-                  }
-                  name={entry.sellerName}
-                  seed={entry.externalCode}
-                />
-                <Input
-                  className="flex-1"
-                  placeholder="Nome do participante"
-                  defaultValue={entry.sellerName}
-                  onBlur={(event) => {
-                    const value = event.target.value.trim();
-                    if (value && value !== entry.sellerName) {
-                      // sellerName move junto com goalName (nome exibido no
-                      // ranking) pra os dois não divergirem.
-                      upsertEntry.mutate({
-                        entryId: entry.id,
-                        sellerName: value,
-                        goalName: value,
-                      });
-                    }
-                  }}
-                />
-                <Select
-                  value={entry.entryKind}
-                  onValueChange={(value) =>
-                    upsertEntry.mutate({
-                      entryId: entry.id,
-                      entryKind: value as "SELLER" | "BUCKET",
-                      ...(value === "BUCKET" ? { memberId: null } : {}),
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-28 shrink-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SELLER">Vendedor</SelectItem>
-                    <SelectItem value="BUCKET">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] text-muted-foreground shrink-0">
-                  Cód. {entry.externalCode}
-                </span>
-                <div className="flex items-center gap-1">
-                  <Label className="text-[11px] text-muted-foreground">
-                    Meta
-                  </Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    className="w-28"
-                    placeholder="R$"
-                    defaultValue={String(entry.goalAmount)}
-                    onBlur={(event) => {
-                      const raw = event.target.value.trim();
-                      const parsed = Number(raw);
-                      if (
-                        raw !== "" &&
-                        Number.isFinite(parsed) &&
-                        parsed >= 0 &&
-                        parsed !== entry.goalAmount
-                      ) {
-                        upsertEntry.mutate({
-                          entryId: entry.id,
-                          goalAmount: parsed,
-                        });
-                      }
-                    }}
-                  />
-                </div>
-
-                {entry.achievedSource === "MANUAL" && (
-                  <div className="flex items-center gap-1">
-                    <Label className="text-[11px] text-muted-foreground">
-                      Vendido
-                    </Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className="w-28"
-                      placeholder="R$"
-                      defaultValue={
-                        entry.achievedAmount !== null
-                          ? String(entry.achievedAmount)
-                          : ""
-                      }
-                      onBlur={(event) => {
-                        const raw = event.target.value.trim();
-                        if (raw === "") {
-                          if (entry.achievedAmount !== null) {
-                            upsertEntry.mutate({
-                              entryId: entry.id,
-                              achievedAmount: null,
-                            });
-                          }
-                          return;
-                        }
-                        const parsed = Number(raw);
-                        if (
-                          Number.isFinite(parsed) &&
-                          parsed >= 0 &&
-                          parsed !== entry.achievedAmount
-                        ) {
-                          upsertEntry.mutate({
-                            entryId: entry.id,
-                            achievedAmount: parsed,
-                          });
-                        }
-                      }}
-                    />
-                  </div>
-                )}
-
-                <Select
-                  disabled={entry.entryKind === "BUCKET"}
-                  value={entry.memberId ?? UNLINKED_MEMBER_VALUE}
-                  onValueChange={(value) =>
-                    upsertEntry.mutate({
-                      entryId: entry.id,
-                      memberId: value === UNLINKED_MEMBER_VALUE ? null : value,
-                    })
-                  }
-                >
-                  <SelectTrigger className="ml-auto w-44">
-                    <SelectValue placeholder="Sem vínculo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={UNLINKED_MEMBER_VALUE}>
-                      Sem vínculo (manual)
-                    </SelectItem>
-                    {members.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function EvolutionTab() {
   const query = useSalesGoalEvolution();
   const points = (query.data ?? []).map((point) => ({
@@ -507,14 +231,12 @@ function EvolutionTab() {
 interface SalesGoalSettingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentPeriodType: SalesGoalPeriodType;
   onOpenWizard: () => void;
 }
 
 export function SalesGoalSettingsSheet({
   open,
   onOpenChange,
-  currentPeriodType,
   onOpenWizard,
 }: SalesGoalSettingsSheetProps) {
   const settingsQuery = useSalesGoalRankingSettings();
@@ -591,10 +313,10 @@ export function SalesGoalSettingsSheet({
         className="w-full sm:max-w-2xl overflow-y-auto"
       >
         <SheetHeader>
-          <SheetTitle>Configurações do Ranking de Equipes</SheetTitle>
+          <SheetTitle>Personalizações do Ranking de Equipes</SheetTitle>
           <SheetDescription>
-            Equipes, período, sons, premiações, evolução, aparência e
-            integrações.
+            Aparência, sons, premiações, período e evolução. Para editar
+            equipes, vendedores e metas, use o assistente de configuração.
           </SheetDescription>
         </SheetHeader>
 
@@ -614,24 +336,14 @@ export function SalesGoalSettingsSheet({
           {!draft ? (
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           ) : (
-            <Tabs defaultValue="teams">
+            <Tabs defaultValue="appearance">
               <TabsList className="w-full h-auto flex-wrap justify-start gap-1">
-                <TabsTrigger value="teams">Equipes</TabsTrigger>
-                <TabsTrigger value="sellers">Vendedores</TabsTrigger>
-                <TabsTrigger value="period">Período</TabsTrigger>
+                <TabsTrigger value="appearance">Aparência</TabsTrigger>
                 <TabsTrigger value="sound">Sons</TabsTrigger>
                 <TabsTrigger value="prizes">Premiações</TabsTrigger>
+                <TabsTrigger value="period">Período</TabsTrigger>
                 <TabsTrigger value="evolution">Evolução</TabsTrigger>
-                <TabsTrigger value="appearance">Aparência</TabsTrigger>
               </TabsList>
-
-              <TabsContent value="teams" className="mt-4">
-                <TeamsTab periodType={currentPeriodType} />
-              </TabsContent>
-
-              <TabsContent value="sellers" className="mt-4">
-                <SellersTab periodType={currentPeriodType} />
-              </TabsContent>
 
               <TabsContent value="period" className="mt-4 space-y-2">
                 <p className="text-xs text-muted-foreground mb-2">
