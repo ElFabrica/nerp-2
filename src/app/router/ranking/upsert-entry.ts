@@ -8,11 +8,13 @@ import { entryKindSchema } from "./_schemas";
 
 const upsertSalesGoalEntryInputSchema = z.object({
   entryId: z.string(),
+  sellerName: z.string().min(1).optional(),
   goalName: z.string().min(1).optional(),
   goalAmount: z.number().nonnegative().optional(),
   achievedAmount: z.number().nonnegative().nullable().optional(),
   entryKind: entryKindSchema.optional(),
   memberId: z.string().nullable().optional(),
+  photoUrl: z.string().nullable().optional(),
 });
 
 // Entry vinculada a um Member tem o vendido calculado das vendas — o
@@ -59,11 +61,13 @@ export const upsertSalesGoalEntry = base
     const updated = await prisma.salesGoalEntry.update({
       where: { id: input.entryId },
       data: {
+        sellerName: input.sellerName,
         goalName: input.goalName,
         goalAmount: input.goalAmount,
         achievedAmount: isLinkedToMember ? undefined : input.achievedAmount,
         entryKind: input.entryKind,
         memberId: input.memberId,
+        photoUrl: input.photoUrl,
       },
     });
 
@@ -77,5 +81,6 @@ export const upsertSalesGoalEntry = base
       achievedAmount:
         updated.achievedAmount !== null ? Number(updated.achievedAmount) : null,
       memberId: updated.memberId,
+      photoUrl: updated.photoUrl,
     };
   });

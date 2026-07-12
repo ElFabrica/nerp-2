@@ -12,6 +12,12 @@ const importEntrySchema = z.object({
   goalName: z.string().min(1),
   goalAmount: z.number().nonnegative(),
   entryKind: entryKindSchema,
+  // Enviado apenas pelo assistente de configuração manual; a planilha não
+  // conhece membros do NERP. undefined = não mexe no vínculo existente.
+  memberId: z.string().nullable().optional(),
+  // Chave S3 da foto do participante (assistente manual). undefined = mantém
+  // a foto atual; null = remove.
+  photoUrl: z.string().nullable().optional(),
 });
 
 const importBranchSchema = z.object({
@@ -26,11 +32,16 @@ const importSalesGoalRankingInputSchema = z.object({
   label: z.string().optional(),
   sourceFileName: z.string().optional(),
   branches: z.array(importBranchSchema).min(1),
+  // true = o payload é a configuração completa do período: equipes e entries
+  // ausentes são removidas (assistente manual). false/ausente = só upsert
+  // (import de planilha, que pode ser parcial).
+  prune: z.boolean().optional(),
 });
 
 // Reimportar o mesmo período (mesma organização + periodType + periodStart)
 // atualiza valores em vez de duplicar linhas — upsert por externalCode.
-// O update da entry não toca memberId nem achievedAmount: reimport preserva
+// O update da entry não toca achievedAmount, e só toca memberId quando o
+// payload envia o campo (assistente manual): reimport de planilha preserva
 // vínculos com membros e ajustes manuais.
 export const importSalesGoalRanking = base
   .use(requireAuthMiddleware)
@@ -41,11 +52,30 @@ export const importSalesGoalRanking = base
     tags: ["ranking"],
   })
   .input(importSalesGoalRankingInputSchema)
-  .handler(async ({ input, context }) => {
+  .handler(async ({ input, context, errors }) => {
     await requireOrgAdmin(context.org.id, context.user.id);
 
     const periodStart = new Date(input.periodStart);
     const periodEnd = new Date(input.periodEnd);
+
+    const linkedMemberIds = [
+      ...new Set(
+        input.branches
+          .flatMap((branch) => branch.entries)
+          .map((entry) => entry.memberId)
+          .filter((memberId): memberId is string => Boolean(memberId)),
+      ),
+    ];
+    if (linkedMemberIds.length > 0) {
+      const memberCount = await prisma.member.count({
+        where: { id: { in: linkedMemberIds }, organizationId: context.org.id },
+      });
+      if (memberCount !== linkedMemberIds.length) {
+        throw errors.NOT_FOUND({
+          message: "Algum membro vinculado não pertence a esta organização.",
+        });
+      }
+    }
 
     return prisma.$transaction(
       async (tx) => {
@@ -77,6 +107,7 @@ export const importSalesGoalRanking = base
 
         let branchesCount = 0;
         let entriesCount = 0;
+        const keptBranchIds: string[] = [];
 
         for (const [index, branchInput] of input.branches.entries()) {
           const branch = await tx.salesGoalBranch.upsert({
@@ -91,6 +122,7 @@ export const importSalesGoalRanking = base
             update: { sortOrder: index },
           });
           branchesCount += 1;
+          keptBranchIds.push(branch.id);
 
           for (const entryInput of branchInput.entries) {
             await tx.salesGoalEntry.upsert({
@@ -107,16 +139,43 @@ export const importSalesGoalRanking = base
                 goalName: entryInput.goalName,
                 goalAmount: entryInput.goalAmount,
                 entryKind: entryInput.entryKind,
+                memberId: entryInput.memberId ?? null,
+                photoUrl: entryInput.photoUrl ?? null,
               },
               update: {
                 sellerName: entryInput.sellerName,
                 goalName: entryInput.goalName,
                 goalAmount: entryInput.goalAmount,
                 entryKind: entryInput.entryKind,
+                ...(entryInput.memberId !== undefined
+                  ? { memberId: entryInput.memberId }
+                  : {}),
+                ...(entryInput.photoUrl !== undefined
+                  ? { photoUrl: entryInput.photoUrl }
+                  : {}),
               },
             });
             entriesCount += 1;
           }
+
+          if (input.prune) {
+            await tx.salesGoalEntry.deleteMany({
+              where: {
+                branchId: branch.id,
+                externalCode: {
+                  notIn: branchInput.entries.map(
+                    (entryInput) => entryInput.externalCode,
+                  ),
+                },
+              },
+            });
+          }
+        }
+
+        if (input.prune) {
+          await tx.salesGoalBranch.deleteMany({
+            where: { periodId: period.id, id: { notIn: keptBranchIds } },
+          });
         }
 
         return { periodId: period.id, branchesCount, entriesCount };

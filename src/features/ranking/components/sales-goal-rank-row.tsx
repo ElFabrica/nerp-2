@@ -3,6 +3,7 @@
 import { Link2, Minus, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { constructUrl } from "@/hooks/use-construct-url";
 import { cn } from "@/lib/utils";
 import { formatBrl, type SalesGoalRankEntry } from "./sales-goal-podium";
 import { SalesGoalAvatar } from "./sales-goal-avatar";
@@ -38,6 +39,7 @@ export function SalesGoalRankRow({
       <SalesGoalAvatar
         name={entry.sellerName}
         seed={entry.externalCode}
+        photoUrl={entry.photoUrl ? constructUrl(entry.photoUrl) : null}
         size={32}
       />
 

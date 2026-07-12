@@ -1,5 +1,6 @@
 "use client";
 
+import { constructUrl } from "@/hooks/use-construct-url";
 import { SalesGoalAvatar } from "./sales-goal-avatar";
 
 export interface SalesGoalRankEntry {
@@ -13,6 +14,7 @@ export interface SalesGoalRankEntry {
   percentAchieved: number | null;
   remainingAmount: number;
   memberId: string | null;
+  photoUrl: string | null;
   achievedSource: "AUTO" | "MANUAL";
 }
 
@@ -46,7 +48,7 @@ function PodiumCard({
   showPercent,
   showSoldValue,
   accent,
-  prizeLabel,
+  prize,
 }: {
   entry: SalesGoalRankEntry;
   rank: number;
@@ -54,30 +56,41 @@ function PodiumCard({
   showPercent: boolean;
   showSoldValue: boolean;
   accent: string;
-  prizeLabel?: string;
+  prize?: { label: string; imageUrl?: string };
 }) {
   const medal = MEDALS[rank] ?? { emoji: "🚀", border: accent, text: accent };
   const isFirst = rank === 1;
   const widthPercent = isFirst ? 38 : 29;
   const heightPercent = HEIGHT_PERCENT_BY_RANK[rank] ?? 60;
+  const prizeImage = prize?.imageUrl ? constructUrl(prize.imageUrl) : null;
 
   return (
     <div
       className="relative h-full flex flex-col items-center justify-end"
       style={{ width: `${widthPercent}%` }}
     >
-      {prizeLabel && (
+      {prize && (
         <div
-          className="mb-2 aspect-square w-[22%] min-w-12 rounded-full flex items-center justify-center text-center px-1 border-2 shrink-0"
+          className="mb-2 aspect-square w-[22%] min-w-12 overflow-hidden rounded-full flex items-center justify-center text-center px-1 border-2 shrink-0"
           style={{
             borderColor: medal.border,
             background: medal.border + "1f",
             color: medal.text,
           }}
+          title={prize.label}
         >
-          <span className="text-[10px] font-bold leading-tight">
-            {prizeLabel}
-          </span>
+          {prizeImage ? (
+            // biome-ignore lint/performance/noImgElement: chave S3 arbitrária, fora do domínio otimizado do next/image
+            <img
+              src={prizeImage}
+              alt={prize.label}
+              className="size-full object-cover"
+            />
+          ) : (
+            <span className="text-[10px] font-bold leading-tight">
+              {prize.label}
+            </span>
+          )}
         </div>
       )}
       <div
@@ -105,6 +118,7 @@ function PodiumCard({
           <SalesGoalAvatar
             name={entry.sellerName}
             seed={entry.externalCode}
+            photoUrl={entry.photoUrl ? constructUrl(entry.photoUrl) : null}
             size={isFirst ? 104 : 82}
           />
         </div>
@@ -168,13 +182,13 @@ export function SalesGoalPodium({
   showSoldValue?: boolean;
   podiumGradient?: string;
   accent?: string;
-  prizes?: { position: number; label: string }[];
+  prizes?: { position: number; label: string; imageUrl?: string }[];
 }) {
   const top3 = entries.slice(0, 3);
   const podium =
     top3.length >= 2 ? [top3[1], top3[0], top3[2]].filter(Boolean) : top3;
   const prizeFor = (rank: number) =>
-    prizes.find((prize) => prize.position === rank)?.label;
+    prizes.find((prize) => prize.position === rank);
 
   return (
     <div
@@ -213,7 +227,7 @@ export function SalesGoalPodium({
               showPercent={showPercent}
               showSoldValue={showSoldValue}
               accent={accent}
-              prizeLabel={prizeFor(rank)}
+              prize={prizeFor(rank)}
             />
           );
         })}

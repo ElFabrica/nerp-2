@@ -6,6 +6,7 @@ import {
   Minimize2,
   RotateCcw,
   Settings,
+  Sliders,
   Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -33,6 +34,7 @@ import { SALES_GOAL_THEME_STYLES } from "@/features/ranking/lib/sales-goal-theme
 import type { SalesGoalPeriodType } from "@/features/ranking/lib/sales-goal-xlsx-parser";
 import { cn } from "@/lib/utils";
 import { SalesGoalImportDialog } from "./sales-goal-import-dialog";
+import { SalesGoalSetupWizard } from "./sales-goal-setup-wizard";
 import {
   formatBrl,
   SalesGoalPodium,
@@ -63,6 +65,7 @@ export function RankingPage() {
   const [showPercent, setShowPercent] = useState(true);
   const [showSoldValue, setShowSoldValue] = useState(true);
   const [importOpen, setImportOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [autoAdvanceSeconds, setAutoAdvanceSeconds] = useState(300);
   const [tvMode, setTvMode] = useState(false);
@@ -240,9 +243,18 @@ export function RankingPage() {
             Metas importadas do Winthor; vendido calculado das vendas do NERP.
           </p>
         </div>
-        <Button onClick={() => setImportOpen(true)} className="gap-2">
-          <Upload className="size-4" /> Importar planilha
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+            className="gap-2"
+          >
+            <Upload className="size-4" /> Importar planilha
+          </Button>
+          <Button onClick={() => setSettingsOpen(true)} className="gap-2">
+            <Settings className="size-4" /> Configurações
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -303,14 +315,6 @@ export function RankingPage() {
             </Button>
             <Button
               variant="outline"
-              size="icon"
-              onClick={() => setSettingsOpen(true)}
-              title="Configurações"
-            >
-              <Settings className="size-4" />
-            </Button>
-            <Button
-              variant="outline"
               size="sm"
               className="gap-2"
               onClick={toggleTvMode}
@@ -326,11 +330,24 @@ export function RankingPage() {
           <div className="text-center py-14 text-muted-foreground">
             <p className="text-4xl mb-3">🚀</p>
             <p className="text-sm font-semibold">
-              Nenhuma meta importada ainda
+              Nenhuma meta cadastrada ainda
             </p>
             <p className="text-xs mt-1 opacity-60">
-              Importe a planilha de metas do Winthor para este período.
+              Configure o ranking manualmente ou importe a planilha de metas do
+              Winthor para este período.
             </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              <Button onClick={() => setWizardOpen(true)} className="gap-2">
+                <Sliders className="size-4" /> Configurar ranking
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setImportOpen(true)}
+                className="gap-2"
+              >
+                <Upload className="size-4" /> Importar planilha
+              </Button>
+            </div>
           </div>
         ) : (
           <div
@@ -476,10 +493,19 @@ export function RankingPage() {
       </div>
 
       <SalesGoalImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <SalesGoalSetupWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        initialPeriodType={periodType}
+      />
       <SalesGoalSettingsSheet
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         currentPeriodType={periodType}
+        onOpenWizard={() => {
+          setSettingsOpen(false);
+          setWizardOpen(true);
+        }}
       />
     </div>
   );

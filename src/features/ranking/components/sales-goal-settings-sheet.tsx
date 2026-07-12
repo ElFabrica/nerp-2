@@ -32,7 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowDown, ArrowUp, Loader2, Play } from "lucide-react";
+import { ArrowDown, ArrowUp, Loader2, Play, Sliders } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
 import {
@@ -49,6 +49,7 @@ import {
   playSalesGoalSound,
   type SalesGoalSoundCategory,
 } from "../lib/sales-goal-sound-presets";
+import { SalesGoalPhotoUploader } from "./sales-goal-photo-uploader";
 
 const PERIOD_OPTIONS: { value: SalesGoalPeriodType; label: string }[] = [
   { value: "DAILY", label: "Diário" },
@@ -283,9 +284,10 @@ function SellersTab({ periodType }: { periodType: SalesGoalPeriodType }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-muted-foreground">
-        Vincule cada vendedor da planilha a um membro do NERP para que o valor
-        vendido seja calculado automaticamente das vendas do sistema. Sem
-        vínculo, o valor continua manual.
+        Edite nome, meta e tipo de cada participante direto aqui — as alterações
+        são salvas automaticamente. Vincule a um membro do NERP para o vendido
+        ser calculado das vendas do sistema; sem vínculo, informe o vendido
+        manualmente.
       </p>
       {branches.map((branch) => (
         <div key={branch.id} className="space-y-2">
@@ -293,43 +295,154 @@ function SellersTab({ periodType }: { periodType: SalesGoalPeriodType }) {
             {branch.name}
           </p>
           {branch.entries.map((entry) => (
-            <div
-              key={entry.id}
-              className="flex items-center gap-2 rounded-md border p-2"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {entry.sellerName}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Código {entry.externalCode}
-                  {entry.entryKind === "BUCKET" && " · sempre manual"}
-                </p>
+            <div key={entry.id} className="space-y-2 rounded-md border p-2">
+              <div className="flex items-center gap-2">
+                <SalesGoalPhotoUploader
+                  value={entry.photoUrl}
+                  onChange={(key) =>
+                    upsertEntry.mutate({ entryId: entry.id, photoUrl: key })
+                  }
+                  name={entry.sellerName}
+                  seed={entry.externalCode}
+                />
+                <Input
+                  className="flex-1"
+                  placeholder="Nome do participante"
+                  defaultValue={entry.sellerName}
+                  onBlur={(event) => {
+                    const value = event.target.value.trim();
+                    if (value && value !== entry.sellerName) {
+                      // sellerName move junto com goalName (nome exibido no
+                      // ranking) pra os dois não divergirem.
+                      upsertEntry.mutate({
+                        entryId: entry.id,
+                        sellerName: value,
+                        goalName: value,
+                      });
+                    }
+                  }}
+                />
+                <Select
+                  value={entry.entryKind}
+                  onValueChange={(value) =>
+                    upsertEntry.mutate({
+                      entryId: entry.id,
+                      entryKind: value as "SELLER" | "BUCKET",
+                      ...(value === "BUCKET" ? { memberId: null } : {}),
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-28 shrink-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SELLER">Vendedor</SelectItem>
+                    <SelectItem value="BUCKET">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select
-                disabled={entry.entryKind === "BUCKET"}
-                value={entry.memberId ?? UNLINKED_MEMBER_VALUE}
-                onValueChange={(value) =>
-                  upsertEntry.mutate({
-                    entryId: entry.id,
-                    memberId: value === UNLINKED_MEMBER_VALUE ? null : value,
-                  })
-                }
-              >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Sem vínculo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UNLINKED_MEMBER_VALUE}>
-                    Sem vínculo (manual)
-                  </SelectItem>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] text-muted-foreground shrink-0">
+                  Cód. {entry.externalCode}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Label className="text-[11px] text-muted-foreground">
+                    Meta
+                  </Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className="w-28"
+                    placeholder="R$"
+                    defaultValue={String(entry.goalAmount)}
+                    onBlur={(event) => {
+                      const raw = event.target.value.trim();
+                      const parsed = Number(raw);
+                      if (
+                        raw !== "" &&
+                        Number.isFinite(parsed) &&
+                        parsed >= 0 &&
+                        parsed !== entry.goalAmount
+                      ) {
+                        upsertEntry.mutate({
+                          entryId: entry.id,
+                          goalAmount: parsed,
+                        });
+                      }
+                    }}
+                  />
+                </div>
+
+                {entry.achievedSource === "MANUAL" && (
+                  <div className="flex items-center gap-1">
+                    <Label className="text-[11px] text-muted-foreground">
+                      Vendido
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className="w-28"
+                      placeholder="R$"
+                      defaultValue={
+                        entry.achievedAmount !== null
+                          ? String(entry.achievedAmount)
+                          : ""
+                      }
+                      onBlur={(event) => {
+                        const raw = event.target.value.trim();
+                        if (raw === "") {
+                          if (entry.achievedAmount !== null) {
+                            upsertEntry.mutate({
+                              entryId: entry.id,
+                              achievedAmount: null,
+                            });
+                          }
+                          return;
+                        }
+                        const parsed = Number(raw);
+                        if (
+                          Number.isFinite(parsed) &&
+                          parsed >= 0 &&
+                          parsed !== entry.achievedAmount
+                        ) {
+                          upsertEntry.mutate({
+                            entryId: entry.id,
+                            achievedAmount: parsed,
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+                <Select
+                  disabled={entry.entryKind === "BUCKET"}
+                  value={entry.memberId ?? UNLINKED_MEMBER_VALUE}
+                  onValueChange={(value) =>
+                    upsertEntry.mutate({
+                      entryId: entry.id,
+                      memberId: value === UNLINKED_MEMBER_VALUE ? null : value,
+                    })
+                  }
+                >
+                  <SelectTrigger className="ml-auto w-44">
+                    <SelectValue placeholder="Sem vínculo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNLINKED_MEMBER_VALUE}>
+                      Sem vínculo (manual)
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {members.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           ))}
         </div>
@@ -395,12 +508,14 @@ interface SalesGoalSettingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentPeriodType: SalesGoalPeriodType;
+  onOpenWizard: () => void;
 }
 
 export function SalesGoalSettingsSheet({
   open,
   onOpenChange,
   currentPeriodType,
+  onOpenWizard,
 }: SalesGoalSettingsSheetProps) {
   const settingsQuery = useSalesGoalRankingSettings();
   const updateSettings = useUpdateSalesGoalRankingSettings();
@@ -457,7 +572,7 @@ export function SalesGoalSettingsSheet({
   const handleSave = () => {
     if (!draft) return;
     updateSettings.mutate({
-      displayName: draft.displayName,
+      displayName: draft.displayName.trim() || "Ranking de Equipes",
       theme: draft.theme,
       activePeriodTypes: draft.activePeriodTypes,
       soundEnabled: draft.soundEnabled,
@@ -484,6 +599,18 @@ export function SalesGoalSettingsSheet({
         </SheetHeader>
 
         <div className="px-4 pb-4">
+          <div className="mb-3 flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-auto gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={onOpenWizard}
+            >
+              <Sliders className="size-3.5" /> Abrir assistente de configuração
+            </Button>
+          </div>
+
           {!draft ? (
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           ) : (
@@ -496,7 +623,6 @@ export function SalesGoalSettingsSheet({
                 <TabsTrigger value="prizes">Premiações</TabsTrigger>
                 <TabsTrigger value="evolution">Evolução</TabsTrigger>
                 <TabsTrigger value="appearance">Aparência</TabsTrigger>
-                <TabsTrigger value="integrations">Integrações</TabsTrigger>
               </TabsList>
 
               <TabsContent value="teams" className="mt-4">
@@ -588,7 +714,8 @@ export function SalesGoalSettingsSheet({
               <TabsContent value="prizes" className="mt-4 space-y-2">
                 <p className="text-xs text-muted-foreground mb-2">
                   Premiação exibida acima do pódio pra 1º–4º colocado (ex:
-                  "R$100 iFood", "Folga remunerada").
+                  "R$100 iFood", "Folga remunerada"). A imagem (opcional) só é
+                  salva junto quando há um texto no prêmio.
                 </p>
                 {PRIZE_POSITIONS.map((position) => {
                   const prize = draft.prizes.find(
@@ -599,6 +726,15 @@ export function SalesGoalSettingsSheet({
                       <span className="w-6 text-sm font-bold text-muted-foreground shrink-0">
                         {position}º
                       </span>
+                      <SalesGoalPhotoUploader
+                        value={prize?.imageUrl ?? null}
+                        onChange={(key) =>
+                          updatePrize(position, { imageUrl: key ?? undefined })
+                        }
+                        name={`${position}`}
+                        seed={`prize-${position}`}
+                        size={36}
+                      />
                       <Input
                         placeholder="Ex: R$100 iFood"
                         value={prize?.label ?? ""}
@@ -615,7 +751,20 @@ export function SalesGoalSettingsSheet({
                 <EvolutionTab />
               </TabsContent>
 
-              <TabsContent value="appearance" className="mt-4">
+              <TabsContent value="appearance" className="mt-4 space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Título do ranking</Label>
+                  <Input
+                    placeholder="Ranking de Equipes"
+                    value={draft.displayName}
+                    onChange={(event) =>
+                      setDraft({ ...draft, displayName: event.target.value })
+                    }
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Exibido no topo da tela de ranking.
+                  </p>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   {THEME_OPTIONS.map((theme) => (
                     <button
@@ -635,30 +784,6 @@ export function SalesGoalSettingsSheet({
                       <p className="text-sm font-semibold">{theme.label}</p>
                     </button>
                   ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="integrations" className="mt-4 space-y-3">
-                <div className="rounded-lg border p-3">
-                  <p className="text-sm font-semibold">
-                    Fase 1 — Import manual (ativo)
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Os dados de meta e venda vêm de planilhas exportadas do
-                    Winthor (Totvs), importadas manualmente na aba "Importar
-                    planilha".
-                  </p>
-                </div>
-                <div className="rounded-lg border border-dashed p-3">
-                  <p className="text-sm font-semibold">
-                    Fase 2 — Conector direto (em breve)
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Conexão direta ao banco do Winthor (ou outro ERP) via
-                    credenciais cifradas, preenchendo "venda realizada"
-                    automaticamente por cron. Ainda não disponível nesta
-                    organização.
-                  </p>
                 </div>
               </TabsContent>
             </Tabs>

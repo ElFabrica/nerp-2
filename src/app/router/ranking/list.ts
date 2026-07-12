@@ -101,6 +101,7 @@ export const listSalesGoalRanking = base
             percentAchieved,
             remainingAmount,
             memberId: entry.memberId,
+            photoUrl: entry.photoUrl,
             achievedSource: linkedUserId
               ? ("AUTO" as const)
               : ("MANUAL" as const),

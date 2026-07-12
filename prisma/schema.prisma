@@ -1163,6 +1163,7 @@ model SalesGoalEntry {
   entryKind      SalesGoalEntryKind @default(SELLER)
   goalAmount     Decimal            @db.Decimal(15, 2)
   achievedAmount Decimal?           @db.Decimal(15, 2) // manual; ignorado quando memberId presente (vendido vem de Sale)
+  photoUrl       String? // chave S3 da foto do participante; construída em URL no client
   memberId       String?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
