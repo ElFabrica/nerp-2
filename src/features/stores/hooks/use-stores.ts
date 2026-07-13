@@ -12,6 +12,13 @@ export function useStores(search?: string) {
   return { stores: data?.stores ?? [], isLoading: isPending };
 }
 
+export function useStoreOverview() {
+  const { data, isPending } = useQuery(
+    orpc.store.overview.queryOptions({ input: {} }),
+  );
+  return { overview: data, isLoading: isPending };
+}
+
 export function useStore(id: string) {
   const { data, isPending } = useQuery({
     ...orpc.store.getOne.queryOptions({ input: { id } }),

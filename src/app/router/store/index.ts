@@ -3,6 +3,7 @@ import { listStore } from "./list";
 import { getStore } from "./get";
 import { updateStore } from "./update";
 import { deleteStore } from "./delete";
+import { storeOverview } from "./overview";
 
 export const storeRoutes = {
   list: listStore,
@@ -10,4 +11,5 @@ export const storeRoutes = {
   getOne: getStore,
   update: updateStore,
   delete: deleteStore,
+  overview: storeOverview,
 };
