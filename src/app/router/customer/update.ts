@@ -36,7 +36,12 @@ export const updateCustomer = base
         name: input.name,
         document: input.document,
         phone: input.phone,
-        email: input.email,
+        // Vazio/espaços viram null para não colidir na constraint única
+        // `organizationId_email`; `undefined` mantém o valor atual.
+        email:
+          typeof input.email === "string"
+            ? input.email.trim() || null
+            : input.email,
         personType: input.personType,
         city: input.city,
         state: input.state,
