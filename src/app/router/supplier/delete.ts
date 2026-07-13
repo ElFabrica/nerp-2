@@ -12,9 +12,11 @@ export const deleteSupplier = base
       id: z.string(),
     })
   )
-  .handler(async ({ input, errors }) => {
+  .handler(async ({ input, context, errors }) => {
     const { id } = input;
-    const supplier = await prisma.supplier.findUnique({ where: { id } });
+    const supplier = await prisma.supplier.findFirst({
+      where: { id, organizationId: context.org.id },
+    });
 
     if (!supplier) {
       throw errors.NOT_FOUND({
