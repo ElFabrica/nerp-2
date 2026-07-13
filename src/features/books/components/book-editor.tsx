@@ -5,23 +5,36 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { constructUrl } from "@/hooks/use-construct-url";
 import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
   ArrowLeft,
   DownloadIcon,
   ImagePlusIcon,
   SparklesIcon,
-  Trash2,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useBook,
   useGenerateBook,
   useRemoveBookItem,
+  useReorderBookItems,
 } from "../hooks/use-books";
-import { formatBRL, formatPeriod } from "../lib/book-format";
+import { formatPeriod } from "../lib/book-format";
 import { BookStatusBadge } from "./book-status-badge";
 import { ImportPhotosDialog } from "./import-photos-dialog";
+import { SortableBookItem } from "./sortable-book-item";
 
 interface BookEditorProps {
   bookId: string;
@@ -35,7 +48,28 @@ export function BookEditor({ bookId }: BookEditorProps) {
   const { book, isLoading } = useBook(bookId);
   const generateBook = useGenerateBook();
   const removeItem = useRemoveBookItem();
+  const reorderItems = useReorderBookItems();
   const [openImport, setOpenImport] = useState(false);
+
+  const [orderedIds, setOrderedIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (book) setOrderedIds(book.items.map((item) => item.pdvPhotoId));
+  }, [book]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = orderedIds.indexOf(String(active.id));
+    const newIndex = orderedIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    const next = arrayMove(orderedIds, oldIndex, newIndex);
+    setOrderedIds(next);
+    reorderItems.mutate({ bookId, orderedPdvPhotoIds: next });
+  };
 
   if (isLoading || !book) {
     return (
@@ -47,6 +81,10 @@ export function BookEditor({ bookId }: BookEditorProps) {
 
   const isGenerating = book.status === "GENERATING";
   const existingPhotoIds = book.items.map((item) => item.pdvPhotoId);
+  const itemsById = new Map(book.items.map((item) => [item.pdvPhotoId, item]));
+  const orderedItems = orderedIds
+    .map((id) => itemsById.get(id))
+    .filter((item): item is NonNullable<typeof item> => !!item);
 
   return (
     <div className="space-y-6">
@@ -103,6 +141,11 @@ export function BookEditor({ bookId }: BookEditorProps) {
           <p className="text-sm font-medium">
             {book.items.length} foto(s) no book
           </p>
+          {book.items.length > 1 && (
+            <p className="text-xs text-muted-foreground">
+              Arraste pela alça para definir a ordem das páginas no PDF.
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           {book.items.length === 0 ? (
@@ -110,55 +153,39 @@ export function BookEditor({ bookId }: BookEditorProps) {
               Nenhuma foto adicionada. Use “Importar fotos” para montar o book.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {book.items.map((item) => (
-                <div
-                  key={item.pdvPhotoId}
-                  className="overflow-hidden rounded-lg border"
-                >
-                  <div className="relative aspect-square bg-muted">
-                    {item.photos[0] && (
-                      <Image
-                        src={constructUrl(item.photos[0])}
-                        alt="Foto do PDV"
-                        fill
-                        sizes="200px"
-                        className="object-cover"
-                      />
-                    )}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="icon"
-                      className="absolute right-1 top-1 size-7"
-                      title="Remover do book"
-                      onClick={() =>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={orderedIds}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                  {orderedItems.map((item, index) => (
+                    <SortableBookItem
+                      key={item.pdvPhotoId}
+                      id={item.pdvPhotoId}
+                      index={index}
+                      photo={item.photos[0]}
+                      storeName={item.storeName}
+                      subtitle={
+                        [item.section, item.code].filter(Boolean).join(" · ") ||
+                        formatDate(item.capturedAt)
+                      }
+                      actionValue={item.actionValue}
+                      onRemove={() =>
                         removeItem.mutate({
                           bookId,
                           pdvPhotoId: item.pdvPhotoId,
                         })
                       }
-                    >
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
-                  </div>
-                  <div className="space-y-0.5 p-2">
-                    <p className="truncate text-xs font-medium">
-                      {item.storeName}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {[item.section, item.code].filter(Boolean).join(" · ") ||
-                        formatDate(item.capturedAt)}
-                    </p>
-                    {item.actionValue != null && (
-                      <p className="text-xs font-semibold text-primary">
-                        {formatBRL(item.actionValue)}
-                      </p>
-                    )}
-                  </div>
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           )}
         </CardContent>
       </Card>

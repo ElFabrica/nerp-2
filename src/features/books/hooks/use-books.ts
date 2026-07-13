@@ -78,6 +78,18 @@ export function useRemoveBookItem() {
   );
 }
 
+export function useReorderBookItems() {
+  const invalidate = useInvalidateBooks();
+  return useMutation(
+    orpc.book.reorderItems.mutationOptions({
+      onError: (error) => {
+        toast.error(error.message);
+        invalidate();
+      },
+    }),
+  );
+}
+
 export function useGenerateBook() {
   const invalidate = useInvalidateBooks();
   return useMutation(

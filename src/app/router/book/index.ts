@@ -5,6 +5,7 @@ import { updateBook } from "./update";
 import { deleteBook } from "./delete";
 import { importBookPhotos } from "./import-photos";
 import { removeBookItem } from "./remove-item";
+import { reorderBookItems } from "./reorder-items";
 import { generateBookPdf } from "./generate";
 
 export const bookRoutes = {
@@ -15,5 +16,6 @@ export const bookRoutes = {
   delete: deleteBook,
   importPhotos: importBookPhotos,
   removeItem: removeBookItem,
+  reorderItems: reorderBookItems,
   generate: generateBookPdf,
 };
