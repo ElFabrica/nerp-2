@@ -49,3 +49,16 @@ export type ProductImportRequestedData = { importId: string };
 export const productImportRequested = eventType("products/import.requested", {
   schema: staticSchema<ProductImportRequestedData>(),
 });
+
+/**
+ * Geração do Book em PDF (Trade Marketing).
+ *
+ * Disparado por `book.generate` após marcar o Book como GENERATING. A função
+ * `bookGenerate` carrega o book + itens (fotos do PDV) + logos e renderiza o
+ * PDF server-side (@react-pdf/renderer), salvando em R2 e marcando READY.
+ */
+export type BookGenerateRequestedData = { bookId: string };
+
+export const bookGenerateRequested = eventType("book/generate.requested", {
+  schema: staticSchema<BookGenerateRequestedData>(),
+});

@@ -12,13 +12,13 @@ datasource db {
 // ============================================
 
 model User {
-  id                    String          @id @default(cuid())
+  id                    String               @id @default(cuid())
   name                  String
-  email                 String          @unique
-  emailVerified         Boolean         @default(false)
+  email                 String               @unique
+  emailVerified         Boolean              @default(false)
   image                 String?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
   // Relações de autenticação
   sessions              Session[]
   accounts              Account[]
@@ -26,13 +26,16 @@ model User {
   members               Member[]
   invitations           Invitation[]
   // Auditoria de ações no ERP
-  createdProducts       Product[]       @relation("CreatedProducts")
-  createdSales          Sale[]          @relation("CreatedSales")
-  createdStockMovements StockMovement[] @relation("CreatedStockMovements")
-  createdPurchases      Purchase[]      @relation("CreatedPurchases")
-  createdKitchenOrders  KitchenOrder[]  @relation("CreatedKitchenOrders")
-  kitchenEventsActed    KitchenOrderEvent[] @relation("KitchenEventsByUser")
+  createdProducts       Product[]            @relation("CreatedProducts")
+  createdSales          Sale[]               @relation("CreatedSales")
+  createdStockMovements StockMovement[]      @relation("CreatedStockMovements")
+  createdPurchases      Purchase[]           @relation("CreatedPurchases")
+  createdKitchenOrders  KitchenOrder[]       @relation("CreatedKitchenOrders")
+  kitchenEventsActed    KitchenOrderEvent[]  @relation("KitchenEventsByUser")
   promotionalCatalogs   PromotionalCatalog[]
+  createdPdvPhotos      PdvPhoto[]           @relation("CreatedPdvPhotos")
+  createdBooks          Book[]               @relation("CreatedBooks")
+  authoredAnnotations   MapAnnotation[]      @relation("AuthoredAnnotations")
 
   @@index([email])
   @@map("user")
@@ -108,67 +111,76 @@ enum OrganizationStatus {
 }
 
 model Organization {
-  id                      String                   @id @default(cuid())
-  name                    String
-  slug                    String                   @unique
-  logo                    String?
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
-  metadata                String? // Mantido do seu schema
+  id                       String                    @id @default(cuid())
+  name                     String
+  slug                     String                    @unique
+  logo                     String?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  metadata                 String? // Mantido do seu schema
   // Dados da empresa
-  tradeName               String? // Nome fantasia
-  document                String?                  @unique // CNPJ/CPF
-  email                   String?
-  phone                   String?
+  tradeName                String? // Nome fantasia
+  document                 String?                   @unique // CNPJ/CPF
+  email                    String?
+  phone                    String?
   // Multi-tenant e Catálogo
-  subdomain               String?                  @unique // empresa1.seuapp.com
-  customDomain            String?                  @unique // minhaloja.com.br
+  subdomain                String?                   @unique // empresa1.seuapp.com
+  customDomain             String?                   @unique // minhaloja.com.br
   // Endereço
-  address                 String?
-  addressNumber           String?
-  complement              String?
-  neighborhood            String?
-  city                    String?
-  state                   String?
-  zipCode                 String?
-  country                 String                   @default("BR")
+  address                  String?
+  addressNumber            String?
+  complement               String?
+  neighborhood             String?
+  city                     String?
+  state                    String?
+  zipCode                  String?
+  country                  String                    @default("BR")
   // Configurações visuais
-  primaryColor            String                   @default("#3b82f6")
+  primaryColor             String                    @default("#3b82f6")
   // Plano e status
-  plan                    PlanType                 @default(FREE)
-  status                  OrganizationStatus       @default(TRIAL)
+  plan                     PlanType                  @default(FREE)
+  status                   OrganizationStatus        @default(TRIAL)
   // Limites por plano
-  maxProducts             Int                      @default(100)
-  maxUsers                Int                      @default(3)
+  maxProducts              Int                       @default(100)
+  maxUsers                 Int                       @default(3)
   // Datas importantes
-  trialEndsAt             DateTime?
-  subscribedAt            DateTime?
+  trialEndsAt              DateTime?
+  subscribedAt             DateTime?
   // Relações de membros (mantido do seu schema)
-  members                 Member[]
-  invitations             Invitation[]
+  members                  Member[]
+  invitations              Invitation[]
   // Relações do ERP
-  products                Product[]
-  categories              Category[]
-  customers               Customer[]
-  suppliers               Supplier[]
-  sales                   Sale[]
-  purchases               Purchase[]
-  stockMovements          StockMovement[]
-  kitchenColumns          KitchenColumn[]
-  kitchenOrders           KitchenOrder[]
-  kitchenOrderEvents      KitchenOrderEvent[]
-  collaborators           Collaborator[]
-  catalogSettings         CatalogSettings?
-  financialAccounts       FinancialAccount[]
-  transactions            Transaction[]
-  catalogUsers            CatalogUser[]
+  products                 Product[]
+  categories               Category[]
+  customers                Customer[]
+  suppliers                Supplier[]
+  sales                    Sale[]
+  purchases                Purchase[]
+  stockMovements           StockMovement[]
+  kitchenColumns           KitchenColumn[]
+  kitchenOrders            KitchenOrder[]
+  kitchenOrderEvents       KitchenOrderEvent[]
+  collaborators            Collaborator[]
+  catalogSettings          CatalogSettings?
+  financialAccounts        FinancialAccount[]
+  transactions             Transaction[]
+  catalogUsers             CatalogUser[]
   // Integração NASA (S2S)
-  nasaIntegrationConsents NasaIntegrationConsent[]
-  nasaIntegrationKeys     NasaIntegrationKey[]
-  promotionalCatalogs     PromotionalCatalog[]
+  nasaIntegrationConsents  NasaIntegrationConsent[]
+  nasaIntegrationKeys      NasaIntegrationKey[]
+  promotionalCatalogs      PromotionalCatalog[]
   // Ranking de Equipes (metas de venda)
   salesGoalPeriods         SalesGoalPeriod[]
   salesGoalRankingSettings SalesGoalRankingSettings?
+  // Trade Marketing (lojas, mapa, PDV, book)
+  stores                   Store[]
+  floorPlans               FloorPlan[]
+  mapLayers                MapLayer[]
+  mapObjects               MapObject[]
+  brands                   Brand[]
+  pdvPhotos                PdvPhoto[]
+  books                    Book[]
+  mapAnnotations           MapAnnotation[]
 
   @@index([slug])
   @@index([subdomain])
@@ -256,20 +268,20 @@ enum FreightChargeType {
 }
 
 model CatalogSettings {
-  id                      String            @id @default(cuid())
-  organizationId          String            @unique
+  id                      String               @id @default(cuid())
+  organizationId          String               @unique
   // Visibilidade
-  isActive                Boolean           @default(true)
-  showPrices              Boolean           @default(true)
-  showProductWithoutStock Boolean           @default(false)
-  showStock               Boolean           @default(false)
-  allowOrders             Boolean           @default(false)
-  sortOrder               CatalogSortOrder  @default(ASC)
+  isActive                Boolean              @default(true)
+  showPrices              Boolean              @default(true)
+  showProductWithoutStock Boolean              @default(false)
+  showStock               Boolean              @default(false)
+  allowOrders             Boolean              @default(false)
+  sortOrder               CatalogSortOrder     @default(ASC)
   // Modo de operação: MARKETPLACE (apenas venda) ou KITCHEN (envia pedidos pagos à cozinha)
   operationMode           CatalogOperationMode @default(MARKETPLACE)
   // Contato
   whatsappNumber          String?
-  showWhatsapp            Boolean           @default(true)
+  showWhatsapp            Boolean              @default(true)
   contactEmail            String?
   //Adress
   cep                     String?
@@ -282,28 +294,28 @@ model CatalogSettings {
   cnpj                    String?
   // Personalização
   logo                    String?
-  bannerImages            String[]          @default([])
-  aboutText               String?           @db.Text
-  theme                   String?           @default("#00bcd4")
+  bannerImages            String[]             @default([])
+  aboutText               String?              @db.Text
+  theme                   String?              @default("#00bcd4")
   //Payment
   paymentMethodSettings   PaymentMethod[]
   //Delivery
   deliveryMethods         DeliveryMethod[]
   deliverySpecialInfo     String?
   //Settings Delivery
-  freightOptions          FreightOption     @default(NO_SHIPPING)
-  freightChargeType       FreightChargeType @default(FIXED)
-  freightFixedValue       Decimal           @default(0) @db.Decimal(10, 2)
-  freightValuePerKg       Decimal           @default(0) @db.Decimal(10, 2)
-  freeShippingEnabled     Boolean           @default(false)
-  freeShippingMinValue    Decimal           @default(0) @db.Decimal(10, 2)
+  freightOptions          FreightOption        @default(NO_SHIPPING)
+  freightChargeType       FreightChargeType    @default(FIXED)
+  freightFixedValue       Decimal              @default(0) @db.Decimal(10, 2)
+  freightValuePerKg       Decimal              @default(0) @db.Decimal(10, 2)
+  freeShippingEnabled     Boolean              @default(false)
+  freeShippingMinValue    Decimal              @default(0) @db.Decimal(10, 2)
   //Integrations
   id_meta                 String?
   pixel_meta              String?
   //Stripe
-  stripeKey               String?           @map("stripe_key")
+  stripeKey               String?              @map("stripe_key")
   //Asaas
-  walletId                String?           @map("wallet_id")
+  walletId                String?              @map("wallet_id")
   // Redes Sociais
   instagram               String?
   facebook                String?
@@ -311,9 +323,9 @@ model CatalogSettings {
   youtube                 String?
   kwai                    String?
   tiktok                  String?
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
-  organization            Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  organization            Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("catalog_settings")
 }
@@ -522,12 +534,12 @@ model Customer {
 // ============================================
 
 model Supplier {
-  id             String     @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
   // Identificação
   name           String
   tradeName      String?
-  personType     PersonType @default(JURIDICA)
+  personType     PersonType   @default(JURIDICA)
   document       String? // CPF ou CNPJ
   email          String?
   phone          String?
@@ -542,17 +554,22 @@ model Supplier {
   // Informações adicionais
   logo           String?
   contactPerson  String?
-  notes          String?    @db.Text
-  isActive       Boolean    @default(true)
+  notes          String?      @db.Text
+  isActive       Boolean      @default(true)
   // Timestamps
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   // Relações
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   purchases      Purchase[]
   products       Product[]
   customerId     String?
-  customer       Customer?  @relation(fields: [customerId], references: [id])
+  customer       Customer?    @relation(fields: [customerId], references: [id])
+  // Trade Marketing: fornecedor atua como "Indústria"
+  brands         Brand[]
+  mapObjects     MapObject[]
+  pdvPhotos      PdvPhoto[]
+  books          Book[]
 
   @@index([organizationId])
   @@index([document])
@@ -677,20 +694,20 @@ model SaleItem {
 // Colunas personalizáveis do kanban (uma org tem N colunas).
 // Substitui o antigo enum KitchenOrderStatus: o "status" passa a ser a coluna.
 model KitchenColumn {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   organizationId String
   name           String // Nomenclatura editável: "Em Preparo", "Na Brasa"...
-  color          String   @default("#64748B") // Cor de identificação (hex)
+  color          String         @default("#64748B") // Cor de identificação (hex)
   position       Int // Ordem no board (0,1,2...)
   wipLimit       Int? // Limite WIP (null = sem limite)
-  isActive       Boolean  @default(true) // Visível/ativa no board
+  isActive       Boolean        @default(true) // Visível/ativa no board
   description    String? // Texto auxiliar (opcional)
   icon           String? // Ícone lucide (ex "ChefHat") ou emoji
-  isInitial      Boolean  @default(false) // Coluna de entrada: novos pedidos caem aqui
-  showOnTv       Boolean  @default(false) // Alimenta o painel da TV
-  isFinal        Boolean  @default(false) // Estado terminal: auto-some / fora da TV
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  isInitial      Boolean        @default(false) // Coluna de entrada: novos pedidos caem aqui
+  showOnTv       Boolean        @default(false) // Alimenta o painel da TV
+  isFinal        Boolean        @default(false) // Estado terminal: auto-some / fora da TV
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   // Relações
   organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   orders         KitchenOrder[]
@@ -701,7 +718,7 @@ model KitchenColumn {
 }
 
 model KitchenOrder {
-  id               String        @id @default(cuid())
+  id               String              @id @default(cuid())
   organizationId   String
   columnId         String // Coluna atual (substitui o antigo enum status)
   // Pedido
@@ -709,23 +726,23 @@ model KitchenOrder {
   dishName         String // Nome do prato (texto livre)
   productId        String? // Vínculo opcional ao catálogo
   estimatedMinutes Int? // Snapshot do tempo de preparo na criação
-  position         Int           @default(0) // Ordem do card dentro da coluna
+  position         Int                 @default(0) // Ordem do card dentro da coluna
   notes            String?
   // Atendente (Collaborator) responsável pelo pedido
   attendantId      String? // FK opcional para sobreviver ao soft-delete do colaborador
   attendantName    String? // Snapshot do nome no momento do pedido
   attendantPhoto   String? // Snapshot da foto no momento do pedido
   // Timestamps
-  createdAt        DateTime      @default(now())
-  columnEnteredAt  DateTime      @default(now()) // Quando entrou na coluna atual (tempo decorrido + auto-hide)
+  createdAt        DateTime            @default(now())
+  columnEnteredAt  DateTime            @default(now()) // Quando entrou na coluna atual (tempo decorrido + auto-hide)
   archivedAt       DateTime? // Quando foi arquivado; null = ativo no board
   createdById      String?
   // Relações
-  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  column           KitchenColumn @relation(fields: [columnId], references: [id], onDelete: Restrict)
-  product          Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
-  createdBy        User?         @relation("CreatedKitchenOrders", fields: [createdById], references: [id])
-  attendant        Collaborator? @relation(fields: [attendantId], references: [id], onDelete: SetNull)
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  column           KitchenColumn       @relation(fields: [columnId], references: [id], onDelete: Restrict)
+  product          Product?            @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdBy        User?               @relation("CreatedKitchenOrders", fields: [createdById], references: [id])
+  attendant        Collaborator?       @relation(fields: [attendantId], references: [id], onDelete: SetNull)
   events           KitchenOrderEvent[]
 
   @@index([organizationId, columnId])
@@ -791,9 +808,9 @@ model KitchenOrderEvent {
   actorPhotoUrl       String?
   createdAt           DateTime              @default(now())
 
-  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  order            KitchenOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  actorUser        User?         @relation("KitchenEventsByUser", fields: [actorUserId], references: [id])
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order             KitchenOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  actorUser         User?         @relation("KitchenEventsByUser", fields: [actorUserId], references: [id])
   actorCollaborator Collaborator? @relation(fields: [actorCollaboratorId], references: [id])
 
   @@index([organizationId, createdAt])
@@ -1196,4 +1213,260 @@ model SalesGoalRankingSettings {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("sales_goal_ranking_settings")
+}
+
+// ============================================
+// TRADE MARKETING — LOJAS, MAPA (PLANTA BAIXA), PDV E BOOK
+// ============================================
+
+enum MapObjectType {
+  WALL
+  AISLE
+  SECTOR
+  GONDOLA
+  ISLAND
+  CHECKOUT
+  ENTRANCE
+  EXIT
+  DEPOSIT
+  RESTRICTED_AREA
+  PIN
+  TEXT
+}
+
+enum MapShapeKind {
+  RECT
+  POLYGON
+  POLYLINE
+  POINT
+}
+
+enum MapAnnotationType {
+  PIN
+  COMMENT
+  ALERT
+  PENDING
+}
+
+enum BookStatus {
+  DRAFT
+  GENERATING
+  READY
+  FAILED
+}
+
+model Store {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  code           String?
+  managerName    String? // Gerente da loja
+  address        String?
+  city           String?
+  state          String?
+  notes          String?      @db.Text
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  floorPlans     FloorPlan[]
+  pdvPhotos      PdvPhoto[]
+
+  @@index([organizationId])
+  @@map("stores")
+}
+
+model FloorPlan {
+  id                  String          @id @default(cuid())
+  organizationId      String
+  storeId             String
+  name                String
+  widthM              Float           @default(50)
+  heightM             Float           @default(50)
+  pixelsPerMeter      Float           @default(50)
+  backgroundImageKey  String?
+  backgroundOpacity   Float           @default(1)
+  backgroundTransform Json? // { x, y, scale, rotation } da planta importada
+  defaultViewport     Json? // { x, y, zoom }
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  organization        Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store               Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  layers              MapLayer[]
+  objects             MapObject[]
+  annotations         MapAnnotation[]
+
+  @@index([organizationId])
+  @@index([storeId])
+  @@map("floor_plans")
+}
+
+model MapLayer {
+  id             String       @id @default(cuid())
+  organizationId String
+  floorPlanId    String
+  name           String
+  order          Int          @default(0)
+  visible        Boolean      @default(true)
+  locked         Boolean      @default(false)
+  color          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  floorPlan      FloorPlan    @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
+  objects        MapObject[]
+
+  @@index([organizationId])
+  @@index([floorPlanId])
+  @@map("map_layers")
+}
+
+model MapObject {
+  id              String          @id @default(cuid())
+  organizationId  String
+  floorPlanId     String
+  layerId         String
+  type            MapObjectType
+  shapeKind       MapShapeKind    @default(RECT)
+  geometry        Json // coordenadas em metros (engine-agnóstico 2D/3D)
+  z               Int             @default(0)
+  heightM         Float? // extrusão para 3D futuro
+  style           Json?
+  // Painel lateral
+  name            String?
+  status          String?
+  category        String?
+  responsibleName String?
+  lastVisitAt     DateTime?
+  properties      Json?
+  supplierId      String? // Empresa/Indústria responsável
+  brandId         String? // Marca
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  floorPlan       FloorPlan       @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
+  layer           MapLayer        @relation(fields: [layerId], references: [id], onDelete: Cascade)
+  supplier        Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  brand           Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  pdvPhotos       PdvPhoto[]
+  annotations     MapAnnotation[]
+
+  @@index([organizationId])
+  @@index([floorPlanId])
+  @@index([floorPlanId, layerId])
+  @@index([supplierId])
+  @@index([brandId])
+  @@map("map_objects")
+}
+
+model Brand {
+  id             String       @id @default(cuid())
+  organizationId String
+  supplierId     String // Indústria (Supplier) dona da marca
+  name           String
+  logo           String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier       Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  mapObjects     MapObject[]
+
+  @@index([organizationId])
+  @@index([supplierId])
+  @@map("brands")
+}
+
+model PdvPhoto {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  storeId            String // sempre presente (fallback quando não há mapa)
+  mapObjectId        String? // objeto do mapa (gôndola/ilha) quando houver
+  supplierId         String? // Indústria
+  section            String? // Seção
+  responsibleCompany String? // Empresa responsável pelo PDV
+  coordinatorName    String? // Coordenador(a) do PDV
+  consultantName     String? // Consultor(a) do PDV
+  code               String? // Código
+  actionValue        Decimal?     @db.Decimal(10, 2) // Valor da ação (R$)
+  photos             String[] // chaves R2 das fotos
+  capturedAt         DateTime     @default(now())
+  notes              String?      @db.Text
+  createdById        String
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  store              Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  mapObject          MapObject?   @relation(fields: [mapObjectId], references: [id], onDelete: SetNull)
+  supplier           Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  createdBy          User         @relation("CreatedPdvPhotos", fields: [createdById], references: [id])
+  bookItems          BookItem[]
+
+  @@index([organizationId])
+  @@index([organizationId, storeId])
+  @@index([mapObjectId])
+  @@index([organizationId, code])
+  @@index([organizationId, supplierId])
+  @@map("pdv_photos")
+}
+
+model Book {
+  id              String       @id @default(cuid())
+  organizationId  String
+  name            String
+  supplierId      String? // Indústria (opcional): logo + marcas. Sem = book geral de ações
+  distributorLogo String? // default = Organization.logo
+  periodMonth     Int
+  periodYear      Int
+  status          BookStatus   @default(DRAFT)
+  pdfKey          String? // PDF gerado (R2)
+  generatedAt     DateTime?
+  createdById     String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier        Supplier?    @relation(fields: [supplierId], references: [id])
+  createdBy       User         @relation("CreatedBooks", fields: [createdById], references: [id])
+  items           BookItem[]
+
+  @@index([organizationId])
+  @@index([supplierId])
+  @@map("books")
+}
+
+model BookItem {
+  id         String   @id @default(cuid())
+  bookId     String
+  pdvPhotoId String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  pdvPhoto   PdvPhoto @relation(fields: [pdvPhotoId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, pdvPhotoId])
+  @@index([bookId])
+  @@map("book_items")
+}
+
+model MapAnnotation {
+  id             String            @id @default(cuid())
+  organizationId String
+  floorPlanId    String
+  mapObjectId    String?
+  type           MapAnnotationType @default(PIN)
+  x              Float // metros
+  y              Float // metros
+  text           String?           @db.Text
+  status         String?
+  authorId       String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  floorPlan      FloorPlan         @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
+  mapObject      MapObject?        @relation(fields: [mapObjectId], references: [id], onDelete: Cascade)
+  author         User?             @relation("AuthoredAnnotations", fields: [authorId], references: [id])
+
+  @@index([organizationId])
+  @@index([floorPlanId])
+  @@map("map_annotations")
 }

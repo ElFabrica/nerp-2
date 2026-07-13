@@ -1,7 +1,13 @@
 import prisma from "@/lib/db";
 import { deliver } from "@/lib/sync-deliver";
 import { runProductImport } from "@/features/products/server/import-runner";
-import { inngest, productImportRequested, syncNasaRequested } from "./client";
+import { generateBook } from "@/features/books/server/generate-book";
+import {
+  bookGenerateRequested,
+  inngest,
+  productImportRequested,
+  syncNasaRequested,
+} from "./client";
 
 /**
  * Entrega event-driven da SyncOutbox (NERP → NASA).
@@ -93,4 +99,31 @@ export const productImportProcess = inngest.createFunction(
   },
 );
 
-export const functions = [syncNasaDelivery, productImportProcess];
+/**
+ * Geração do Book em PDF (Trade Marketing).
+ *
+ * Disparada por `book/generate.requested`. Renderiza o PDF num único
+ * `step.run` (memoizado quando bem-sucedido) e salva em R2; a própria
+ * `generateBook` marca o Book como READY. `onFailure` marca FAILED.
+ */
+export const bookGenerate = inngest.createFunction(
+  {
+    id: "book-generate",
+    triggers: [bookGenerateRequested],
+    retries: 2,
+    onFailure: async ({ event, error }) => {
+      const { bookId } = event.data.event.data;
+      await prisma.book
+        .update({ where: { id: bookId }, data: { status: "FAILED" } })
+        .catch(() => {});
+      console.error(`[book-generate] falha em ${bookId}:`, error);
+    },
+  },
+  async ({ event, step }) => {
+    const { bookId } = event.data;
+    const key = await step.run("render-and-upload", () => generateBook(bookId));
+    return { bookId, key };
+  },
+);
+
+export const functions = [syncNasaDelivery, productImportProcess, bookGenerate];
