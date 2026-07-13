@@ -14,6 +14,7 @@ import {
   Magnet,
   Maximize,
   MapPin,
+  MessageSquarePlus,
   MousePointer2,
   Package,
   RectangleHorizontal,
@@ -98,6 +99,8 @@ export function EditorToolbar({ saveState }: EditorToolbarProps) {
   const redo = useSceneStore((state) => state.redo);
   const removeSelected = useSceneStore((state) => state.removeSelected);
   const selectedCount = useSceneStore((state) => state.selectedIds.length);
+  const annotating = useSceneStore((state) => state.annotating);
+  const setAnnotating = useSceneStore((state) => state.setAnnotating);
   const zoomByStep = useSceneStore((state) => state.zoomByStep);
   const fitToPlan = useSceneStore((state) => state.fitToPlan);
   const zoom = useSceneStore((state) => state.viewport.zoom);
@@ -144,6 +147,12 @@ export function EditorToolbar({ saveState }: EditorToolbarProps) {
         label="Ajustar à grade"
         icon={Magnet}
         onClick={toggleSnap}
+      />
+      <ToolButton
+        active={annotating}
+        label="Anotação (pin/alerta/pendência)"
+        icon={MessageSquarePlus}
+        onClick={() => setAnnotating(!annotating)}
       />
       <ToolButton label="Desfazer (Ctrl+Z)" icon={Undo2} onClick={undo} />
       <ToolButton label="Refazer (Ctrl+Y)" icon={Redo2} onClick={redo} />

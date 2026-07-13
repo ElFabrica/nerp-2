@@ -151,7 +151,7 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 | **M6** | Painel lateral: vincular **Indústria (Supplier)** e **Marca (Brand)** + seção **Fotos do PDV** | ✅ completo |
 | **M7** | **Fotos do PDV**: `MultiPhotoUploader`, router `pdvPhoto/` (create/list filtrado/update/delete/`filterOptions`), histórico por objeto, página `/lojas/[storeId]` (fallback na loja) | ✅ completo |
 | **M8** | **Book em PDF** server-side + UI | ✅ completo (backend + UI) |
-| **M9** | Extras: minimapa, snapping/guias, culling de viewport, anotações (`MapAnnotation`), dashboard (contagens), refinos | ⏳ pendente |
+| **M9** | Extras: reordenar book (drag) ✅, dashboard/overview ✅, editar captura PDV ✅, anotações no mapa (`MapAnnotation`) ✅; **falta** minimapa, snapping/guias, culling, régua com ticks | 🔶 em andamento |
 
 ---
 
@@ -191,11 +191,17 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 - Migração `book_action_value_optional_supplier` aplicada (drop NOT NULL em `books.supplierId` + `actionValue` em `pdv_photos`).
 
 ### M9 — Extras (depois do M8)
+
+**✅ Entregue:**
+- **Reordenar itens do Book (drag):** `book/reorderItems` + `@dnd-kit` no `book-editor` (`sortable-book-item.tsx`); define a ordem das páginas do PDF (o gerador ordena por `BookItem.order`).
+- **Dashboard/overview:** `store/overview` (contagens org-scoped: lojas, lojas sem mapa, plantas, capturas PDV, books total/prontos/pendentes, soma R$ em ações) + `TradeMarketingOverview` no topo de `/lojas`.
+- **Editar captura do PDV:** `PdvPhotoDialog` vira criar/editar (prop `photo`, usa `pdvPhoto.update`); botão de editar no histórico.
+- **Anotações no mapa (`MapAnnotation`):** router `mapAnnotation/` (list/create/update/delete, org-scoped); hook `use-map-annotations.ts`; modo `annotating` no `scene-store` (espelha `calibrating`, fora do autosave/undo); camada Konva `annotation-layer.tsx` (pins arrastáveis coloridos por tipo); `annotation-editor.tsx` (tipo/descrição/situação/excluir); botão na `editor-toolbar`. Tipos PIN/COMMENT/ALERT/PENDING em `engine/annotations.ts`.
+
+**⏳ Falta:**
 - Minimapa, régua com ticks (hoje há só leitura de coordenadas), snapping/guias de alinhamento.
 - Culling de viewport (renderizar só objetos visíveis) + índice espacial para mapas grandes.
-- Anotações no mapa (`MapAnnotation` já existe no schema): pins/comentários/alertas/pendências.
-- Dashboard com contagens (lojas, PDVs, books, pendências).
-- Reordenar itens do Book (drag) e reordenar camadas por drag; edição de captura do PDV (update).
+- Reordenar camadas por drag.
 
 ---
 

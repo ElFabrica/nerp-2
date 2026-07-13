@@ -1,5 +1,6 @@
 "use client";
 
+import type { MapAnnotationType } from "@/generated/prisma/enums";
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 import { clamp, translateGeometry } from "./geometry";
@@ -47,6 +48,9 @@ export interface SceneState {
   // Calibração de escala (medir uma referência real sobre a planta)
   calibrating: boolean;
   calibrationPoints: Vec2[];
+  // Modo de anotação: próximo clique cria uma anotação do tipo escolhido
+  annotating: boolean;
+  annotationType: MapAnnotationType;
   gridEnabled: boolean;
   snapEnabled: boolean;
   gridSizeM: number;
@@ -63,6 +67,7 @@ export interface SceneState {
   beginCalibration: () => void;
   pushCalibrationPoint: (point: Vec2) => void;
   endCalibration: () => void;
+  setAnnotating: (on: boolean, type?: MapAnnotationType) => void;
   setViewport: (viewport: Viewport) => void;
   setStageSize: (size: { width: number; height: number }) => void;
   panBy: (dx: number, dy: number) => void;
@@ -112,6 +117,8 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   tool: "SELECT",
   calibrating: false,
   calibrationPoints: [],
+  annotating: false,
+  annotationType: "PIN",
   gridEnabled: true,
   snapEnabled: true,
   gridSizeM: 0.5,
@@ -145,13 +152,26 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     ),
 
   beginCalibration: () =>
-    set({ calibrating: true, calibrationPoints: [], tool: "SELECT" }),
+    set({
+      calibrating: true,
+      calibrationPoints: [],
+      tool: "SELECT",
+      annotating: false,
+    }),
   pushCalibrationPoint: (point) =>
     set((state) => {
       if (!state.calibrating || state.calibrationPoints.length >= 2) return {};
       return { calibrationPoints: [...state.calibrationPoints, point] };
     }),
   endCalibration: () => set({ calibrating: false, calibrationPoints: [] }),
+
+  setAnnotating: (on, type) =>
+    set((state) => ({
+      annotating: on,
+      annotationType: type ?? state.annotationType,
+      tool: on ? "SELECT" : state.tool,
+      calibrating: on ? false : state.calibrating,
+    })),
 
   setViewport: (viewport) => set({ viewport }),
   setStageSize: (stageSize) => set({ stageSize }),
@@ -213,7 +233,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       };
     }),
 
-  setTool: (tool) => set({ tool }),
+  setTool: (tool) => set({ tool, annotating: false }),
   setActiveLayer: (activeLayerId) => set({ activeLayerId }),
   setSelection: (selectedIds) => set({ selectedIds }),
   toggleSelection: (id) =>

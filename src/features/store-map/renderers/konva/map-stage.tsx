@@ -8,6 +8,13 @@ import { useSceneStore } from "../../engine/scene-store";
 import { snapToGrid } from "../../engine/geometry";
 import { CREATE_TOOLS_BY_TYPE } from "../../engine/tools";
 import type { EditorTool, Vec2 } from "../../engine/types";
+import {
+  useCreateAnnotation,
+  useMapAnnotations,
+  useUpdateAnnotation,
+} from "../../hooks/use-map-annotations";
+import { AnnotationEditor } from "../../components/annotation-editor";
+import { AnnotationLayer } from "./annotation-layer";
 import { MapBackground } from "./map-background";
 import { MapGrid } from "./map-grid";
 import { MapShape } from "./shape-node";
@@ -41,6 +48,9 @@ export function MapStage() {
   const pushCalibrationPoint = useSceneStore(
     (state) => state.pushCalibrationPoint,
   );
+  const annotating = useSceneStore((state) => state.annotating);
+  const annotationType = useSceneStore((state) => state.annotationType);
+  const setAnnotating = useSceneStore((state) => state.setAnnotating);
 
   const addObject = useSceneStore((state) => state.addObject);
   const panBy = useSceneStore((state) => state.panBy);
@@ -59,10 +69,20 @@ export function MapStage() {
 
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [draft, setDraft] = useState<DraftRect | null>(null);
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(
+    null,
+  );
   const fittedPlanId = useRef<string | null>(null);
+
+  const annotations = useMapAnnotations(floorPlan?.id);
+  const createAnnotation = useCreateAnnotation();
+  const updateAnnotation = useUpdateAnnotation();
 
   const ppm = floorPlan?.pixelsPerMeter ?? 50;
   const scale = viewport.zoom * ppm;
+
+  const editingAnnotation =
+    annotations.find((item) => item.id === editingAnnotationId) ?? null;
 
   const layerById = useMemo(
     () => new Map(layers.map((layer) => [layer.id, layer])),
@@ -131,6 +151,20 @@ export function MapStage() {
 
     if (calibrating) {
       pushCalibrationPoint(world);
+      return;
+    }
+
+    if (annotating && floorPlan) {
+      createAnnotation.mutate(
+        {
+          floorPlanId: floorPlan.id,
+          type: annotationType,
+          x: world.x,
+          y: world.y,
+        },
+        { onSuccess: (created) => setEditingAnnotationId(created.id) },
+      );
+      setAnnotating(false);
       return;
     }
 
@@ -245,7 +279,9 @@ export function MapStage() {
     <div
       ref={containerRef}
       className="relative h-full w-full bg-[#f8fafc]"
-      style={{ cursor: calibrating ? "crosshair" : cursorFor(tool) }}
+      style={{
+        cursor: calibrating || annotating ? "crosshair" : cursorFor(tool),
+      }}
     >
       {size.width > 0 && floorPlan && (
         <Stage
@@ -334,6 +370,15 @@ export function MapStage() {
               }
             />
           </Layer>
+          <Layer>
+            <AnnotationLayer
+              annotations={annotations}
+              selectedId={editingAnnotationId}
+              draggable={tool === "SELECT" && !annotating && !calibrating}
+              onSelect={setEditingAnnotationId}
+              onMove={(id, x, y) => updateAnnotation.mutate({ id, x, y })}
+            />
+          </Layer>
         </Stage>
       )}
 
@@ -343,9 +388,20 @@ export function MapStage() {
         </div>
       )}
 
+      {annotating && (
+        <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground shadow">
+          Clique na planta para adicionar uma anotação
+        </div>
+      )}
+
       <div
         ref={readoutRef}
         className="pointer-events-none absolute bottom-2 left-2 rounded bg-background/80 px-2 py-1 text-xs tabular-nums text-muted-foreground"
+      />
+
+      <AnnotationEditor
+        annotation={editingAnnotation}
+        onClose={() => setEditingAnnotationId(null)}
       />
     </div>
   );
