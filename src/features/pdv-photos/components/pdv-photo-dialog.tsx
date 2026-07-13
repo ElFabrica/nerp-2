@@ -22,7 +22,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useSupplier } from "@/features/supplier/hooks/use-supplier";
 import { useEffect, useState } from "react";
-import { useCreatePdvPhoto } from "../hooks/use-pdv-photos";
+import {
+  type PdvPhoto,
+  useCreatePdvPhoto,
+  useUpdatePdvPhoto,
+} from "../hooks/use-pdv-photos";
 import { MultiPhotoUploader } from "./multi-photo-uploader";
 
 const NONE = "__none__";
@@ -38,6 +42,7 @@ interface PdvPhotoDialogProps {
   mapObjectId?: string;
   defaultSupplierId?: string | null;
   defaultSection?: string | null;
+  photo?: PdvPhoto;
 }
 
 export function PdvPhotoDialog({
@@ -47,9 +52,12 @@ export function PdvPhotoDialog({
   mapObjectId,
   defaultSupplierId,
   defaultSection,
+  photo,
 }: PdvPhotoDialogProps) {
   const { suppliers } = useSupplier();
   const createPdvPhoto = useCreatePdvPhoto();
+  const updatePdvPhoto = useUpdatePdvPhoto();
+  const isEditing = !!photo;
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [supplierId, setSupplierId] = useState<string>(NONE);
@@ -64,6 +72,21 @@ export function PdvPhotoDialog({
 
   useEffect(() => {
     if (!open) return;
+    if (photo) {
+      setPhotos(photo.photos);
+      setSupplierId(photo.supplierId ?? NONE);
+      setSection(photo.section ?? "");
+      setCompany(photo.responsibleCompany ?? "");
+      setCoordinator(photo.coordinatorName ?? "");
+      setConsultant(photo.consultantName ?? "");
+      setCode(photo.code ?? "");
+      setActionValue(
+        photo.actionValue != null ? String(photo.actionValue) : "",
+      );
+      setCapturedAt(photo.capturedAt.slice(0, 10));
+      setNotes(photo.notes ?? "");
+      return;
+    }
     setPhotos([]);
     setSupplierId(defaultSupplierId ?? NONE);
     setSection(defaultSection ?? "");
@@ -74,9 +97,31 @@ export function PdvPhotoDialog({
     setActionValue("");
     setCapturedAt(today());
     setNotes("");
-  }, [open, defaultSupplierId, defaultSection]);
+  }, [open, photo, defaultSupplierId, defaultSection]);
+
+  const isPending = createPdvPhoto.isPending || updatePdvPhoto.isPending;
 
   const handleSubmit = () => {
+    if (photo) {
+      updatePdvPhoto.mutate(
+        {
+          id: photo.id,
+          supplierId: supplierId === NONE ? null : supplierId,
+          section: section || null,
+          responsibleCompany: company || null,
+          coordinatorName: coordinator || null,
+          consultantName: consultant || null,
+          code: code || null,
+          actionValue: actionValue ? Number(actionValue) : null,
+          photos,
+          capturedAt: new Date(capturedAt).toISOString(),
+          notes: notes || null,
+        },
+        { onSuccess: () => onOpenChange(false) },
+      );
+      return;
+    }
+
     createPdvPhoto.mutate(
       {
         storeId,
@@ -100,7 +145,9 @@ export function PdvPhotoDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Nova foto do PDV</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "Editar foto do PDV" : "Nova foto do PDV"}
+          </DialogTitle>
           <DialogDescription>
             Registre as fotos e os dados da visita ao ponto de venda.
           </DialogDescription>
@@ -224,10 +271,10 @@ export function PdvPhotoDialog({
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={createPdvPhoto.isPending || photos.length === 0}
+            disabled={isPending || photos.length === 0}
           >
-            {createPdvPhoto.isPending && <Spinner />}
-            Salvar
+            {isPending && <Spinner />}
+            {isEditing ? "Salvar alterações" : "Salvar"}
           </Button>
         </DialogFooter>
       </DialogContent>

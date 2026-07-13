@@ -4,13 +4,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { constructUrl } from "@/hooks/use-construct-url";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import Image from "next/image";
+import { useState } from "react";
 import {
+  type PdvPhoto,
   type PdvPhotoFilters,
   useDeletePdvPhoto,
   usePdvPhotos,
 } from "../hooks/use-pdv-photos";
+import { PdvPhotoDialog } from "./pdv-photo-dialog";
 
 interface PdvPhotoHistoryProps {
   filters: PdvPhotoFilters;
@@ -29,6 +32,7 @@ export function PdvPhotoHistory({
 }: PdvPhotoHistoryProps) {
   const { photos, isLoading } = usePdvPhotos(filters, enabled);
   const deletePhoto = useDeletePdvPhoto();
+  const [editing, setEditing] = useState<PdvPhoto | null>(null);
 
   if (isLoading) {
     return (
@@ -74,16 +78,28 @@ export function PdvPhotoHistory({
                   </Badge>
                 ))}
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0 text-destructive"
-                title="Excluir"
-                onClick={() => deletePhoto.mutate({ id: photo.id })}
-              >
-                <Trash2 className="size-4" />
-              </Button>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  title="Editar"
+                  onClick={() => setEditing(photo)}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-destructive"
+                  title="Excluir"
+                  onClick={() => deletePhoto.mutate({ id: photo.id })}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
               {photo.photos.map((key) => (
@@ -107,6 +123,18 @@ export function PdvPhotoHistory({
           </div>
         );
       })}
+
+      {editing && (
+        <PdvPhotoDialog
+          open={!!editing}
+          onOpenChange={(open) => {
+            if (!open) setEditing(null);
+          }}
+          storeId={editing.storeId}
+          mapObjectId={editing.mapObjectId ?? undefined}
+          photo={editing}
+        />
+      )}
     </div>
   );
 }

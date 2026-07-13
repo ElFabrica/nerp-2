@@ -26,6 +26,8 @@ export function usePdvPhotos(filters: PdvPhotoFilters, enabled = true) {
   return { photos: data?.photos ?? [], isLoading: isPending };
 }
 
+export type PdvPhoto = ReturnType<typeof usePdvPhotos>["photos"][number];
+
 export function usePdvFilterOptions() {
   const { data } = useQuery(
     orpc.pdvPhoto.filterOptions.queryOptions({ input: {} }),
