@@ -32,35 +32,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  ArrowDown,
-  ArrowUp,
-  CheckCircle2,
-  Loader2,
-  Play,
-  UserPlus,
-  UserRoundSearch,
-} from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { orpc } from "@/lib/orpc";
-import { CollaboratorForm } from "@/features/collaborators/components/collaborator-form";
-import { useQueryCollaborators } from "@/features/collaborators/hooks/use-collaborators";
+import { Loader2, Play, Sliders } from "lucide-react";
 import {
   useSalesGoalRankingSettings,
   useUpdateSalesGoalRankingSettings,
-  useSalesGoalRanking,
-  useUpdateSalesGoalBranch,
-  useUpsertSalesGoalEntry,
   useSalesGoalEvolution,
 } from "../hooks/use-ranking";
-import { normalizeCollaboratorName } from "../lib/collaborator-name-match";
-import { formatBrlAmountInput, parseBrlAmount } from "../lib/parse-brl-amount";
 import type { SalesGoalPeriodType } from "../lib/sales-goal-xlsx-parser";
 import {
   SALES_GOAL_SOUND_PRESETS,
   playSalesGoalSound,
   type SalesGoalSoundCategory,
 } from "../lib/sales-goal-sound-presets";
+import { SalesGoalPhotoUploader } from "./sales-goal-photo-uploader";
 
 const PERIOD_OPTIONS: { value: SalesGoalPeriodType; label: string }[] = [
   { value: "DAILY", label: "Diário" },
@@ -191,287 +175,6 @@ function SoundPresetPicker({
   );
 }
 
-function TeamsTab({ periodType }: { periodType: SalesGoalPeriodType }) {
-  const query = useSalesGoalRanking(periodType, undefined, true);
-  const updateBranch = useUpdateSalesGoalBranch();
-  const branches = query.data?.branches ?? [];
-
-  if (query.isLoading)
-    return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
-  if (branches.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Nenhuma equipe importada ainda para este período.
-      </p>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs text-muted-foreground">
-        Renomear/reordenar aqui vale até o próximo import da planilha (que
-        recria a equipe pelo nome original).
-      </p>
-      {branches.map((branch, index) => (
-        <div
-          key={branch.id}
-          className="flex items-center gap-2 rounded-md border p-2"
-        >
-          <div className="flex flex-col gap-1">
-            <button
-              type="button"
-              className="disabled:opacity-30"
-              disabled={index === 0}
-              onClick={() =>
-                updateBranch.mutate({
-                  branchId: branch.id,
-                  sortOrder: index - 1,
-                })
-              }
-            >
-              <ArrowUp className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              className="disabled:opacity-30"
-              disabled={index === branches.length - 1}
-              onClick={() =>
-                updateBranch.mutate({
-                  branchId: branch.id,
-                  sortOrder: index + 1,
-                })
-              }
-            >
-              <ArrowDown className="size-3.5" />
-            </button>
-          </div>
-          <Input
-            defaultValue={branch.name}
-            className="flex-1"
-            onBlur={(event) => {
-              if (event.target.value !== branch.name) {
-                updateBranch.mutate({
-                  branchId: branch.id,
-                  name: event.target.value,
-                });
-              }
-            }}
-          />
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Label className="text-xs">Ativa</Label>
-            <Switch
-              checked={branch.isActive}
-              onCheckedChange={(checked) =>
-                updateBranch.mutate({ branchId: branch.id, isActive: checked })
-              }
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-const UNLINKED_MEMBER_VALUE = "__unlinked__";
-
-function SellersTab({ periodType }: { periodType: SalesGoalPeriodType }) {
-  const rankingQuery = useSalesGoalRanking(periodType, undefined, true);
-  const membersQuery = useQuery(orpc.members.list.queryOptions({ input: {} }));
-  const collaboratorsQuery = useQueryCollaborators(true);
-  const upsertEntry = useUpsertSalesGoalEntry();
-  const branches = rankingQuery.data?.branches ?? [];
-  const members = membersQuery.data ?? [];
-  const collaborators = collaboratorsQuery.data ?? [];
-  const collaboratorNames = new Set(
-    collaborators.map((collaborator) =>
-      normalizeCollaboratorName(collaborator.name),
-    ),
-  );
-  const [collaboratorDraftName, setCollaboratorDraftName] = useState<
-    string | null
-  >(null);
-
-  if (rankingQuery.isLoading || membersQuery.isLoading) {
-    return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
-  }
-  if (branches.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Nenhuma equipe importada ainda para este período.
-      </p>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <p className="text-xs text-muted-foreground">
-        Vincule cada vendedor da planilha a um membro do NERP para que o valor
-        vendido seja calculado automaticamente das vendas do sistema. Sem
-        vínculo, o valor continua manual. O nome é comparado ao cadastro de{" "}
-        <a href="/colaboradores" className="underline">
-          Colaboradores
-        </a>{" "}
-        para ajudar a identificar quem é quem.
-      </p>
-      {branches.map((branch) => (
-        <div key={branch.id} className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground">
-            {branch.name}
-          </p>
-          {branch.entries.map((entry) => {
-            const isKnownCollaborator = collaboratorNames.has(
-              normalizeCollaboratorName(entry.sellerName),
-            );
-            return (
-              <div
-                key={entry.id}
-                className="flex items-center gap-2 rounded-md border p-2"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-sm font-medium truncate">
-                      {entry.sellerName}
-                    </p>
-                    {isKnownCollaborator ? (
-                      <CheckCircle2
-                        className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
-                        aria-label="Cadastrado em Colaboradores"
-                      />
-                    ) : (
-                      <>
-                        <UserRoundSearch
-                          className="size-3.5 shrink-0 text-muted-foreground"
-                          aria-label="Não encontrado em Colaboradores"
-                        />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCollaboratorDraftName(entry.sellerName)
-                          }
-                          title="Cadastrar como colaborador"
-                          className="flex items-center justify-center rounded-full size-4 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
-                        >
-                          <UserPlus className="size-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Código {entry.externalCode}
-                    {entry.entryKind === "BUCKET" && " · sempre manual"}
-                    {!isKnownCollaborator &&
-                      " · sem correspondência em Colaboradores"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor={`goal-${entry.id}`}
-                      className="text-[10px] text-muted-foreground"
-                    >
-                      Meta
-                    </Label>
-                    <Input
-                      id={`goal-${entry.id}`}
-                      type="text"
-                      inputMode="decimal"
-                      defaultValue={formatBrlAmountInput(entry.goalAmount)}
-                      onBlur={(event) => {
-                        const nextGoalAmount = parseBrlAmount(
-                          event.target.value,
-                        );
-                        if (
-                          nextGoalAmount !== null &&
-                          nextGoalAmount !== entry.goalAmount
-                        ) {
-                          upsertEntry.mutate({
-                            entryId: entry.id,
-                            goalAmount: nextGoalAmount,
-                          });
-                        }
-                        event.target.value = formatBrlAmountInput(
-                          nextGoalAmount ?? entry.goalAmount,
-                        );
-                      }}
-                      className="w-24 h-8 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label
-                      htmlFor={`achieved-${entry.id}`}
-                      className="text-[10px] text-muted-foreground"
-                    >
-                      Vendido
-                    </Label>
-                    <Input
-                      id={`achieved-${entry.id}`}
-                      type="text"
-                      inputMode="decimal"
-                      disabled={entry.memberId !== null}
-                      defaultValue={formatBrlAmountInput(
-                        entry.achievedAmount ?? 0,
-                      )}
-                      onBlur={(event) => {
-                        const nextAchievedAmount = parseBrlAmount(
-                          event.target.value,
-                        );
-                        if (
-                          nextAchievedAmount !== null &&
-                          nextAchievedAmount !== (entry.achievedAmount ?? 0)
-                        ) {
-                          upsertEntry.mutate({
-                            entryId: entry.id,
-                            achievedAmount: nextAchievedAmount,
-                          });
-                        }
-                        event.target.value = formatBrlAmountInput(
-                          nextAchievedAmount ?? entry.achievedAmount ?? 0,
-                        );
-                      }}
-                      className="w-24 h-8 text-xs"
-                    />
-                  </div>
-                </div>
-                <Select
-                  disabled={entry.entryKind === "BUCKET"}
-                  value={entry.memberId ?? UNLINKED_MEMBER_VALUE}
-                  onValueChange={(value) =>
-                    upsertEntry.mutate({
-                      entryId: entry.id,
-                      memberId: value === UNLINKED_MEMBER_VALUE ? null : value,
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Sem vínculo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={UNLINKED_MEMBER_VALUE}>
-                      Sem vínculo (manual)
-                    </SelectItem>
-                    {members.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-      <CollaboratorForm
-        open={collaboratorDraftName !== null}
-        onOpenChange={(next) => {
-          if (!next) setCollaboratorDraftName(null);
-        }}
-        defaultName={collaboratorDraftName ?? undefined}
-      />
-    </div>
-  );
-}
-
 function EvolutionTab() {
   const query = useSalesGoalEvolution();
   const points = (query.data ?? []).map((point) => ({
@@ -528,13 +231,13 @@ function EvolutionTab() {
 interface SalesGoalSettingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentPeriodType: SalesGoalPeriodType;
+  onOpenWizard: () => void;
 }
 
 export function SalesGoalSettingsSheet({
   open,
   onOpenChange,
-  currentPeriodType,
+  onOpenWizard,
 }: SalesGoalSettingsSheetProps) {
   const settingsQuery = useSalesGoalRankingSettings();
   const updateSettings = useUpdateSalesGoalRankingSettings();
@@ -591,7 +294,7 @@ export function SalesGoalSettingsSheet({
   const handleSave = () => {
     if (!draft) return;
     updateSettings.mutate({
-      displayName: draft.displayName,
+      displayName: draft.displayName.trim() || "Ranking de Equipes",
       theme: draft.theme,
       activePeriodTypes: draft.activePeriodTypes,
       soundEnabled: draft.soundEnabled,
@@ -610,36 +313,37 @@ export function SalesGoalSettingsSheet({
         className="w-full sm:max-w-2xl overflow-y-auto"
       >
         <SheetHeader>
-          <SheetTitle>Configurações do Ranking de Equipes</SheetTitle>
+          <SheetTitle>Personalizações do Ranking de Equipes</SheetTitle>
           <SheetDescription>
-            Equipes, período, sons, premiações, evolução, aparência e
-            integrações.
+            Aparência, sons, premiações, período e evolução. Para editar
+            equipes, vendedores e metas, use o assistente de configuração.
           </SheetDescription>
         </SheetHeader>
 
         <div className="px-4 pb-4">
+          <div className="mb-3 flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-auto gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={onOpenWizard}
+            >
+              <Sliders className="size-3.5" /> Abrir assistente de configuração
+            </Button>
+          </div>
+
           {!draft ? (
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           ) : (
-            <Tabs defaultValue="teams">
+            <Tabs defaultValue="appearance">
               <TabsList className="w-full h-auto flex-wrap justify-start gap-1">
-                <TabsTrigger value="teams">Equipes</TabsTrigger>
-                <TabsTrigger value="sellers">Vendedores</TabsTrigger>
-                <TabsTrigger value="period">Período</TabsTrigger>
+                <TabsTrigger value="appearance">Aparência</TabsTrigger>
                 <TabsTrigger value="sound">Sons</TabsTrigger>
                 <TabsTrigger value="prizes">Premiações</TabsTrigger>
+                <TabsTrigger value="period">Período</TabsTrigger>
                 <TabsTrigger value="evolution">Evolução</TabsTrigger>
-                <TabsTrigger value="appearance">Aparência</TabsTrigger>
-                <TabsTrigger value="integrations">Integrações</TabsTrigger>
               </TabsList>
-
-              <TabsContent value="teams" className="mt-4">
-                <TeamsTab periodType={currentPeriodType} />
-              </TabsContent>
-
-              <TabsContent value="sellers" className="mt-4">
-                <SellersTab periodType={currentPeriodType} />
-              </TabsContent>
 
               <TabsContent value="period" className="mt-4 space-y-2">
                 <p className="text-xs text-muted-foreground mb-2">
@@ -722,7 +426,8 @@ export function SalesGoalSettingsSheet({
               <TabsContent value="prizes" className="mt-4 space-y-2">
                 <p className="text-xs text-muted-foreground mb-2">
                   Premiação exibida acima do pódio pra 1º–4º colocado (ex:
-                  "R$100 iFood", "Folga remunerada").
+                  "R$100 iFood", "Folga remunerada"). A imagem (opcional) só é
+                  salva junto quando há um texto no prêmio.
                 </p>
                 {PRIZE_POSITIONS.map((position) => {
                   const prize = draft.prizes.find(
@@ -733,6 +438,15 @@ export function SalesGoalSettingsSheet({
                       <span className="w-6 text-sm font-bold text-muted-foreground shrink-0">
                         {position}º
                       </span>
+                      <SalesGoalPhotoUploader
+                        value={prize?.imageUrl ?? null}
+                        onChange={(key) =>
+                          updatePrize(position, { imageUrl: key ?? undefined })
+                        }
+                        name={`${position}`}
+                        seed={`prize-${position}`}
+                        size={36}
+                      />
                       <Input
                         placeholder="Ex: R$100 iFood"
                         value={prize?.label ?? ""}
@@ -749,7 +463,20 @@ export function SalesGoalSettingsSheet({
                 <EvolutionTab />
               </TabsContent>
 
-              <TabsContent value="appearance" className="mt-4">
+              <TabsContent value="appearance" className="mt-4 space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Título do ranking</Label>
+                  <Input
+                    placeholder="Ranking de Equipes"
+                    value={draft.displayName}
+                    onChange={(event) =>
+                      setDraft({ ...draft, displayName: event.target.value })
+                    }
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Exibido no topo da tela de ranking.
+                  </p>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   {THEME_OPTIONS.map((theme) => (
                     <button
@@ -769,30 +496,6 @@ export function SalesGoalSettingsSheet({
                       <p className="text-sm font-semibold">{theme.label}</p>
                     </button>
                   ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="integrations" className="mt-4 space-y-3">
-                <div className="rounded-lg border p-3">
-                  <p className="text-sm font-semibold">
-                    Fase 1 — Import manual (ativo)
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Os dados de meta e venda vêm de planilhas exportadas do
-                    Winthor (Totvs), importadas manualmente na aba "Importar
-                    planilha".
-                  </p>
-                </div>
-                <div className="rounded-lg border border-dashed p-3">
-                  <p className="text-sm font-semibold">
-                    Fase 2 — Conector direto (em breve)
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Conexão direta ao banco do Winthor (ou outro ERP) via
-                    credenciais cifradas, preenchendo "venda realizada"
-                    automaticamente por cron. Ainda não disponível nesta
-                    organização.
-                  </p>
                 </div>
               </TabsContent>
             </Tabs>

@@ -17,6 +17,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
+  BookImage,
   Box,
   Building,
   Building2,
@@ -26,6 +27,7 @@ import {
   GalleryVerticalEnd,
   LayoutDashboard,
   LogOut,
+  MapPinned,
   Package,
   Plus,
   Settings,
@@ -140,6 +142,18 @@ const navigation: Array<{
     href: "/fornecedores",
     icon: Building2,
     permission: "fornecedores",
+  },
+  {
+    name: "Lojas e Mapas",
+    href: "/lojas",
+    icon: MapPinned,
+    permission: "lojas",
+  },
+  {
+    name: "Books de PDV",
+    href: "/books",
+    icon: BookImage,
+    permission: "books",
   },
   {
     name: "Colaborador",

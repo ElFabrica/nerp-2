@@ -9,7 +9,9 @@ import { ALL_PERIOD_TYPES, periodTypeSchema } from "../_schemas";
 const prizeSchema = z.object({
   position: z.number().int().min(1).max(4),
   label: z.string().min(1),
-  imageUrl: z.string().url().optional(),
+  // Chave S3 (mesmo padrão de photoUrl das entries) ou URL completa; a URL
+  // final é construída no client. Por isso não força .url() aqui.
+  imageUrl: z.string().optional(),
 });
 
 const updateSalesGoalRankingSettingsInputSchema = z.object({

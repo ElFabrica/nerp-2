@@ -23,7 +23,9 @@ export function useMutationCreateCollaborator() {
     orpc.collaborators.create.mutationOptions({
       onSuccess: () => {
         toast.success("Colaborador cadastrado!");
-        queryClient.invalidateQueries({ queryKey: orpc.collaborators.list.key() });
+        queryClient.invalidateQueries({
+          queryKey: orpc.collaborators.list.key(),
+        });
       },
       onError: (error) => toast.error(error.message),
     }),
@@ -36,7 +38,9 @@ export function useMutationUpdateCollaborator() {
     orpc.collaborators.update.mutationOptions({
       onSuccess: () => {
         toast.success("Colaborador atualizado!");
-        queryClient.invalidateQueries({ queryKey: orpc.collaborators.list.key() });
+        queryClient.invalidateQueries({
+          queryKey: orpc.collaborators.list.key(),
+        });
       },
       onError: (error) => toast.error(error.message),
     }),
@@ -49,7 +53,9 @@ export function useMutationDeleteCollaborator() {
     orpc.collaborators.delete.mutationOptions({
       onSuccess: () => {
         toast.success("Colaborador excluído!");
-        queryClient.invalidateQueries({ queryKey: orpc.collaborators.list.key() });
+        queryClient.invalidateQueries({
+          queryKey: orpc.collaborators.list.key(),
+        });
       },
       onError: (error) => toast.error(error.message),
     }),

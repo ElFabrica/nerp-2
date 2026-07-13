@@ -25,7 +25,7 @@ import {
 import { Pencil, Trash2, UsersIcon } from "lucide-react";
 import { useState } from "react";
 import {
-  Collaborator,
+  type Collaborator,
   useMutationDeleteCollaborator,
   useQueryCollaborators,
 } from "../hooks/use-collaborators";
@@ -61,7 +61,8 @@ export function CollaboratorsList() {
                 </EmptyMedia>
                 <EmptyTitle>Nenhum colaborador cadastrado</EmptyTitle>
                 <EmptyDescription>
-                  Adicione colaboradores para identificar quem atende cada pedido.
+                  Adicione colaboradores para identificar quem atende cada
+                  pedido.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent />
@@ -118,9 +119,7 @@ export function CollaboratorsList() {
                           variant="ghost"
                           className="text-destructive"
                           onClick={() => {
-                            if (
-                              confirm(`Excluir colaborador "${c.name}"?`)
-                            ) {
+                            if (confirm(`Excluir colaborador "${c.name}"?`)) {
                               remove.mutate({ id: c.id });
                             }
                           }}

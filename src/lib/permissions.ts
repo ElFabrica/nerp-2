@@ -47,6 +47,16 @@ export const PAGE_PERMISSIONS = [
     href: "/fornecedores",
   },
   {
+    key: "lojas",
+    label: "Lojas e Mapas",
+    href: "/lojas",
+  },
+  {
+    key: "books",
+    label: "Books de PDV",
+    href: "/books",
+  },
+  {
     key: "colaboradores",
     label: "Colaboradores",
     href: "/colaboradores",

@@ -13,6 +13,14 @@ import { memberRoutes } from "./members";
 import { promotionalCatalogRouter } from "./promotional-catalog";
 import { rankingRouter } from "./ranking";
 import { supplierRoutes } from "./supplier";
+import { storeRoutes } from "./store";
+import { brandRoutes } from "./brand";
+import { floorPlanRoutes } from "./floor-plan";
+import { mapLayerRoutes } from "./map-layer";
+import { mapObjectRoutes } from "./map-object";
+import { mapAnnotationRoutes } from "./map-annotation";
+import { pdvPhotoRoutes } from "./pdv-photo";
+import { bookRoutes } from "./book";
 
 export const router = {
   products: productsRoutes,
@@ -30,4 +38,12 @@ export const router = {
   promotionalCatalog: promotionalCatalogRouter,
   ranking: rankingRouter,
   supplier: supplierRoutes,
+  store: storeRoutes,
+  brand: brandRoutes,
+  floorPlan: floorPlanRoutes,
+  mapLayer: mapLayerRoutes,
+  mapObject: mapObjectRoutes,
+  mapAnnotation: mapAnnotationRoutes,
+  pdvPhoto: pdvPhotoRoutes,
+  book: bookRoutes,
 };
