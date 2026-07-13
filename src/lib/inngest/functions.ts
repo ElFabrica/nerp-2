@@ -1,11 +1,13 @@
 import prisma from "@/lib/db";
 import { deliver } from "@/lib/sync-deliver";
 import { runProductImport } from "@/features/products/server/import-runner";
+import { runSupplierImport } from "@/features/supplier/server/supplier-import-runner";
 import { generateBook } from "@/features/books/server/generate-book";
 import {
   bookGenerateRequested,
   inngest,
   productImportRequested,
+  supplierImportRequested,
   syncNasaRequested,
 } from "./client";
 
@@ -100,6 +102,44 @@ export const productImportProcess = inngest.createFunction(
 );
 
 /**
+ * Importação de fornecedores via planilha (CSV/XLSX).
+ *
+ * Disparada por `suppliers/import.requested`. Processa o arquivo num único
+ * `step.run` — `runSupplierImport` faz importação parcial (erros por linha não
+ * abortam o lote), então o step só falha em erros de infraestrutura (S3/DB), que
+ * o Inngest reagenda com backoff. Como o step é memoizado quando bem-sucedido,
+ * ele não reexecuta após concluir. `onFailure` marca o registro como `FAILED`.
+ */
+export const supplierImportProcess = inngest.createFunction(
+  {
+    id: "supplier-import-process",
+    triggers: [supplierImportRequested],
+    retries: 2,
+    concurrency: { limit: 5 },
+    onFailure: async ({ event, error }) => {
+      const { importId } = event.data.event.data;
+      await prisma.supplierImport
+        .update({
+          where: { id: importId },
+          data: {
+            status: "FAILED",
+            completedAt: new Date(),
+          },
+        })
+        .catch(() => {});
+      console.error(`[supplier-import] falha em ${importId}:`, error);
+    },
+  },
+  async ({ event, step }) => {
+    const { importId } = event.data;
+
+    await step.run("process-import", () => runSupplierImport(importId));
+
+    return { importId, done: true };
+  },
+);
+
+/**
  * Geração do Book em PDF (Trade Marketing).
  *
  * Disparada por `book/generate.requested`. Renderiza o PDF num único
@@ -126,4 +166,9 @@ export const bookGenerate = inngest.createFunction(
   },
 );
 
-export const functions = [syncNasaDelivery, productImportProcess, bookGenerate];
+export const functions = [
+  syncNasaDelivery,
+  productImportProcess,
+  supplierImportProcess,
+  bookGenerate,
+];

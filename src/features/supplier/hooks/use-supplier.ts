@@ -5,17 +5,29 @@ import { toast } from "sonner";
 
 interface UseSupplierProps {
   personType?: PersonType;
+  search?: string;
+  page?: number;
+  pageSize?: number;
 }
 
-export function useSupplier({ personType }: UseSupplierProps = {}) {
+export function useSupplier({
+  personType,
+  search,
+  page = 1,
+  pageSize = 10,
+}: UseSupplierProps = {}) {
   const { data, isPending } = useQuery(
     orpc.supplier.list.queryOptions({
-      input: { personType },
+      input: { personType, search, page, pageSize },
     })
   );
 
   return {
     suppliers: data?.suppliers || [],
+    totalCount: data?.totalCount ?? 0,
+    page: data?.page ?? page,
+    pageSize: data?.pageSize ?? pageSize,
+    totalPages: data?.totalPages ?? 1,
     isLoading: isPending,
   };
 }
@@ -40,9 +52,9 @@ export const useCreateSupplier = () => {
     orpc.supplier.create.mutationOptions({
       onSuccess: () => {
         toast.success("Fornecedor criado com sucesso");
-        queryClient.invalidateQueries(
-          orpc.supplier.list.queryOptions({ input: {} })
-        );
+        queryClient.invalidateQueries({
+          queryKey: orpc.supplier.list.key(),
+        });
       },
       onError: (error) => {
         toast.error(error.message);
@@ -58,9 +70,9 @@ export const useUpdateSupplier = () => {
     orpc.supplier.update.mutationOptions({
       onSuccess: (data) => {
         toast.success("Fornecedor atualizado com sucesso");
-        queryClient.invalidateQueries(
-          orpc.supplier.list.queryOptions({ input: {} })
-        );
+        queryClient.invalidateQueries({
+          queryKey: orpc.supplier.list.key(),
+        });
         queryClient.invalidateQueries(
           orpc.supplier.getOne.queryOptions({
             input: { id: data.supplier.id },
@@ -81,9 +93,9 @@ export const useDeleteSupplier = () => {
     orpc.supplier.delete.mutationOptions({
       onSuccess: () => {
         toast.success("Fornecedor deletado com sucesso");
-        queryClient.invalidateQueries(
-          orpc.supplier.list.queryOptions({ input: {} })
-        );
+        queryClient.invalidateQueries({
+          queryKey: orpc.supplier.list.key(),
+        });
       },
       onError: (error) => {
         toast.error(error.message);
