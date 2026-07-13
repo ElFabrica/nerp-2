@@ -13,7 +13,9 @@ export interface SalesGoalRankEntry {
   achievedAmount: number | null;
   percentAchieved: number | null;
   remainingAmount: number;
-  memberId: string | null;
+  // Ausente no payload público (ranking.publicList): a tela de TV deslogada
+  // não recebe o vínculo com o Member.
+  memberId?: string | null;
   photoUrl: string | null;
   achievedSource: "AUTO" | "MANUAL";
 }

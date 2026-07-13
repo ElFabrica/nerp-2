@@ -40,6 +40,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/configurações") ||
     pathname.startsWith("/registrar-pedido") ||
     pathname.startsWith("/pedido-cliente") ||
+    pathname.startsWith("/ranking-publico") ||
     pathname.startsWith("/pedidos") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/colaboradores")
