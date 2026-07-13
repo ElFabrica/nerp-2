@@ -42,7 +42,6 @@ export function ListSuppliers() {
   const [openViewModal, setOpenViewModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
-
   const { suppliers, isLoading } = useSupplier();
 
   return (
@@ -130,9 +129,7 @@ export function ListSuppliers() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        {supplier.contactPerson || "—"}
-                      </TableCell>
+                      <TableCell>{supplier.contactPerson || "—"}</TableCell>
                       <TableCell>
                         {supplier.city && supplier.state
                           ? `${supplier.city}/${supplier.state}`

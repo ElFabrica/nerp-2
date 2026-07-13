@@ -1089,6 +1089,42 @@ model ProductImport {
   @@map("product_imports")
 }
 
+// ============================================
+// Importação de fornecedores via planilha (CSV/XLSX)
+// ============================================
+// Espelha ProductImport. O arquivo bruto vai pro S3 (`fileKey`); a função Inngest
+// `supplierImportProcess` lê este registro, baixa o arquivo, processa linha a linha
+// (pulando documentos já cadastrados) e atualiza os contadores/erros para a UI.
+
+enum SupplierImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model SupplierImport {
+  id             String               @id @default(cuid())
+  organizationId String
+  createdById    String
+  fileKey        String // chave do objeto no S3
+  fileName       String
+  mapping        Json // { campoFornecedor: nomeColunaArquivo }
+  status         SupplierImportStatus @default(PENDING)
+  totalRows      Int                  @default(0)
+  processedRows  Int                  @default(0)
+  createdRows    Int                  @default(0)
+  skippedRows    Int                  @default(0) // duplicados (mesmo documento) pulados
+  failedRows     Int                  @default(0)
+  errors         Json                 @default("[]") // [{ row, message }]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  completedAt    DateTime?
+
+  @@index([organizationId, status])
+  @@map("supplier_imports")
+}
+
 model PromotionalCatalog {
   id             String   @id @default(cuid())
   organizationId String

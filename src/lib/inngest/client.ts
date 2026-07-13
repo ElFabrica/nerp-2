@@ -51,6 +51,19 @@ export const productImportRequested = eventType("products/import.requested", {
 });
 
 /**
+ * Importação de fornecedores via planilha (CSV/XLSX).
+ *
+ * Disparado por `supplier.import.create` após o upload do arquivo ao S3 e a
+ * criação da linha `SupplierImport`. Carrega apenas o `importId`; a função
+ * `supplierImportProcess` busca o registro, baixa o arquivo e processa as linhas.
+ */
+export type SupplierImportRequestedData = { importId: string };
+
+export const supplierImportRequested = eventType("suppliers/import.requested", {
+  schema: staticSchema<SupplierImportRequestedData>(),
+});
+
+/**
  * Geração do Book em PDF (Trade Marketing).
  *
  * Disparado por `book.generate` após marcar o Book como GENERATING. A função
