@@ -100,6 +100,13 @@ function toDateInputValue(value: Date | string): string {
   return format(new Date(value), "yyyy-MM-dd");
 }
 
+// Datas de período vindas do banco são instantes à meia-noite UTC; formatar
+// em horário local (como toDateInputValue) desloca um dia em fusos negativos
+// e o salvamento criaria um período duplicado com periodStart diferente.
+function toUtcDateInputValue(value: Date | string): string {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
 // Sugere o intervalo do período corrente pra granularidade escolhida —
 // o usuário sempre pode ajustar as datas depois.
 function suggestPeriodRange(periodType: SalesGoalPeriodType): {
@@ -254,8 +261,8 @@ export function SalesGoalSetupWizard({
 
     if (existing) {
       setPrefilledFromExisting(true);
-      setPeriodStart(toDateInputValue(existing.periodStart));
-      setPeriodEnd(toDateInputValue(existing.periodEnd));
+      setPeriodStart(toUtcDateInputValue(existing.periodStart));
+      setPeriodEnd(toUtcDateInputValue(existing.periodEnd));
       setLabel(existing.label ?? "");
       setTeams(
         existing.branches.map((branch) => ({
