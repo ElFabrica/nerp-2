@@ -77,7 +77,22 @@ export function ImportPhotosDialog({
   const { photos, isLoading } = usePdvPhotos(filters, open);
 
   const existing = useMemo(() => new Set(existingPhotoIds), [existingPhotoIds]);
-  const candidates = photos.filter((photo) => !existing.has(photo.id));
+  const candidates = useMemo(
+    () => photos.filter((photo) => !existing.has(photo.id)),
+    [photos, existing],
+  );
+  const candidateIds = useMemo(
+    () => candidates.map((photo) => photo.id),
+    [candidates],
+  );
+
+  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const selectedVisibleCount = candidateIds.filter((id) =>
+    selectedSet.has(id),
+  ).length;
+  const allSelected =
+    candidateIds.length > 0 && selectedVisibleCount === candidateIds.length;
+  const someSelected = selectedVisibleCount > 0 && !allSelected;
 
   const toggle = (id: string) => {
     setSelected((current) =>
@@ -85,6 +100,16 @@ export function ImportPhotosDialog({
         ? current.filter((value) => value !== id)
         : [...current, id],
     );
+  };
+
+  const toggleAll = () => {
+    setSelected((current) => {
+      if (allSelected) {
+        const remove = new Set(candidateIds);
+        return current.filter((id) => !remove.has(id));
+      }
+      return Array.from(new Set([...current, ...candidateIds]));
+    });
   };
 
   const handleImport = () => {
@@ -140,6 +165,33 @@ export function ImportPhotosDialog({
           </Field>
         </div>
 
+        {!isLoading && candidates.length > 0 && (
+          <div className="flex items-center justify-between border-b pb-2">
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="flex items-center gap-2 text-sm font-medium"
+            >
+              <Checkbox
+                checked={
+                  allSelected ? true : someSelected ? "indeterminate" : false
+                }
+                className="pointer-events-none"
+              />
+              Selecionar todas ({candidates.length})
+            </button>
+            {selected.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelected([])}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Limpar seleção ({selected.length})
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
           {isLoading && (
             <div className="flex justify-center py-8">
@@ -161,7 +213,7 @@ export function ImportPhotosDialog({
                 photo.code,
                 photo.supplierName,
               ].filter((value): value is string => !!value);
-              const isChecked = selected.includes(photo.id);
+              const isChecked = selectedSet.has(photo.id);
 
               return (
                 <button
