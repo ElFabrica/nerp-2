@@ -9,3 +9,4 @@ feature depois de trabalhar em outra coisa.
 ## Índice
 
 - [`fornecedores.md`](./fornecedores.md) — CRUD de fornecedores (segurança, busca, refatoração)
+- [`importacao-fornecedores.md`](./importacao-fornecedores.md) — Importação via planilha (✅ entregue)

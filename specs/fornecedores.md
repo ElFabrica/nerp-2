@@ -6,18 +6,16 @@
 
 ---
 
-## 🔴 Crítico — Isolamento entre organizações (IDOR)
+## 🔴 Crítico — Isolamento entre organizações (IDOR) — ✅ RESOLVIDO (2026-07-13)
 
 Handlers de leitura/edição/exclusão buscam o fornecedor apenas pelo `id`, sem
 filtrar por `organizationId`. Um usuário de uma organização consegue ler, editar
 ou apagar fornecedores de outra org conhecendo o id.
 
-- [ ] **`router/supplier/update.ts`** — não usa `requireOrgMiddleware` e faz
-      `findUnique({ where: { id } })`. Adicionar o middleware e escopar por org.
-- [ ] **`router/supplier/delete.ts`** — usa `requireOrgMiddleware`, mas o
-      `findUnique`/`delete` é só por `id`. Escopar por `organizationId`.
-- [ ] **`router/supplier/get.ts`** — `findUnique` por `id` sem checar
-      `context.org.id`. Escopar por org.
+- [x] **`router/supplier/update.ts`** — adicionado `requireOrgMiddleware` e
+      lookup via `findFirst({ id, organizationId: context.org.id })`.
+- [x] **`router/supplier/delete.ts`** — lookup escopado por org antes do delete.
+- [x] **`router/supplier/get.ts`** — `findFirst` escopado por `context.org.id`.
 
 Padrão de referência (já correto em `list.ts`):
 
@@ -35,11 +33,11 @@ Para `update`/`delete`, usar `updateMany`/`deleteMany` com `organizationId` no
 
 ## 🟠 Bugs funcionais
 
-- [ ] **Busca não funciona** (`list-suppliers.tsx`) — o `InputGroupInput`
-      ("Buscar fornecedor...") não tem `value`/`onChange` nem filtragem. É
-      puramente decorativo.
-- [ ] **Sem paginação** — `list.ts` retorna todos os fornecedores da org de uma
-      vez. Problema de performance/UX com muitos registros.
+- [x] **Busca funcional** (`list-suppliers.tsx`) — ✅ 2026-07-13. Input com
+      `value`/`onChange` + debounce; busca server-side por nome/nome fantasia/
+      documento/e-mail no `list.ts`.
+- [x] **Paginação** — ✅ 2026-07-13. `list.ts` paginado (`page`/`pageSize` +
+      `totalCount`/`totalPages`); UI com controles de página e reticências.
 - [ ] **Exclusão sem proteção contra duplo clique** (`delete-supplier.tsx`) — o
       `deleteSupplier.isPending` não é usado; o botão não desabilita nem mostra
       spinner. O modal também não identifica qual fornecedor será apagado.
@@ -72,6 +70,6 @@ Para `update`/`delete`, usar `updateMany`/`deleteMany` com `organizationId` no
 
 ## Prioridade sugerida
 
-1. Isolamento por organização em `get`/`update`/`delete` (segurança — fazer primeiro).
-2. Busca + paginação na listagem.
-3. Refatoração do `SupplierForm` compartilhado.
+1. ~~Isolamento por organização em `get`/`update`/`delete`~~ ✅ feito.
+2. ~~Busca + paginação na listagem~~ ✅ feito.
+3. Refatoração do `SupplierForm` compartilhado (próximo).
