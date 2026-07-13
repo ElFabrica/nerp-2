@@ -110,7 +110,6 @@ export function SalesGoalRankRow({
   const percent = Math.min(entry.percentAchieved ?? 0, 100);
   const goalReached =
     entry.remainingAmount <= 0 && entry.achievedAmount !== null;
-  const canEditAchieved = canEdit && entry.achievedSource !== "AUTO";
   const medal = featured ? (MEDALS[position] ?? null) : null;
 
   if (featured) {
@@ -167,7 +166,9 @@ export function SalesGoalRankRow({
             <AmountLine
               label="Vendido"
               value={entry.achievedAmount}
-              editable={canEditAchieved}
+              // Editável mesmo com vínculo: o valor digitado vira override
+              // manual do vendido automático (desfaz-se no ↺ das Configurações).
+              editable={canEdit}
               fieldLabel={`Vendido de ${entry.sellerName}`}
               onCommit={(achievedAmount) =>
                 upsertEntry.mutate({ entryId: entry.id, achievedAmount })
@@ -286,7 +287,7 @@ export function SalesGoalRankRow({
             {showSoldValue && (
               <>
                 <span>· Vendido</span>
-                {canEditAchieved ? (
+                {canEdit ? (
                   <InlineAmountInput
                     value={entry.achievedAmount ?? 0}
                     label={`Vendido de ${entry.sellerName}`}
