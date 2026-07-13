@@ -49,7 +49,7 @@ const schemaForm = z.object({
 interface Customer {
   name: string;
   createdAt: Date;
-  email: string;
+  email: string | null;
   notes: string | null;
   address: string | null;
   phone: string | null;
@@ -77,7 +77,7 @@ export function FormCustomer({
   const form = useForm<z.infer<typeof schemaForm>>({
     defaultValues: {
       name: customer.name,
-      email: customer.email,
+      email: customer.email ?? "",
       phone: customer.phone ?? "",
       document: customer.document ?? "",
       city: customer.city ?? "",
@@ -94,7 +94,7 @@ export function FormCustomer({
   const onSubmit = (data: z.infer<typeof schemaForm>) => {
     updateCustomerMutation.mutate({
       subdomain,
-      email: customer.email,
+      email: customer.email ?? "",
       name: data.name,
       phone: data.phone,
       document: data.document,
