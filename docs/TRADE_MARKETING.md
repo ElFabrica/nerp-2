@@ -120,9 +120,12 @@ Registrados em `src/app/router/index.ts`. Todos escopados por `context.org.id`.
 ## 6. Estrutura de pastas (o que já existe)
 
 ```
-src/app/router/{store,brand,floor-plan,map-layer,map-object}/   # oRPC
+src/app/router/{store,brand,floor-plan,map-layer,map-object,pdv-photo,book}/   # oRPC
 src/app/(main)/(rest)/lojas/page.tsx                            # lista de lojas
 src/app/(main)/(rest)/lojas/[storeId]/mapa/page.tsx             # editor
+src/app/(main)/(rest)/books/page.tsx                            # lista de books
+src/app/(main)/(rest)/books/[bookId]/page.tsx                   # editor do book
+src/features/books/  components/ | hooks/ | pdf/ | server/ | lib/  # Book PDF (M8)
 src/features/stores/            # CRUD de lojas (hooks + componentes)
 src/features/brands/            # marcas (hook + BrandsManager embutido no fornecedor)
 src/features/store-map/
@@ -149,14 +152,14 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 | **M5** | Import de planta (imagem de fundo) + **calibração de escala** (2 cliques → medida real reescala o `backgroundTransform`) + opacidade + leitura de coordenadas em metros | ✅ completo (régua com ticks fica p/ M9) |
 | **M6** | Painel lateral: vincular **Indústria (Supplier)** e **Marca (Brand)** + seção **Fotos do PDV** | ✅ completo |
 | **M7** | **Fotos do PDV**: `MultiPhotoUploader`, router `pdvPhoto/` (create/list filtrado/update/delete/`filterOptions`), histórico por objeto, página `/lojas/[storeId]` (fallback na loja) | ✅ completo |
-| **M8** | **Book em PDF** server-side | 🔶 **backend pronto — falta a UI** (ver §8) |
+| **M8** | **Book em PDF** server-side + UI | ✅ completo (backend + UI) |
 | **M9** | Extras: minimapa, snapping/guias, culling de viewport, anotações (`MapAnnotation`), dashboard (contagens), refinos | ⏳ pendente |
 
 ---
 
 ## 8. Próximos passos detalhados (para retomar)
 
-> **M5–M7 concluídos.** Próximo: **M8 (Book em PDF)**, depois **M9 (extras)**.
+> **M5–M8 concluídos.** Próximo: **M9 (extras)**.
 >
 > Feito no editor: `background-controls.tsx`, `scale-calibration-dialog.tsx`, overlays de coordenadas/calibração
 > (`map-stage.tsx`); painel com Indústria/Marca (`object-properties-panel.tsx`).
@@ -164,9 +167,9 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 > `pdv-photo-section`, hook `use-pdv-photos`) + router `src/app/router/pdv-photo/` + página `/lojas/[storeId]`.
 > Helper compartilhado de upload: `src/lib/upload-to-r2.ts`.
 
-### M8 — Book em PDF (server-side) — ⏸️ PAREI AQUI
+### M8 — Book em PDF (server-side + UI) — ✅ CONCLUÍDO
 
-**✅ Backend + geração PRONTOS (typecheck/biome limpos, commitados):**
+**✅ Backend + geração (typecheck/biome limpos, commitados):**
 - Dep `@react-pdf/renderer@4.5.1` instalada.
 - Template PDF `src/features/books/pdf/book-document.tsx` (capa: logo distribuidora=`Organization.logo` ou `Book.distributorLogo` + logo indústria=`Supplier.logo` + nome + "Mês / Ano"; páginas: metadados + grade de fotos + logos das marcas no rodapé).
 - Renderer server `src/features/books/server/generate-book.tsx` (`generateBook(bookId)`): carrega book+itens+fotos+supplier+brands+org, `renderToBuffer`, `uploadBufferToR2`, marca `pdfKey/READY`.
@@ -175,14 +178,13 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 - Router `src/app/router/book/` (registrado como `book` em `router/index.ts`): `create, list, getOne` (inclui itens), `update, delete, importPhotos` ({bookId, pdvPhotoIds[]}), `removeItem` ({bookId, pdvPhotoId}), `generate` (seta GENERATING + `inngest.send(bookGenerateRequested.create({bookId}))`).
 - Hooks `src/features/books/hooks/use-books.ts`: `useBooks`, `useBook(id)` (polling a cada 2.5s enquanto `status==="GENERATING"`), `useCreateBook`, `useDeleteBook`, `useImportBookPhotos`, `useRemoveBookItem`, `useGenerateBook`.
 
-**⏳ FALTA — só a UI (a próxima sessão começa por aqui):**
-1. `AddBookButton` + `CreateBookDialog` — nome, Indústria (`useSupplier`), mês (1–12) + ano; `useCreateBook` → redirecionar para `/books/[id]`.
-2. `BooksList` — lista de books (status badge: RASCUNHO/GERANDO/PRONTO/FALHOU), período, indústria, nº de itens; ações: abrir, baixar PDF quando READY (`constructUrl(pdfKey)`), excluir.
-3. Rota `src/app/(main)/(rest)/books/page.tsx` (server) — `requirePermission("books")` + `PageHeader` + `AddBookButton` + `BooksList`. **(a chave de permissão e o item de sidebar `books` já existem, apontando para `/books` — hoje a rota ainda não existe.)**
-4. `BookEditor` (client) + rota `src/app/(main)/(rest)/books/[bookId]/page.tsx` (server, `requirePermission("books")`, `await params`): usa `useBook(id)`; mostra capa/dados, grade de itens (fotos) com remover (`useRemoveBookItem`), botão **Gerar** (`useGenerateBook`) + badge de status + link de download quando READY.
-5. `ImportPhotosDialog` — filtros (usar `usePdvFilterOptions` + `usePdvPhotos({filters})` de `@/features/pdv-photos/hooks/use-pdv-photos`), lista de capturas candidatas com checkbox, "Importar selecionadas" → `useImportBookPhotos({ bookId, pdvPhotoIds })`.
-
-Padrões para reusar: `AddStoreButton`/`store-form-dialog.tsx`/`list-stores.tsx` (estrutura de página+lista+dialog) e `PdvPhotoHistory` (grade de fotos). Download: `constructUrl(pdfKey)` num `<a href target="_blank">`.
+**✅ UI (entregue nesta sessão — `src/features/books/components/` + rotas):**
+1. `add-book-button.tsx` + `create-book-dialog.tsx` — nome, Indústria (`useSupplier`), mês (Select 1–12) + ano; `useCreateBook` → redireciona para `/books/[id]`.
+2. `books-list.tsx` (+ `delete-book-dialog.tsx`, `book-status-badge.tsx`) — tabela de books com status, período, indústria, nº de fotos; ações: abrir, baixar PDF quando READY (`constructUrl(pdfKey)`), excluir.
+3. Rota `src/app/(main)/(rest)/books/page.tsx` (server) — `requirePermission("books")` + `PageHeader` + `AddBookButton` + `BooksList`.
+4. `book-editor.tsx` + rota `src/app/(main)/(rest)/books/[bookId]/page.tsx` (server, `requirePermission("books")`, `await params`): `useBook(id)` (polling enquanto GENERATING); cabeçalho com dados/status, grade de fotos com remover (`useRemoveBookItem`), botão **Gerar PDF** (`useGenerateBook`) + download quando READY.
+5. `import-photos-dialog.tsx` — filtros por Indústria (default = indústria do book) e Seção (`usePdvFilterOptions` + `usePdvPhotos`), lista de capturas candidatas com checkbox (exclui já importadas), "Importar (n)" → `useImportBookPhotos({ bookId, pdvPhotoIds })`.
+6. Helper `src/features/books/lib/book-format.ts` (`formatPeriod`, `BOOK_STATUS_META`).
 
 ### M9 — Extras (depois do M8)
 - Minimapa, régua com ticks (hoje há só leitura de coordenadas), snapping/guias de alinhamento.
