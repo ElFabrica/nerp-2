@@ -28,6 +28,7 @@ import {
   LayoutDashboard,
   LogOut,
   MapPinned,
+  Megaphone,
   Package,
   Plus,
   Settings,
@@ -78,6 +79,7 @@ const navigation: Array<{
     name: string;
     href: string;
     icon: typeof LayoutDashboard;
+    permission?: string;
   }>;
 }> = [
   {
@@ -144,16 +146,23 @@ const navigation: Array<{
     permission: "fornecedores",
   },
   {
-    name: "Lojas e Mapas",
+    name: "Trade Marketing",
     href: "/lojas",
-    icon: MapPinned,
-    permission: "lojas",
-  },
-  {
-    name: "Books de PDV",
-    href: "/books",
-    icon: BookImage,
-    permission: "books",
+    icon: Megaphone,
+    children: [
+      {
+        name: "Lojas e Mapas",
+        href: "/lojas",
+        icon: MapPinned,
+        permission: "lojas",
+      },
+      {
+        name: "Books de PDV",
+        href: "/books",
+        icon: BookImage,
+        permission: "books",
+      },
+    ],
   },
   {
     name: "Colaborador",
@@ -214,11 +223,28 @@ export function AppSidebar() {
   );
   const fullAccess = hasFullAccess(currentMember?.role);
   const allowedPermissions = new Set(currentMember?.permissions ?? []);
-  const visibleNavigation = navigation.filter((item) => {
-    if (!item.permission) return true;
-    if (fullAccess) return true;
-    return allowedPermissions.has(item.permission);
-  });
+  type NavItem = (typeof navigation)[number];
+  const visibleNavigation = navigation
+    .map((item): NavItem | null => {
+      const parentPermitted =
+        fullAccess || !item.permission || allowedPermissions.has(item.permission);
+
+      if (!item.children) {
+        return parentPermitted ? item : null;
+      }
+
+      // Filtra os filhos: filhos com permissão própria são checados
+      // individualmente; filhos sem permissão herdam a visibilidade do pai.
+      const children = item.children.filter((child) => {
+        if (fullAccess) return true;
+        if (child.permission) return allowedPermissions.has(child.permission);
+        return parentPermitted;
+      });
+
+      if (children.length === 0) return null;
+      return { ...item, children };
+    })
+    .filter((item): item is NavItem => item !== null);
 
   return (
     <Sidebar collapsible="icon">
@@ -248,7 +274,12 @@ export function AppSidebar() {
                           asChild
                           defaultOpen={
                             pathname === item.href ||
-                            pathname.startsWith(item.href + "/")
+                            pathname.startsWith(item.href + "/") ||
+                            item.children?.some(
+                              (child) =>
+                                pathname === child.href ||
+                                pathname.startsWith(child.href + "/"),
+                            )
                           }
                         >
                           <SidebarMenuItem>
