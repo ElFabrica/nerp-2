@@ -10,7 +10,7 @@ export const createBook = base
   .input(
     z.object({
       name: z.string().min(1, "Informe o nome do book"),
-      supplierId: z.string(),
+      supplierId: z.string().optional(),
       periodMonth: z.number().int().min(1).max(12),
       periodYear: z.number().int().min(2000).max(2100),
       distributorLogo: z.string().optional(),
@@ -18,12 +18,14 @@ export const createBook = base
   )
   .output(z.object({ id: z.string() }))
   .handler(async ({ input, context, errors }) => {
-    const supplier = await prisma.supplier.findFirst({
-      where: { id: input.supplierId, organizationId: context.org.id },
-      select: { id: true },
-    });
-    if (!supplier) {
-      throw errors.NOT_FOUND({ message: "Indústria não encontrada" });
+    if (input.supplierId) {
+      const supplier = await prisma.supplier.findFirst({
+        where: { id: input.supplierId, organizationId: context.org.id },
+        select: { id: true },
+      });
+      if (!supplier) {
+        throw errors.NOT_FOUND({ message: "Indústria não encontrada" });
+      }
     }
 
     const book = await prisma.book.create({

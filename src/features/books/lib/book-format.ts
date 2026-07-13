@@ -20,6 +20,15 @@ export function formatPeriod(month: number, year: number) {
   return `${name} / ${year}`;
 }
 
+const brl = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+export function formatBRL(value: number) {
+  return brl.format(value);
+}
+
 interface StatusMeta {
   label: string;
   variant: "default" | "secondary" | "destructive" | "outline";

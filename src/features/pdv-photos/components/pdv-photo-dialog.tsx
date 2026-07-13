@@ -58,6 +58,7 @@ export function PdvPhotoDialog({
   const [coordinator, setCoordinator] = useState("");
   const [consultant, setConsultant] = useState("");
   const [code, setCode] = useState("");
+  const [actionValue, setActionValue] = useState("");
   const [capturedAt, setCapturedAt] = useState(today());
   const [notes, setNotes] = useState("");
 
@@ -70,6 +71,7 @@ export function PdvPhotoDialog({
     setCoordinator("");
     setConsultant("");
     setCode("");
+    setActionValue("");
     setCapturedAt(today());
     setNotes("");
   }, [open, defaultSupplierId, defaultSection]);
@@ -85,6 +87,7 @@ export function PdvPhotoDialog({
         coordinatorName: coordinator || undefined,
         consultantName: consultant || undefined,
         code: code || undefined,
+        actionValue: actionValue ? Number(actionValue) : undefined,
         photos,
         capturedAt: new Date(capturedAt).toISOString(),
         notes: notes || undefined,
@@ -126,6 +129,18 @@ export function PdvPhotoDialog({
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
                 placeholder="Ex.: A12"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="pdv-value">Valor (R$)</FieldLabel>
+              <Input
+                id="pdv-value"
+                type="number"
+                min={0}
+                step="0.01"
+                value={actionValue}
+                onChange={(event) => setActionValue(event.target.value)}
+                placeholder="Ex.: 250,00"
               />
             </Field>
           </div>

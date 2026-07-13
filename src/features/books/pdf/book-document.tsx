@@ -10,12 +10,12 @@ import {
 export interface BookDocumentItem {
   storeName: string;
   storeManager: string | null;
-  section: string | null;
-  responsibleCompany: string | null;
   coordinatorName: string | null;
   consultantName: string | null;
+  responsibleCompany: string | null;
+  section: string | null;
   code: string | null;
-  supplierName: string | null;
+  actionValueLabel: string | null;
   photoUrls: string[];
 }
 
@@ -24,10 +24,16 @@ export interface BookDocumentData {
   periodLabel: string;
   distributorLogoUrl: string | null;
   industryLogoUrl: string | null;
-  industryName: string;
+  industryName: string | null;
   brandLogoUrls: string[];
   items: BookDocumentItem[];
 }
+
+// 16:9 widescreen (mesma proporção do PPT do cliente): 960 x 540 pt.
+const PAGE_SIZE: [number, number] = [960, 540];
+const ACCENT = "#c1121f";
+const INK = "#1a1a1a";
+const MUTED = "#6b7280";
 
 const styles = StyleSheet.create({
   cover: {
@@ -35,122 +41,251 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     height: "100%",
-    padding: 48,
-    gap: 24,
+    padding: 64,
+    gap: 28,
   },
-  coverLogos: {
+  coverLogo: { maxHeight: 130, maxWidth: 460, objectFit: "contain" },
+  coverTitle: {
+    fontSize: 34,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: INK,
+    letterSpacing: 1,
+  },
+  coverRule: { width: 90, height: 4, backgroundColor: ACCENT, borderRadius: 2 },
+  coverPeriod: {
+    fontSize: 18,
+    color: ACCENT,
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: 2,
+  },
+  coverIndustryRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 32,
+    gap: 14,
+    marginTop: 6,
   },
-  coverLogo: { height: 64, objectFit: "contain" },
-  coverTitle: { fontSize: 28, fontWeight: "bold", textAlign: "center" },
-  coverPeriod: { fontSize: 16, color: "#475569" },
-  coverIndustry: { fontSize: 12, color: "#64748b" },
-  page: { padding: 32, fontSize: 10, color: "#0f172a" },
-  header: {
-    borderBottom: "1 solid #e2e8f0",
-    paddingBottom: 8,
-    marginBottom: 12,
+  coverIndustryLogo: { maxHeight: 44, maxWidth: 160, objectFit: "contain" },
+  coverIndustryName: { fontSize: 13, color: MUTED },
+
+  page: { flexDirection: "column", height: "100%" },
+  headerBand: {
+    backgroundColor: ACCENT,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  storeName: { fontSize: 16, fontWeight: "bold" },
-  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 6 },
-  meta: { fontSize: 9, color: "#475569" },
-  metaLabel: { color: "#94a3b8" },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  photo: {
-    width: "31.5%",
-    height: 150,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#ffffff",
+    textTransform: "uppercase",
+    flex: 1,
+    paddingRight: 16,
+  },
+  headerPeriod: {
+    fontSize: 11,
+    color: "#ffffff",
+    opacity: 0.9,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+
+  body: { flexDirection: "row", flex: 1, padding: 20, gap: 18 },
+
+  meta: { width: 210, flexDirection: "column", gap: 10 },
+  metaItem: { flexDirection: "column", gap: 2 },
+  metaLabel: {
+    fontSize: 8,
+    color: MUTED,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  metaValue: { fontSize: 12, color: INK, fontWeight: "bold" },
+  valueBox: {
+    marginTop: 4,
+    backgroundColor: "#fef2f2",
+    borderLeft: `3 solid ${ACCENT}`,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 3,
+  },
+  valueLabel: {
+    fontSize: 8,
+    color: ACCENT,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  valueAmount: { fontSize: 18, color: ACCENT, fontWeight: "bold" },
+
+  photos: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  photoFull: { width: "100%", height: "100%", objectFit: "cover" },
+  photoHalf: {
+    width: "48.5%",
+    height: "100%",
     objectFit: "cover",
     borderRadius: 4,
   },
+  photoGrid: {
+    width: "48.5%",
+    height: "48.5%",
+    objectFit: "cover",
+    borderRadius: 4,
+  },
+  photoFullWrap: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+
   footer: {
-    position: "absolute",
-    bottom: 24,
-    left: 32,
-    right: 32,
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    borderTop: "1 solid #e2e8f0",
-    paddingTop: 8,
+    justifyContent: "space-between",
+    paddingHorizontal: 28,
+    paddingVertical: 8,
+    borderTop: "1 solid #e5e7eb",
   },
-  brandLogo: { height: 28, objectFit: "contain" },
+  footerBrands: { flexDirection: "row", alignItems: "center", gap: 14 },
+  brandLogo: { height: 24, maxWidth: 90, objectFit: "contain" },
+  footerPage: { fontSize: 9, color: MUTED },
+
+  closing: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100%",
+    gap: 20,
+  },
+  closingText: { fontSize: 30, fontWeight: "bold", color: ACCENT },
 });
 
-function Meta({ label, value }: { label: string; value: string | null }) {
+function MetaItem({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
-    <Text style={styles.meta}>
-      <Text style={styles.metaLabel}>{label}: </Text>
-      {value}
-    </Text>
+    <View style={styles.metaItem}>
+      <Text style={styles.metaLabel}>{label}</Text>
+      <Text style={styles.metaValue}>{value}</Text>
+    </View>
+  );
+}
+
+function PhotoLayout({ urls }: { urls: string[] }) {
+  const photos = urls.slice(0, 4);
+  if (photos.length === 0) {
+    return null;
+  }
+  if (photos.length === 1) {
+    return (
+      <View style={styles.photos}>
+        <View style={styles.photoFullWrap}>
+          <Image src={photos[0]} style={styles.photoFull} />
+        </View>
+      </View>
+    );
+  }
+  if (photos.length === 2) {
+    return (
+      <View style={styles.photos}>
+        {photos.map((url, index) => (
+          <Image key={`${url}-${index}`} src={url} style={styles.photoHalf} />
+        ))}
+      </View>
+    );
+  }
+  return (
+    <View style={styles.photos}>
+      {photos.map((url, index) => (
+        <Image key={`${url}-${index}`} src={url} style={styles.photoGrid} />
+      ))}
+    </View>
   );
 }
 
 export function BookDocument({ data }: { data: BookDocumentData }) {
   return (
     <Document title={data.bookName}>
-      <Page size="A4" orientation="landscape">
+      <Page size={PAGE_SIZE}>
         <View style={styles.cover}>
-          <View style={styles.coverLogos}>
-            {data.distributorLogoUrl && (
-              <Image src={data.distributorLogoUrl} style={styles.coverLogo} />
-            )}
-            {data.industryLogoUrl && (
-              <Image src={data.industryLogoUrl} style={styles.coverLogo} />
-            )}
-          </View>
+          {data.distributorLogoUrl && (
+            <Image src={data.distributorLogoUrl} style={styles.coverLogo} />
+          )}
           <Text style={styles.coverTitle}>{data.bookName}</Text>
+          <View style={styles.coverRule} />
           <Text style={styles.coverPeriod}>{data.periodLabel}</Text>
-          <Text style={styles.coverIndustry}>{data.industryName}</Text>
+          {data.industryName && (
+            <View style={styles.coverIndustryRow}>
+              {data.industryLogoUrl && (
+                <Image
+                  src={data.industryLogoUrl}
+                  style={styles.coverIndustryLogo}
+                />
+              )}
+              <Text style={styles.coverIndustryName}>{data.industryName}</Text>
+            </View>
+          )}
         </View>
       </Page>
 
       {data.items.map((item, index) => (
-        <Page
-          key={`${item.storeName}-${index}`}
-          size="A4"
-          orientation="landscape"
-          style={styles.page}
-        >
-          <View style={styles.header}>
-            <Text style={styles.storeName}>{item.storeName}</Text>
-            <View style={styles.metaRow}>
-              <Meta label="Seção" value={item.section} />
-              <Meta label="Código" value={item.code} />
-              <Meta label="Indústria" value={item.supplierName} />
-              <Meta label="Empresa PDV" value={item.responsibleCompany} />
-              <Meta label="Gerente" value={item.storeManager} />
-              <Meta label="Coordenador" value={item.coordinatorName} />
-              <Meta label="Consultor" value={item.consultantName} />
+        <Page key={`${item.storeName}-${index}`} size={PAGE_SIZE}>
+          <View style={styles.page}>
+            <View style={styles.headerBand}>
+              <Text style={styles.headerTitle}>{item.storeName}</Text>
+              <Text style={styles.headerPeriod}>{data.periodLabel}</Text>
+            </View>
+
+            <View style={styles.body}>
+              <View style={styles.meta}>
+                <MetaItem label="Gerente" value={item.storeManager} />
+                <MetaItem label="Coordenador(a)" value={item.coordinatorName} />
+                <MetaItem label="Consultor(a)" value={item.consultantName} />
+                <MetaItem label="Empresa PDV" value={item.responsibleCompany} />
+                <MetaItem label="Seção" value={item.section} />
+                <MetaItem label="Código" value={item.code} />
+                {item.actionValueLabel && (
+                  <View style={styles.valueBox}>
+                    <Text style={styles.valueLabel}>Valor da ação</Text>
+                    <Text style={styles.valueAmount}>
+                      {item.actionValueLabel}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <PhotoLayout urls={item.photoUrls} />
+            </View>
+
+            <View style={styles.footer}>
+              <View style={styles.footerBrands}>
+                {data.brandLogoUrls.map((url, logoIndex) => (
+                  <Image
+                    key={`${url}-${logoIndex}`}
+                    src={url}
+                    style={styles.brandLogo}
+                  />
+                ))}
+              </View>
+              <Text style={styles.footerPage}>
+                {index + 1} / {data.items.length}
+              </Text>
             </View>
           </View>
-
-          <View style={styles.grid}>
-            {item.photoUrls.map((url, photoIndex) => (
-              <Image
-                key={`${url}-${photoIndex}`}
-                src={url}
-                style={styles.photo}
-              />
-            ))}
-          </View>
-
-          {data.brandLogoUrls.length > 0 && (
-            <View style={styles.footer} fixed>
-              {data.brandLogoUrls.map((url, logoIndex) => (
-                <Image
-                  key={`${url}-${logoIndex}`}
-                  src={url}
-                  style={styles.brandLogo}
-                />
-              ))}
-            </View>
-          )}
         </Page>
       ))}
+
+      <Page size={PAGE_SIZE}>
+        <View style={styles.closing}>
+          {data.distributorLogoUrl && (
+            <Image src={data.distributorLogoUrl} style={styles.coverLogo} />
+          )}
+          <Text style={styles.closingText}>Obrigado!</Text>
+        </View>
+      </Page>
     </Document>
   );
 }

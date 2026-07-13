@@ -54,8 +54,8 @@ Adicionados em `prisma/schema.prisma` (todos org-scoped: `organizationId` + rela
 | `MapLayer` | Camada (Estrutura, Gôndolas, Promoções, Empresas, Elétrica, Hidráulica, Auditorias) — `visible`, `locked`, `order` |
 | `MapObject` | Objeto do mapa (gôndola/parede/etc.). **`geometry` em metros**, `heightM` p/ 3D futuro, `style`, `supplierId`, `brandId`, painel lateral (`name/status/category/responsibleName/lastVisitAt/properties`) |
 | `Brand` | Marca da indústria (`supplierId`, `name`, `logo`) → logos no Book |
-| `PdvPhoto` | Foto/visita do PDV (`storeId`, `mapObjectId?`, `section`, `responsibleCompany`, `coordinatorName`, `consultantName`, `code`, `photos String[]`, `capturedAt`) |
-| `Book` | Book (`supplierId`=Indústria, `distributorLogo`, `periodMonth/Year`, `status`, `pdfKey`, `generatedAt`) |
+| `PdvPhoto` | Foto/visita do PDV (`storeId`, `mapObjectId?`, `section`, `responsibleCompany`, `coordinatorName`, `consultantName`, `code`, **`actionValue Decimal?`** = valor R$ da ação, `photos String[]`, `capturedAt`) |
+| `Book` | Book (**`supplierId?`**=Indústria opcional — sem = book geral de ações, `distributorLogo`, `periodMonth/Year`, `status`, `pdfKey`, `generatedAt`) |
 | `BookItem` | Junção Book ↔ PdvPhoto (`order`) |
 | `MapAnnotation` | Pin/comentário/alerta/pendência (extra, ainda não usado na UI) |
 
@@ -80,13 +80,11 @@ erDiagram
     PdvPhoto ||--o{ BookItem : ""
 ```
 
-### ⚠️ Migração pendente
-A migração **ainda não foi gerada/aplicada** (Postgres local indisponível no ambiente).
-Com o banco de pé (porta `5435` conforme `.env` `DATABASE_URL`):
-```bash
-pnpm db:migrate --name add_trade_marketing_module
-```
-Enquanto não rodar, as rotas novas quebram em runtime (schema divergente).
+### ✅ Migrações aplicadas
+As migrações do módulo **já foram geradas e aplicadas** (banco `nerp-db` @ `localhost:5433`):
+`add_trade_marketing_module` (tabelas base) e `book_action_value_optional_supplier`
+(`PdvPhoto.actionValue` + `Book.supplierId` opcional). `prisma migrate status` = up to date.
+Rodar `pnpm db:generate` após pull para atualizar o client em `src/generated/prisma`.
 
 ---
 
@@ -184,7 +182,13 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 3. Rota `src/app/(main)/(rest)/books/page.tsx` (server) — `requirePermission("books")` + `PageHeader` + `AddBookButton` + `BooksList`.
 4. `book-editor.tsx` + rota `src/app/(main)/(rest)/books/[bookId]/page.tsx` (server, `requirePermission("books")`, `await params`): `useBook(id)` (polling enquanto GENERATING); cabeçalho com dados/status, grade de fotos com remover (`useRemoveBookItem`), botão **Gerar PDF** (`useGenerateBook`) + download quando READY.
 5. `import-photos-dialog.tsx` — filtros por Indústria (default = indústria do book) e Seção (`usePdvFilterOptions` + `usePdvPhotos`), lista de capturas candidatas com checkbox (exclui já importadas), "Importar (n)" → `useImportBookPhotos({ bookId, pdvPhotoIds })`.
-6. Helper `src/features/books/lib/book-format.ts` (`formatPeriod`, `BOOK_STATUS_META`).
+6. Helper `src/features/books/lib/book-format.ts` (`formatPeriod`, `formatBRL`, `BOOK_STATUS_META`).
+
+**✅ Ajuste ao book real do cliente (baseado no PPT "BOOK AÇÕES … VAREJO 2026"):**
+- Template `book-document.tsx` **reescrito** para o formato do cliente: **16:9** (960×540pt), **uma página por ação/PDV** com faixa colorida (nome da loja) + coluna de dados (Gerente / Coordenador / Consultor / Empresa PDV / Seção / Código / **VALOR destacado**) + fotos grandes (layout adapta a 1/2/3–4 fotos); capa com logo da distribuidora (+ logo da indústria se houver); página de fecho "Obrigado!".
+- **`PdvPhoto.actionValue`** (Decimal): campo **Valor (R$)** no `pdv-photo-dialog`, exibido no histórico e na grade do editor do book (`formatBRL`).
+- **`Book.supplierId` opcional**: `create-book-dialog` permite "Nenhuma (book geral de ações)"; lista/editor mostram "Geral". `generate-book` e a capa lidam com indústria ausente.
+- Migração `book_action_value_optional_supplier` aplicada (drop NOT NULL em `books.supplierId` + `actionValue` em `pdv_photos`).
 
 ### M9 — Extras (depois do M8)
 - Minimapa, régua com ticks (hoje há só leitura de coordenadas), snapping/guias de alinhamento.
@@ -226,8 +230,9 @@ pnpm inngest:dev
 
 ## 11. Pendências / notas conhecidas
 
-- **Migração do Prisma não aplicada** (ver §3). Sem isso as rotas novas quebram.
-- **Verificação end-to-end ainda não exercida** (dependia do banco de pé).
+- ✅ **Migrações aplicadas** (ver §3) — banco em sync.
+- **Verificação parcial:** rotas compilam e exigem `requirePermission`; RPC do book carrega igual aos routers existentes; PDF renderizado num smoke-test (capa + páginas + fecho, sem erro de layout). **Falta** o click-through autenticado (criar → importar → gerar via Inngest → baixar) e a conferência visual do PDF com fotos/logos reais.
 - **Bug pré-existente (fora do escopo):** `src/app/router/supplier/update.ts` e `delete.ts` não escopam por organização (vazamento cross-tenant). Registrado à parte; os handlers novos deste módulo escopam corretamente.
+- **Nota:** chamada RPC não-autenticada devolve **500** (não 401) — comportamento app-wide do middleware de auth, não específico do módulo.
 - Git `origin` foi trocado para HTTPS nesta máquina (SSH indisponível). Para voltar: `git remote set-url origin git@github.com:ElFabrica/nerp-2.git`.
 - PR aberta: **#8** — `feat/trade-marketing-map-pdv-book`.

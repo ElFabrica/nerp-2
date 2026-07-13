@@ -24,6 +24,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCreateBook } from "../hooks/use-books";
 
+const NONE = "__none__";
+
 const MONTHS = [
   "Janeiro",
   "Fevereiro",
@@ -54,14 +56,14 @@ export function CreateBookDialog({
 
   const now = new Date();
   const [name, setName] = useState("");
-  const [supplierId, setSupplierId] = useState("");
+  const [supplierId, setSupplierId] = useState(NONE);
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
 
   useEffect(() => {
     if (!open) return;
     setName("");
-    setSupplierId("");
+    setSupplierId(NONE);
     setMonth(String(new Date().getMonth() + 1));
     setYear(String(new Date().getFullYear()));
   }, [open]);
@@ -70,7 +72,7 @@ export function CreateBookDialog({
     createBook.mutate(
       {
         name,
-        supplierId,
+        supplierId: supplierId === NONE ? undefined : supplierId,
         periodMonth: Number(month),
         periodYear: Number(year),
       },
@@ -83,7 +85,7 @@ export function CreateBookDialog({
     );
   };
 
-  const isValid = name.trim() && supplierId && month && year;
+  const isValid = name.trim() && month && year;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -107,12 +109,15 @@ export function CreateBookDialog({
           </Field>
 
           <Field>
-            <FieldLabel>Indústria</FieldLabel>
+            <FieldLabel>Indústria (opcional)</FieldLabel>
             <Select value={supplierId} onValueChange={setSupplierId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione a indústria" />
+                <SelectValue placeholder="Nenhuma (book geral de ações)" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={NONE}>
+                  Nenhuma (book geral de ações)
+                </SelectItem>
                 {suppliers.map((supplier) => (
                   <SelectItem key={supplier.id} value={supplier.id}>
                     {supplier.name}

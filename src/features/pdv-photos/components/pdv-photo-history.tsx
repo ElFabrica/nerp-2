@@ -49,6 +49,12 @@ export function PdvPhotoHistory({
         const chips = [
           photo.section,
           photo.code,
+          photo.actionValue != null
+            ? photo.actionValue.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              })
+            : null,
           photo.supplierName,
           photo.responsibleCompany,
           photo.coordinatorName && `Coord.: ${photo.coordinatorName}`,

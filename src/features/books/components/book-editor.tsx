@@ -19,7 +19,7 @@ import {
   useGenerateBook,
   useRemoveBookItem,
 } from "../hooks/use-books";
-import { formatPeriod } from "../lib/book-format";
+import { formatBRL, formatPeriod } from "../lib/book-format";
 import { BookStatusBadge } from "./book-status-badge";
 import { ImportPhotosDialog } from "./import-photos-dialog";
 
@@ -63,7 +63,7 @@ export function BookEditor({ bookId }: BookEditorProps) {
               <BookStatusBadge status={book.status} />
             </div>
             <p className="text-sm text-muted-foreground">
-              {book.supplierName} ·{" "}
+              {book.supplierName ? `${book.supplierName} · ` : "Book geral · "}
               {formatPeriod(book.periodMonth, book.periodYear)}
             </p>
           </div>
@@ -150,6 +150,11 @@ export function BookEditor({ bookId }: BookEditorProps) {
                       {[item.section, item.code].filter(Boolean).join(" · ") ||
                         formatDate(item.capturedAt)}
                     </p>
+                    {item.actionValue != null && (
+                      <p className="text-xs font-semibold text-primary">
+                        {formatBRL(item.actionValue)}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

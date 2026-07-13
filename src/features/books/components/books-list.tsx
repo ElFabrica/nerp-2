@@ -84,7 +84,11 @@ export function BooksList() {
                           {book.name}
                         </Link>
                       </TableCell>
-                      <TableCell>{book.supplierName}</TableCell>
+                      <TableCell>
+                        {book.supplierName ?? (
+                          <span className="text-muted-foreground">Geral</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {formatPeriod(book.periodMonth, book.periodYear)}
                       </TableCell>

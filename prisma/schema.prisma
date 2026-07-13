@@ -1387,6 +1387,7 @@ model PdvPhoto {
   coordinatorName    String? // Coordenador(a) do PDV
   consultantName     String? // Consultor(a) do PDV
   code               String? // Código
+  actionValue        Decimal?     @db.Decimal(10, 2) // Valor da ação (R$)
   photos             String[] // chaves R2 das fotos
   capturedAt         DateTime     @default(now())
   notes              String?      @db.Text
@@ -1412,7 +1413,7 @@ model Book {
   id              String       @id @default(cuid())
   organizationId  String
   name            String
-  supplierId      String // Indústria: logo + marcas
+  supplierId      String? // Indústria (opcional): logo + marcas. Sem = book geral de ações
   distributorLogo String? // default = Organization.logo
   periodMonth     Int
   periodYear      Int
@@ -1423,7 +1424,7 @@ model Book {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  supplier        Supplier     @relation(fields: [supplierId], references: [id])
+  supplier        Supplier?    @relation(fields: [supplierId], references: [id])
   createdBy       User         @relation("CreatedBooks", fields: [createdById], references: [id])
   items           BookItem[]
 

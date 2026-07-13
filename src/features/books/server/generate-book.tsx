@@ -22,6 +22,11 @@ const MONTHS = [
   "Dezembro",
 ];
 
+const currency = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
 export async function generateBook(bookId: string): Promise<string> {
   const book = await prisma.book.findUnique({
     where: { id: bookId },
@@ -40,7 +45,6 @@ export async function generateBook(bookId: string): Promise<string> {
           pdvPhoto: {
             include: {
               store: { select: { name: true, managerName: true } },
-              supplier: { select: { name: true } },
             },
           },
         },
@@ -56,23 +60,25 @@ export async function generateBook(bookId: string): Promise<string> {
     bookName: book.name,
     periodLabel: `${MONTHS[book.periodMonth - 1] ?? ""} / ${book.periodYear}`,
     distributorLogoUrl: distributorKey ? constructUrl(distributorKey) : null,
-    industryLogoUrl: book.supplier.logo
+    industryLogoUrl: book.supplier?.logo
       ? constructUrl(book.supplier.logo)
       : null,
-    industryName: book.supplier.name,
-    brandLogoUrls: book.supplier.brands
+    industryName: book.supplier?.name ?? null,
+    brandLogoUrls: (book.supplier?.brands ?? [])
       .map((brand) => brand.logo)
       .filter((logo): logo is string => !!logo)
       .map(constructUrl),
     items: book.items.map((item) => ({
       storeName: item.pdvPhoto.store.name,
       storeManager: item.pdvPhoto.store.managerName,
-      section: item.pdvPhoto.section,
-      responsibleCompany: item.pdvPhoto.responsibleCompany,
       coordinatorName: item.pdvPhoto.coordinatorName,
       consultantName: item.pdvPhoto.consultantName,
+      responsibleCompany: item.pdvPhoto.responsibleCompany,
+      section: item.pdvPhoto.section,
       code: item.pdvPhoto.code,
-      supplierName: item.pdvPhoto.supplier?.name ?? null,
+      actionValueLabel: item.pdvPhoto.actionValue
+        ? currency.format(Number(item.pdvPhoto.actionValue))
+        : null,
       photoUrls: item.pdvPhoto.photos.map(constructUrl),
     })),
   };

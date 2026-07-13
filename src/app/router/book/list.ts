@@ -34,7 +34,7 @@ export const listBook = base
         status: book.status,
         pdfKey: book.pdfKey,
         generatedAt: book.generatedAt?.toISOString() ?? null,
-        supplierName: book.supplier.name,
+        supplierName: book.supplier?.name ?? null,
         itemsCount: book._count.items,
       })),
     };

@@ -16,6 +16,7 @@ export const updatePdvPhoto = base
       coordinatorName: z.string().nullable().optional(),
       consultantName: z.string().nullable().optional(),
       code: z.string().nullable().optional(),
+      actionValue: z.number().nonnegative().nullable().optional(),
       photos: z.array(z.string()).optional(),
       capturedAt: z.string().optional(),
       notes: z.string().nullable().optional(),

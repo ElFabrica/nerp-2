@@ -36,7 +36,7 @@ interface ImportPhotosDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bookId: string;
-  defaultSupplierId: string;
+  defaultSupplierId: string | null;
   existingPhotoIds: string[];
 }
 
@@ -55,13 +55,13 @@ export function ImportPhotosDialog({
   const filterOptions = usePdvFilterOptions();
   const importPhotos = useImportBookPhotos();
 
-  const [supplierId, setSupplierId] = useState(defaultSupplierId);
+  const [supplierId, setSupplierId] = useState(defaultSupplierId ?? ALL);
   const [section, setSection] = useState(ALL);
   const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
-    setSupplierId(defaultSupplierId);
+    setSupplierId(defaultSupplierId ?? ALL);
     setSection(ALL);
     setSelected([]);
   }, [open, defaultSupplierId]);
