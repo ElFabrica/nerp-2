@@ -1172,18 +1172,23 @@ model SalesGoalBranch {
 }
 
 model SalesGoalEntry {
-  id             String             @id @default(cuid())
-  branchId       String
-  externalCode   String
-  goalName       String
-  sellerName     String
-  entryKind      SalesGoalEntryKind @default(SELLER)
-  goalAmount     Decimal            @db.Decimal(15, 2)
-  achievedAmount Decimal?           @db.Decimal(15, 2) // manual; ignorado quando memberId presente (vendido vem de Sale)
-  photoUrl       String? // chave S3 da foto do participante; construída em URL no client
-  memberId       String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id               String             @id @default(cuid())
+  branchId         String
+  externalCode     String
+  goalName         String
+  sellerName       String
+  entryKind        SalesGoalEntryKind @default(SELLER)
+  goalAmount       Decimal            @db.Decimal(15, 2)
+  achievedAmount   Decimal?           @db.Decimal(15, 2) // vendido manual; com memberId vinculado só vale se achievedIsManual
+  // Override: entry vinculada a um Member tem o vendido calculado das vendas,
+  // salvo quando o admin digita um valor à mão (vendas fora do NERP, outra
+  // empresa…). Sem a flag, valores manuais latentes de antes do vínculo
+  // voltariam a aparecer sozinhos.
+  achievedIsManual Boolean            @default(false)
+  photoUrl         String? // chave S3 da foto do participante; construída em URL no client
+  memberId         String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   branch SalesGoalBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
   member Member?         @relation(fields: [memberId], references: [id], onDelete: SetNull)

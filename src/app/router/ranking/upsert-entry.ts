@@ -17,9 +17,10 @@ const upsertSalesGoalEntryInputSchema = z.object({
   photoUrl: z.string().nullable().optional(),
 });
 
-// Entry vinculada a um Member tem o vendido calculado das vendas — o
-// achievedAmount manual é descartado na escrita e fica latente como
-// fallback caso a entry seja desvinculada depois.
+// Entry vinculada a um Member tem o vendido calculado das vendas, mas um
+// achievedAmount informado aqui vira override manual (achievedIsManual) e
+// passa a valer — útil quando parte das vendas não está no NERP. Enviar
+// achievedAmount: null limpa o override e devolve a entry ao automático.
 export const upsertSalesGoalEntry = base
   .use(requireAuthMiddleware)
   .use(requireOrgMiddleware)
@@ -54,17 +55,17 @@ export const upsertSalesGoalEntry = base
       }
     }
 
-    const resultingMemberId =
-      input.memberId !== undefined ? input.memberId : entry.memberId;
-    const isLinkedToMember = resultingMemberId !== null;
-
     const updated = await prisma.salesGoalEntry.update({
       where: { id: input.entryId },
       data: {
         sellerName: input.sellerName,
         goalName: input.goalName,
         goalAmount: input.goalAmount,
-        achievedAmount: isLinkedToMember ? undefined : input.achievedAmount,
+        achievedAmount: input.achievedAmount,
+        achievedIsManual:
+          input.achievedAmount !== undefined
+            ? input.achievedAmount !== null
+            : undefined,
         entryKind: input.entryKind,
         memberId: input.memberId,
         photoUrl: input.photoUrl,
@@ -80,6 +81,7 @@ export const upsertSalesGoalEntry = base
       goalAmount: Number(updated.goalAmount),
       achievedAmount:
         updated.achievedAmount !== null ? Number(updated.achievedAmount) : null,
+      achievedIsManual: updated.achievedIsManual,
       memberId: updated.memberId,
       photoUrl: updated.photoUrl,
     };

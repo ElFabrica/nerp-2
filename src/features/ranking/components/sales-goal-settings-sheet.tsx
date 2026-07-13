@@ -32,12 +32,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Play, Sliders } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  Loader2,
+  Play,
+  RotateCcw,
+  Sliders,
+  UserPlus,
+  UserRoundSearch,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { orpc } from "@/lib/orpc";
+import { AddCollaboratorButton } from "@/features/collaborators/components/add-collaborator-button";
+import { CollaboratorForm } from "@/features/collaborators/components/collaborator-form";
+import { useQueryCollaborators } from "@/features/collaborators/hooks/use-collaborators";
 import {
   useSalesGoalRankingSettings,
   useUpdateSalesGoalRankingSettings,
+  useSalesGoalRanking,
+  useUpdateSalesGoalBranch,
+  useUpsertSalesGoalEntry,
   useSalesGoalEvolution,
 } from "../hooks/use-ranking";
+import { normalizeCollaboratorName } from "../lib/collaborator-name-match";
+import { formatBrlAmountInput, parseBrlAmount } from "../lib/parse-brl-amount";
 import type { SalesGoalPeriodType } from "../lib/sales-goal-xlsx-parser";
 import {
   SALES_GOAL_SOUND_PRESETS,
@@ -175,6 +195,325 @@ function SoundPresetPicker({
   );
 }
 
+function TeamsTab({ periodType }: { periodType: SalesGoalPeriodType }) {
+  const query = useSalesGoalRanking(periodType, undefined, true);
+  const updateBranch = useUpdateSalesGoalBranch();
+  const branches = query.data?.branches ?? [];
+
+  if (query.isLoading)
+    return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
+  if (branches.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Nenhuma equipe importada ainda para este período.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs text-muted-foreground">
+        Renomear/reordenar aqui vale até o próximo import da planilha (que
+        recria a equipe pelo nome original).
+      </p>
+      {branches.map((branch, index) => (
+        <div
+          key={branch.id}
+          className="flex items-center gap-2 rounded-md border p-2"
+        >
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              className="disabled:opacity-30"
+              disabled={index === 0}
+              onClick={() =>
+                updateBranch.mutate({
+                  branchId: branch.id,
+                  sortOrder: index - 1,
+                })
+              }
+            >
+              <ArrowUp className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              className="disabled:opacity-30"
+              disabled={index === branches.length - 1}
+              onClick={() =>
+                updateBranch.mutate({
+                  branchId: branch.id,
+                  sortOrder: index + 1,
+                })
+              }
+            >
+              <ArrowDown className="size-3.5" />
+            </button>
+          </div>
+          <Input
+            defaultValue={branch.name}
+            className="flex-1"
+            onBlur={(event) => {
+              if (event.target.value !== branch.name) {
+                updateBranch.mutate({
+                  branchId: branch.id,
+                  name: event.target.value,
+                });
+              }
+            }}
+          />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Label className="text-xs">Ativa</Label>
+            <Switch
+              checked={branch.isActive}
+              onCheckedChange={(checked) =>
+                updateBranch.mutate({ branchId: branch.id, isActive: checked })
+              }
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const UNLINKED_MEMBER_VALUE = "__unlinked__";
+
+function SellersTab({ periodType }: { periodType: SalesGoalPeriodType }) {
+  const rankingQuery = useSalesGoalRanking(periodType, undefined, true);
+  const membersQuery = useQuery(orpc.members.list.queryOptions({ input: {} }));
+  const collaboratorsQuery = useQueryCollaborators(true);
+  const upsertEntry = useUpsertSalesGoalEntry();
+  const branches = rankingQuery.data?.branches ?? [];
+  const members = membersQuery.data ?? [];
+  const collaborators = collaboratorsQuery.data ?? [];
+  const collaboratorNames = new Set(
+    collaborators.map((collaborator) =>
+      normalizeCollaboratorName(collaborator.name),
+    ),
+  );
+  const [collaboratorDraftName, setCollaboratorDraftName] = useState<
+    string | null
+  >(null);
+
+  const isLoading = rankingQuery.isLoading || membersQuery.isLoading;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          Vincule cada vendedor da planilha a um membro do NERP para que o valor
+          vendido seja calculado automaticamente das vendas do sistema. Mesmo
+          vinculado, digitar um valor em "Vendido" sobrescreve esse cálculo
+          (útil quando parte das vendas não está no NERP) — o ↺ ao lado do campo
+          devolve a entry ao automático. O nome é comparado ao cadastro de{" "}
+          <a href="/colaboradores" className="underline">
+            Colaboradores
+          </a>{" "}
+          para ajudar a identificar quem é quem.
+        </p>
+        <div className="shrink-0">
+          <AddCollaboratorButton />
+        </div>
+      </div>
+
+      {isLoading && (
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      )}
+
+      {!isLoading && branches.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Nenhuma equipe importada ainda para este período.
+        </p>
+      )}
+
+      {!isLoading &&
+        branches.map((branch) => (
+          <div key={branch.id} className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground">
+              {branch.name}
+            </p>
+            {branch.entries.map((entry) => {
+              const isKnownCollaborator = collaboratorNames.has(
+                normalizeCollaboratorName(entry.sellerName),
+              );
+              // Entry vinculada cujo vendido veio de um valor digitado, e não
+              // da soma das vendas — só nesse caso faz sentido oferecer o
+              // "voltar ao automático".
+              const isManualOverride =
+                entry.memberId !== null && entry.achievedSource === "MANUAL";
+              return (
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-2 rounded-md border p-2"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium truncate">
+                        {entry.sellerName}
+                      </p>
+                      {isKnownCollaborator ? (
+                        <CheckCircle2
+                          className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                          aria-label="Cadastrado em Colaboradores"
+                        />
+                      ) : (
+                        <>
+                          <UserRoundSearch
+                            className="size-3.5 shrink-0 text-muted-foreground"
+                            aria-label="Não encontrado em Colaboradores"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCollaboratorDraftName(entry.sellerName)
+                            }
+                            title="Cadastrar como colaborador"
+                            className="flex items-center justify-center rounded-full size-4 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
+                          >
+                            <UserPlus className="size-3.5" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Código {entry.externalCode}
+                      {entry.entryKind === "BUCKET" && " · sempre manual"}
+                      {entry.achievedSource === "AUTO" &&
+                        " · vendido automático"}
+                      {isManualOverride && " · vendido manual (sobrescrito)"}
+                      {!isKnownCollaborator &&
+                        " · sem correspondência em Colaboradores"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="space-y-0.5">
+                      <Label
+                        htmlFor={`goal-${entry.id}`}
+                        className="text-[10px] text-muted-foreground"
+                      >
+                        Meta
+                      </Label>
+                      <Input
+                        id={`goal-${entry.id}`}
+                        type="text"
+                        inputMode="decimal"
+                        defaultValue={formatBrlAmountInput(entry.goalAmount)}
+                        onBlur={(event) => {
+                          const nextGoalAmount = parseBrlAmount(
+                            event.target.value,
+                          );
+                          if (
+                            nextGoalAmount !== null &&
+                            nextGoalAmount !== entry.goalAmount
+                          ) {
+                            upsertEntry.mutate({
+                              entryId: entry.id,
+                              goalAmount: nextGoalAmount,
+                            });
+                          }
+                          event.target.value = formatBrlAmountInput(
+                            nextGoalAmount ?? entry.goalAmount,
+                          );
+                        }}
+                        className="w-24 h-8 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1">
+                        <Label
+                          htmlFor={`achieved-${entry.id}`}
+                          className="text-[10px] text-muted-foreground"
+                        >
+                          Vendido
+                        </Label>
+                        {isManualOverride && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              upsertEntry.mutate({
+                                entryId: entry.id,
+                                achievedAmount: null,
+                              })
+                            }
+                            title="Voltar ao vendido automático (soma das vendas do sistema)"
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <RotateCcw className="size-3" />
+                          </button>
+                        )}
+                      </div>
+                      <Input
+                        // Remonta quando a origem do vendido muda (override
+                        // aplicado ou desfeito) — o input é uncontrolled.
+                        key={entry.achievedSource}
+                        id={`achieved-${entry.id}`}
+                        type="text"
+                        inputMode="decimal"
+                        defaultValue={formatBrlAmountInput(
+                          entry.achievedAmount ?? 0,
+                        )}
+                        onBlur={(event) => {
+                          const nextAchievedAmount = parseBrlAmount(
+                            event.target.value,
+                          );
+                          if (
+                            nextAchievedAmount !== null &&
+                            nextAchievedAmount !== (entry.achievedAmount ?? 0)
+                          ) {
+                            upsertEntry.mutate({
+                              entryId: entry.id,
+                              achievedAmount: nextAchievedAmount,
+                            });
+                          }
+                          event.target.value = formatBrlAmountInput(
+                            nextAchievedAmount ?? entry.achievedAmount ?? 0,
+                          );
+                        }}
+                        className="w-24 h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <Select
+                    disabled={entry.entryKind === "BUCKET"}
+                    value={entry.memberId ?? UNLINKED_MEMBER_VALUE}
+                    onValueChange={(value) =>
+                      upsertEntry.mutate({
+                        entryId: entry.id,
+                        memberId:
+                          value === UNLINKED_MEMBER_VALUE ? null : value,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Sem vínculo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={UNLINKED_MEMBER_VALUE}>
+                        Sem vínculo (manual)
+                      </SelectItem>
+                      {members.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      <CollaboratorForm
+        open={collaboratorDraftName !== null}
+        onOpenChange={(next) => {
+          if (!next) setCollaboratorDraftName(null);
+        }}
+        defaultName={collaboratorDraftName ?? undefined}
+      />
+    </div>
+  );
+}
+
 function EvolutionTab() {
   const query = useSalesGoalEvolution();
   const points = (query.data ?? []).map((point) => ({
@@ -232,12 +571,14 @@ interface SalesGoalSettingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOpenWizard: () => void;
+  currentPeriodType: SalesGoalPeriodType;
 }
 
 export function SalesGoalSettingsSheet({
   open,
   onOpenChange,
   onOpenWizard,
+  currentPeriodType,
 }: SalesGoalSettingsSheetProps) {
   const settingsQuery = useSalesGoalRankingSettings();
   const updateSettings = useUpdateSalesGoalRankingSettings();
@@ -313,10 +654,11 @@ export function SalesGoalSettingsSheet({
         className="w-full sm:max-w-2xl overflow-y-auto"
       >
         <SheetHeader>
-          <SheetTitle>Personalizações do Ranking de Equipes</SheetTitle>
+          <SheetTitle>Configurações do Ranking de Equipes</SheetTitle>
           <SheetDescription>
-            Aparência, sons, premiações, período e evolução. Para editar
-            equipes, vendedores e metas, use o assistente de configuração.
+            Equipes, vendedores, aparência, sons, premiações, período e
+            evolução. Para recriar o ranking do zero, use o assistente de
+            configuração.
           </SheetDescription>
         </SheetHeader>
 
@@ -336,14 +678,24 @@ export function SalesGoalSettingsSheet({
           {!draft ? (
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           ) : (
-            <Tabs defaultValue="appearance">
+            <Tabs defaultValue="teams">
               <TabsList className="w-full h-auto flex-wrap justify-start gap-1">
+                <TabsTrigger value="teams">Equipes</TabsTrigger>
+                <TabsTrigger value="sellers">Vendedores</TabsTrigger>
                 <TabsTrigger value="appearance">Aparência</TabsTrigger>
                 <TabsTrigger value="sound">Sons</TabsTrigger>
                 <TabsTrigger value="prizes">Premiações</TabsTrigger>
                 <TabsTrigger value="period">Período</TabsTrigger>
                 <TabsTrigger value="evolution">Evolução</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="teams" className="mt-4">
+                <TeamsTab periodType={currentPeriodType} />
+              </TabsContent>
+
+              <TabsContent value="sellers" className="mt-4">
+                <SellersTab periodType={currentPeriodType} />
+              </TabsContent>
 
               <TabsContent value="period" className="mt-4 space-y-2">
                 <p className="text-xs text-muted-foreground mb-2">
