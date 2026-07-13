@@ -19,6 +19,26 @@ export function useSalesGoalRanking(
   );
 }
 
+// Versões públicas (página de TV deslogada): a org vem do slug na URL, não da
+// sessão. Mesmo polling da tela interna pra manter o painel vivo sozinho.
+export function usePublicSalesGoalRanking(
+  orgSlug: string,
+  periodType: SalesGoalPeriodType,
+) {
+  return useQuery(
+    orpc.ranking.publicList.queryOptions({
+      input: { orgSlug, periodType },
+      refetchInterval: 30_000,
+    }),
+  );
+}
+
+export function usePublicSalesGoalRankingSettings(orgSlug: string) {
+  return useQuery(
+    orpc.ranking.publicSettings.queryOptions({ input: { orgSlug } }),
+  );
+}
+
 export function useSalesGoalPeriods(periodType?: SalesGoalPeriodType) {
   return useQuery(
     orpc.ranking.listPeriods.queryOptions({ input: { periodType } }),
