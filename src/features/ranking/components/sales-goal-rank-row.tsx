@@ -1,12 +1,89 @@
 "use client";
 
-import { Link2, Minus, Plus } from "lucide-react";
+import { Link2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { constructUrl } from "@/hooks/use-construct-url";
 import { cn } from "@/lib/utils";
-import { formatBrl, type SalesGoalRankEntry } from "./sales-goal-podium";
+import { useUpsertSalesGoalEntry } from "../hooks/use-ranking";
+import {
+  formatBrlAmountInput,
+  formatBrlCompact,
+  parseBrlAmount,
+} from "../lib/parse-brl-amount";
+import {
+  formatBrl,
+  MEDALS,
+  type SalesGoalRankEntry,
+} from "./sales-goal-podium";
 import { SalesGoalAvatar } from "./sales-goal-avatar";
+
+function InlineAmountInput({
+  value,
+  onCommit,
+  label,
+  className,
+}: {
+  value: number;
+  onCommit: (nextValue: number) => void;
+  label: string;
+  className?: string;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      defaultValue={formatBrlAmountInput(value)}
+      aria-label={label}
+      onClick={(event) => event.stopPropagation()}
+      onBlur={(event) => {
+        const nextValue = parseBrlAmount(event.target.value);
+        if (nextValue !== null && nextValue !== value) {
+          onCommit(nextValue);
+        }
+        event.target.value = formatBrlAmountInput(nextValue ?? value);
+      }}
+      className={cn(
+        "w-16 shrink-0 rounded border border-transparent bg-transparent px-0.5 text-right tabular-nums hover:border-white/20 focus:border-white/40 focus:outline-none",
+        className,
+      )}
+    />
+  );
+}
+
+function AmountLine({
+  label,
+  value,
+  editable,
+  onCommit,
+  fieldLabel,
+  className,
+}: {
+  label: string;
+  value: number | null;
+  editable: boolean;
+  onCommit?: (nextValue: number) => void;
+  fieldLabel: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex items-center gap-1 min-w-0", className)}>
+      <span className="shrink-0">{label}</span>
+      {editable && onCommit ? (
+        <InlineAmountInput
+          value={value ?? 0}
+          label={fieldLabel}
+          onCommit={onCommit}
+          className="w-14"
+        />
+      ) : (
+        <span className="tabular-nums truncate">
+          {value !== null ? formatBrlCompact(value) : "—"}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function SalesGoalRankRow({
   entry,
@@ -15,7 +92,9 @@ export function SalesGoalRankRow({
   showPercent,
   showSoldValue = true,
   accent = "#7a1fe7",
-  onAdjust,
+  canEdit = false,
+  featured = false,
+  textOnDark = true,
 }: {
   entry: SalesGoalRankEntry;
   position: number;
@@ -23,16 +102,145 @@ export function SalesGoalRankRow({
   showPercent: boolean;
   showSoldValue?: boolean;
   accent?: string;
-  onAdjust?: (entryId: string, delta: number) => void;
+  canEdit?: boolean;
+  featured?: boolean;
+  textOnDark?: boolean;
 }) {
+  const upsertEntry = useUpsertSalesGoalEntry();
   const percent = Math.min(entry.percentAchieved ?? 0, 100);
   const goalReached =
     entry.remainingAmount <= 0 && entry.achievedAmount !== null;
-  const step = Math.max(Math.round(entry.goalAmount / 20), 1);
+  const canEditAchieved = canEdit && entry.achievedSource !== "AUTO";
+  const medal = featured ? (MEDALS[position] ?? null) : null;
+
+  if (featured) {
+    return (
+      <div
+        className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border-2 px-4 py-3 min-w-0"
+        style={{ borderColor: medal?.border ?? accent }}
+      >
+        <span
+          className="w-6 text-center text-xl font-black shrink-0"
+          style={{ color: medal?.text ?? accent }}
+        >
+          {position}
+        </span>
+
+        <SalesGoalAvatar
+          name={entry.sellerName}
+          seed={entry.externalCode}
+          photoUrl={entry.photoUrl}
+          size={56}
+        />
+
+        <div className="flex-1 min-w-[170px] overflow-hidden">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p
+              className={cn(
+                "text-sm font-bold truncate min-w-0",
+                textOnDark && "text-white",
+              )}
+            >
+              {entry.goalName}
+            </p>
+            <Badge
+              variant={entry.entryKind === "BUCKET" ? "secondary" : "outline"}
+              className="text-[8px] px-1 py-0 shrink-0 hidden @sm:inline-flex"
+            >
+              {entry.entryKind === "BUCKET" ? "BUCKET" : "VENDEDOR"}
+            </Badge>
+          </div>
+          <AmountLine
+            label="Meta"
+            value={entry.goalAmount}
+            editable={canEdit}
+            fieldLabel={`Meta de ${entry.sellerName}`}
+            onCommit={(goalAmount) =>
+              upsertEntry.mutate({ entryId: entry.id, goalAmount })
+            }
+            className={cn(
+              "text-xs mt-1",
+              textOnDark ? "text-white/70" : "text-muted-foreground",
+            )}
+          />
+          {showSoldValue && (
+            <AmountLine
+              label="Vendido"
+              value={entry.achievedAmount}
+              editable={canEditAchieved}
+              fieldLabel={`Vendido de ${entry.sellerName}`}
+              onCommit={(achievedAmount) =>
+                upsertEntry.mutate({ entryId: entry.id, achievedAmount })
+              }
+              className={cn(
+                "text-xs",
+                textOnDark ? "text-white/70" : "text-muted-foreground",
+              )}
+            />
+          )}
+        </div>
+
+        <div className="flex flex-col items-end gap-1.5 min-w-[110px] shrink-0">
+          <div className="flex items-center gap-1.5">
+            {showScore && (
+              <span
+                className="text-xs font-bold tabular-nums whitespace-nowrap"
+                style={{ color: medal?.text ?? accent }}
+              >
+                {Math.round(entry.percentAchieved ?? 0)} pts
+              </span>
+            )}
+            {entry.achievedSource === "AUTO" && (
+              <span
+                title="Vendido calculado automaticamente das vendas"
+                className="flex items-center justify-center size-5 rounded-md bg-white/10 shrink-0"
+              >
+                <Link2 className="size-3 text-muted-foreground" />
+              </span>
+            )}
+          </div>
+          <Progress
+            value={percent}
+            className="h-1.5 w-full bg-white/10 [&>div]:bg-(--progress-fill)"
+            style={{ ["--progress-fill" as string]: medal?.border ?? accent }}
+          />
+          {showPercent && (
+            <span
+              className="text-[10px] tabular-nums"
+              style={{ color: medal?.text ?? accent }}
+            >
+              {entry.percentAchieved !== null
+                ? `${entry.percentAchieved.toFixed(0)}%`
+                : "—"}
+            </span>
+          )}
+          <span
+            className={cn(
+              "text-[10px] truncate whitespace-nowrap",
+              goalReached
+                ? "text-emerald-500 font-semibold"
+                : textOnDark
+                  ? "text-white/60"
+                  : "text-muted-foreground",
+            )}
+          >
+            {goalReached
+              ? "🎉 Meta batida"
+              : `Faltam ${formatBrl(entry.remainingAmount)}`}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center gap-2 px-2 py-2 rounded-xl border border-transparent hover:bg-white/5 transition-all min-w-0">
-      <span className="w-5 text-center text-sm font-bold text-muted-foreground shrink-0">
+    <div className="flex items-start gap-2 px-2 py-2 rounded-xl border border-transparent hover:bg-white/5 transition-all min-w-0">
+      <span
+        className={cn(
+          "w-5 text-center text-sm font-bold shrink-0",
+          textOnDark ? "text-white/70" : "text-muted-foreground",
+        )}
+      >
         {position}
       </span>
 
@@ -45,7 +253,12 @@ export function SalesGoalRankRow({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1 min-w-0">
-          <p className="text-xs font-semibold truncate min-w-0">
+          <p
+            className={cn(
+              "text-xs font-semibold truncate min-w-0",
+              textOnDark && "text-white",
+            )}
+          >
             {entry.goalName}
           </p>
           <Badge
@@ -55,18 +268,61 @@ export function SalesGoalRankRow({
             {entry.entryKind === "BUCKET" ? "BUCKET" : "VENDEDOR"}
           </Badge>
         </div>
-        <p className="text-[10px] text-muted-foreground truncate">
-          Meta {formatBrl(entry.goalAmount)}
-          {showSoldValue && (
-            <>
-              {" "}
-              · Vendido{" "}
-              {entry.achievedAmount !== null
-                ? formatBrl(entry.achievedAmount)
-                : "—"}
-            </>
-          )}
-        </p>
+        {canEdit ? (
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] min-w-0",
+              textOnDark ? "text-white/70" : "text-muted-foreground",
+            )}
+          >
+            <span>Meta</span>
+            <InlineAmountInput
+              value={entry.goalAmount}
+              label={`Meta de ${entry.sellerName}`}
+              onCommit={(goalAmount) =>
+                upsertEntry.mutate({ entryId: entry.id, goalAmount })
+              }
+            />
+            {showSoldValue && (
+              <>
+                <span>· Vendido</span>
+                {canEditAchieved ? (
+                  <InlineAmountInput
+                    value={entry.achievedAmount ?? 0}
+                    label={`Vendido de ${entry.sellerName}`}
+                    onCommit={(achievedAmount) =>
+                      upsertEntry.mutate({ entryId: entry.id, achievedAmount })
+                    }
+                  />
+                ) : (
+                  <span>
+                    {entry.achievedAmount !== null
+                      ? formatBrl(entry.achievedAmount)
+                      : "—"}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <p
+            className={cn(
+              "text-[10px] truncate",
+              textOnDark ? "text-white/70" : "text-muted-foreground",
+            )}
+          >
+            Meta {formatBrl(entry.goalAmount)}
+            {showSoldValue && (
+              <>
+                {" "}
+                · Vendido{" "}
+                {entry.achievedAmount !== null
+                  ? formatBrl(entry.achievedAmount)
+                  : "—"}
+              </>
+            )}
+          </p>
+        )}
         <div className="flex items-center gap-1.5 mt-1 min-w-0">
           <Progress
             value={percent}
@@ -89,7 +345,9 @@ export function SalesGoalRankRow({
             "text-[9px] truncate block",
             goalReached
               ? "text-emerald-500 font-semibold"
-              : "text-muted-foreground",
+              : textOnDark
+                ? "text-white/60"
+                : "text-muted-foreground",
           )}
         >
           {goalReached
@@ -107,32 +365,13 @@ export function SalesGoalRankRow({
             {Math.round(entry.percentAchieved ?? 0)} pts
           </span>
         )}
-        {entry.achievedSource === "AUTO" ? (
+        {entry.achievedSource === "AUTO" && (
           <span
             title="Vendido calculado automaticamente das vendas"
             className="flex items-center justify-center size-5 rounded-md bg-white/10 shrink-0"
           >
             <Link2 className="size-3 text-muted-foreground" />
           </span>
-        ) : (
-          onAdjust && (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => onAdjust(entry.id, -step)}
-                className="size-5 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0"
-              >
-                <Minus className="size-3" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onAdjust(entry.id, step)}
-                className="size-5 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0"
-              >
-                <Plus className="size-3" />
-              </button>
-            </div>
-          )
         )}
       </div>
     </div>

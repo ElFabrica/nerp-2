@@ -24,6 +24,8 @@ import {
   Plus,
   Target,
   Trash2,
+  UserPlus,
+  UserRoundSearch,
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -46,12 +48,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { CollaboratorForm } from "@/features/collaborators/components/collaborator-form";
+import { useQueryCollaborators } from "@/features/collaborators/hooks/use-collaborators";
 import { orpc } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
 import {
   useImportSalesGoalRanking,
   useSalesGoalRanking,
 } from "../hooks/use-ranking";
+import { normalizeCollaboratorName } from "../lib/collaborator-name-match";
 import type { SalesGoalPeriodType } from "../lib/sales-goal-xlsx-parser";
 import { SalesGoalPhotoUploader } from "./sales-goal-photo-uploader";
 
@@ -234,9 +239,22 @@ export function SalesGoalSetupWizard({
   const [newTeamName, setNewTeamName] = useState("");
   const [attemptedNext, setAttemptedNext] = useState(false);
   const [prefilledFromExisting, setPrefilledFromExisting] = useState(false);
+  const [collaboratorDraftName, setCollaboratorDraftName] = useState<
+    string | null
+  >(null);
   const initializedRef = useRef(false);
 
   const members = membersQuery.data ?? [];
+  const collaboratorsQuery = useQueryCollaborators(true);
+  const collaboratorNames = useMemo(
+    () =>
+      new Set(
+        (collaboratorsQuery.data ?? []).map((collaborator) =>
+          normalizeCollaboratorName(collaborator.name),
+        ),
+      ),
+    [collaboratorsQuery.data],
+  );
 
   // Prefill a partir do período existente (edição) ou defaults (criação),
   // uma única vez por abertura do dialog.
@@ -783,115 +801,153 @@ export function SalesGoalSetupWizard({
                               Nenhum vendedor nesta equipe ainda.
                             </p>
                           )}
-                          {team.entries.map((entry) => (
-                            <div
-                              key={entry.key}
-                              className="flex flex-wrap items-center gap-2"
-                            >
-                              <SalesGoalPhotoUploader
-                                value={entry.photoUrl}
-                                onChange={(key) =>
-                                  updateEntry(team.key, entry.key, {
-                                    photoUrl: key,
-                                  })
-                                }
-                                name={entry.sellerName}
-                                seed={entry.externalCode}
-                              />
-                              <Input
-                                className="min-w-40 flex-1"
-                                placeholder="Nome do vendedor"
-                                value={entry.sellerName}
-                                onChange={(event) =>
-                                  updateEntry(team.key, entry.key, {
-                                    sellerName: event.target.value,
-                                  })
-                                }
-                              />
-                              <Input
-                                className="w-32"
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                placeholder="Meta (R$)"
-                                value={entry.goalAmount}
-                                onChange={(event) =>
-                                  updateEntry(team.key, entry.key, {
-                                    goalAmount: event.target.value,
-                                  })
-                                }
-                              />
-                              <Select
-                                value={entry.entryKind}
-                                onValueChange={(value) =>
-                                  updateEntry(team.key, entry.key, {
-                                    entryKind: value as "SELLER" | "BUCKET",
-                                    ...(value === "BUCKET"
-                                      ? { memberId: null }
-                                      : {}),
-                                  })
-                                }
+                          {team.entries.map((entry) => {
+                            const trimmedName = entry.sellerName.trim();
+                            const isKnownCollaborator =
+                              trimmedName !== "" &&
+                              collaboratorNames.has(
+                                normalizeCollaboratorName(trimmedName),
+                              );
+                            return (
+                              <div
+                                key={entry.key}
+                                className="flex flex-wrap items-center gap-2"
                               >
-                                <SelectTrigger className="w-28">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="SELLER">
-                                    Vendedor
-                                  </SelectItem>
-                                  <SelectItem value="BUCKET">Outro</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <Select
-                                disabled={entry.entryKind === "BUCKET"}
-                                value={entry.memberId ?? UNLINKED_MEMBER_VALUE}
-                                onValueChange={(value) =>
-                                  updateEntry(team.key, entry.key, {
-                                    memberId:
-                                      value === UNLINKED_MEMBER_VALUE
-                                        ? null
-                                        : value,
-                                    ...(value !== UNLINKED_MEMBER_VALUE &&
-                                    entry.sellerName.trim() === ""
-                                      ? {
-                                          sellerName:
-                                            members.find(
-                                              (member) => member.id === value,
-                                            )?.name ?? "",
+                                <SalesGoalPhotoUploader
+                                  value={entry.photoUrl}
+                                  onChange={(key) =>
+                                    updateEntry(team.key, entry.key, {
+                                      photoUrl: key,
+                                    })
+                                  }
+                                  name={entry.sellerName}
+                                  seed={entry.externalCode}
+                                />
+                                <Input
+                                  className="min-w-40 flex-1"
+                                  placeholder="Nome do vendedor"
+                                  value={entry.sellerName}
+                                  onChange={(event) =>
+                                    updateEntry(team.key, entry.key, {
+                                      sellerName: event.target.value,
+                                    })
+                                  }
+                                />
+                                {trimmedName !== "" &&
+                                  (isKnownCollaborator ? (
+                                    <CheckCircle2
+                                      className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                                      aria-label="Cadastrado em Colaboradores"
+                                    />
+                                  ) : (
+                                    <>
+                                      <UserRoundSearch
+                                        className="size-3.5 shrink-0 text-muted-foreground"
+                                        aria-label="Não encontrado em Colaboradores"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setCollaboratorDraftName(trimmedName)
                                         }
-                                      : {}),
-                                  })
-                                }
-                              >
-                                <SelectTrigger className="w-48">
-                                  <SelectValue placeholder="Sem vínculo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value={UNLINKED_MEMBER_VALUE}>
-                                    Sem vínculo (manual)
-                                  </SelectItem>
-                                  {members.map((member) => (
-                                    <SelectItem
-                                      key={member.id}
-                                      value={member.id}
-                                    >
-                                      {member.name}
-                                    </SelectItem>
+                                        title="Cadastrar como colaborador"
+                                        className="flex items-center justify-center rounded-full size-4 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                      >
+                                        <UserPlus className="size-3.5" />
+                                      </button>
+                                    </>
                                   ))}
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="shrink-0 text-muted-foreground hover:text-destructive"
-                                onClick={() => removeEntry(team.key, entry.key)}
-                                title="Remover vendedor"
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            </div>
-                          ))}
+                                <Input
+                                  className="w-32"
+                                  type="number"
+                                  min={0}
+                                  step="0.01"
+                                  placeholder="Meta (R$)"
+                                  value={entry.goalAmount}
+                                  onChange={(event) =>
+                                    updateEntry(team.key, entry.key, {
+                                      goalAmount: event.target.value,
+                                    })
+                                  }
+                                />
+                                <Select
+                                  value={entry.entryKind}
+                                  onValueChange={(value) =>
+                                    updateEntry(team.key, entry.key, {
+                                      entryKind: value as "SELLER" | "BUCKET",
+                                      ...(value === "BUCKET"
+                                        ? { memberId: null }
+                                        : {}),
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="w-28">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="SELLER">
+                                      Vendedor
+                                    </SelectItem>
+                                    <SelectItem value="BUCKET">
+                                      Outro
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Select
+                                  disabled={entry.entryKind === "BUCKET"}
+                                  value={
+                                    entry.memberId ?? UNLINKED_MEMBER_VALUE
+                                  }
+                                  onValueChange={(value) =>
+                                    updateEntry(team.key, entry.key, {
+                                      memberId:
+                                        value === UNLINKED_MEMBER_VALUE
+                                          ? null
+                                          : value,
+                                      ...(value !== UNLINKED_MEMBER_VALUE &&
+                                      entry.sellerName.trim() === ""
+                                        ? {
+                                            sellerName:
+                                              members.find(
+                                                (member) => member.id === value,
+                                              )?.name ?? "",
+                                          }
+                                        : {}),
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="w-48">
+                                    <SelectValue placeholder="Sem vínculo" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={UNLINKED_MEMBER_VALUE}>
+                                      Sem vínculo (manual)
+                                    </SelectItem>
+                                    {members.map((member) => (
+                                      <SelectItem
+                                        key={member.id}
+                                        value={member.id}
+                                      >
+                                        {member.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={() =>
+                                    removeEntry(team.key, entry.key)
+                                  }
+                                  title="Remover vendedor"
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -1046,6 +1102,13 @@ export function SalesGoalSetupWizard({
           )}
         </div>
       </DialogContent>
+      <CollaboratorForm
+        open={collaboratorDraftName !== null}
+        onOpenChange={(next) => {
+          if (!next) setCollaboratorDraftName(null);
+        }}
+        defaultName={collaboratorDraftName ?? undefined}
+      />
     </Dialog>
   );
 }

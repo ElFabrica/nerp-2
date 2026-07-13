@@ -43,6 +43,15 @@ export function useUpsertSalesGoalEntry() {
   );
 }
 
+export function useCreateSalesGoalEntry() {
+  const qc = useQueryClient();
+  return useMutation(
+    orpc.ranking.createEntry.mutationOptions({
+      onSuccess: () => qc.invalidateQueries({ queryKey: orpc.ranking.key() }),
+    }),
+  );
+}
+
 export function useDeleteSalesGoalEntry() {
   const qc = useQueryClient();
   return useMutation(

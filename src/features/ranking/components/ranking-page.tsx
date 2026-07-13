@@ -5,11 +5,13 @@ import {
   Maximize2,
   Minimize2,
   Palette,
+  Plus,
   RotateCcw,
   Sliders,
   Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -24,15 +26,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useQueryCollaborators } from "@/features/collaborators/hooks/use-collaborators";
 import {
   useSalesGoalRanking,
   useSalesGoalRankingSettings,
-  useUpsertSalesGoalEntry,
 } from "@/features/ranking/hooks/use-ranking";
+import {
+  buildCollaboratorPhotoMap,
+  normalizeCollaboratorName,
+} from "@/features/ranking/lib/collaborator-name-match";
 import { playSalesGoalSound } from "@/features/ranking/lib/sales-goal-sound-presets";
 import { SALES_GOAL_THEME_STYLES } from "@/features/ranking/lib/sales-goal-theme";
 import type { SalesGoalPeriodType } from "@/features/ranking/lib/sales-goal-xlsx-parser";
+import { orpc } from "@/lib/orpc";
+import { hasFullAccess } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
+import { SalesGoalAddEntryDialog } from "./sales-goal-add-entry-dialog";
 import { SalesGoalImportDialog } from "./sales-goal-import-dialog";
 import { SalesGoalSetupWizard } from "./sales-goal-setup-wizard";
 import {
@@ -67,6 +76,7 @@ export function RankingPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [addEntryOpen, setAddEntryOpen] = useState(false);
   const [autoAdvanceSeconds, setAutoAdvanceSeconds] = useState(300);
   const [tvMode, setTvMode] = useState(false);
   const [tvControlsVisible, setTvControlsVisible] = useState(true);
@@ -121,7 +131,15 @@ export function RankingPage() {
 
   const query = useSalesGoalRanking(periodType);
   const settingsQuery = useSalesGoalRankingSettings();
-  const upsertEntry = useUpsertSalesGoalEntry();
+  const currentMemberQuery = useQuery(
+    orpc.members.getCurrent.queryOptions({ input: {} }),
+  );
+  const canEdit = hasFullAccess(currentMemberQuery.data?.role);
+  const collaboratorsQuery = useQueryCollaborators(true);
+  const collaboratorPhotoByName = useMemo(
+    () => buildCollaboratorPhotoMap(collaboratorsQuery.data ?? []),
+    [collaboratorsQuery.data],
+  );
   const settings = settingsQuery.data;
   const theme = SALES_GOAL_THEME_STYLES[settings?.theme ?? "GAMING"];
   const period = query.data;
@@ -141,8 +159,17 @@ export function RankingPage() {
         : period.branches.filter((branch) => branch.id === selectedBranch);
     return branches
       .flatMap((branch) => branch.entries)
+      .map((entry) => ({
+        ...entry,
+        photoUrl:
+          entry.photoUrl ??
+          collaboratorPhotoByName.get(
+            normalizeCollaboratorName(entry.sellerName),
+          ) ??
+          null,
+      }))
       .sort((a, b) => (b.percentAchieved ?? -1) - (a.percentAchieved ?? -1));
-  }, [period, selectedBranch]);
+  }, [period, selectedBranch, collaboratorPhotoByName]);
 
   const goalTotal =
     selectedBranch === ALL_BRANCHES
@@ -166,9 +193,9 @@ export function RankingPage() {
 
   const teamsForCarousel = useMemo(() => {
     const teams = [{ id: ALL_BRANCHES, name: "Todas" }];
-    period?.branches.forEach((branch) =>
-      teams.push({ id: branch.id, name: branch.name }),
-    );
+    period?.branches.forEach((branch) => {
+      teams.push({ id: branch.id, name: branch.name });
+    });
     return teams;
   }, [period]);
 
@@ -225,13 +252,6 @@ export function RankingPage() {
     (prize) => prize.label.trim().length > 0,
   );
 
-  const handleAdjust = (entryId: string, delta: number) => {
-    const entry = entries.find((item) => item.id === entryId);
-    if (!entry || entry.achievedSource === "AUTO") return;
-    const nextAchieved = Math.max((entry.achievedAmount ?? 0) + delta, 0);
-    upsertEntry.mutate({ entryId, achievedAmount: nextAchieved });
-  };
-
   return (
     <div className="flex flex-col gap-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -243,18 +263,27 @@ export function RankingPage() {
             Metas importadas do Winthor; vendido calculado das vendas do NERP.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setImportOpen(true)}
-            className="gap-2"
-          >
-            <Upload className="size-4" /> Importar planilha
-          </Button>
-          <Button onClick={() => setSettingsOpen(true)} className="gap-2">
-            <Palette className="size-4" /> Personalizações
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setAddEntryOpen(true)}
+              className="gap-2"
+            >
+              <Plus className="size-4" /> Adicionar meta
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+              className="gap-2"
+            >
+              <Upload className="size-4" /> Importar planilha
+            </Button>
+            <Button onClick={() => setSettingsOpen(true)} className="gap-2">
+              <Palette className="size-4" /> Personalizações
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">
@@ -286,19 +315,31 @@ export function RankingPage() {
               </PopoverTrigger>
               <PopoverContent align="end" className="w-64 space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm">Exibir pontuação</label>
-                  <Switch checked={showScore} onCheckedChange={setShowScore} />
+                  <label htmlFor="filter-show-score" className="text-sm">
+                    Exibir pontuação
+                  </label>
+                  <Switch
+                    id="filter-show-score"
+                    checked={showScore}
+                    onCheckedChange={setShowScore}
+                  />
                 </div>
                 <div className="flex items-center justify-between">
-                  <label className="text-sm">Exibir porcentagem</label>
+                  <label htmlFor="filter-show-percent" className="text-sm">
+                    Exibir porcentagem
+                  </label>
                   <Switch
+                    id="filter-show-percent"
                     checked={showPercent}
                     onCheckedChange={setShowPercent}
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <label className="text-sm">Exibir valor vendido</label>
+                  <label htmlFor="filter-show-sold-value" className="text-sm">
+                    Exibir valor vendido
+                  </label>
                   <Switch
+                    id="filter-show-sold-value"
                     checked={showSoldValue}
                     onCheckedChange={setShowSoldValue}
                   />
@@ -336,31 +377,33 @@ export function RankingPage() {
               Configure o ranking manualmente ou importe a planilha de metas do
               Winthor para este período.
             </p>
-            <div className="mt-4 flex items-center justify-center gap-2">
-              <Button onClick={() => setWizardOpen(true)} className="gap-2">
-                <Sliders className="size-4" /> Configurar ranking
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setImportOpen(true)}
-                className="gap-2"
-              >
-                <Upload className="size-4" /> Importar planilha
-              </Button>
-            </div>
+            {canEdit && (
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <Button onClick={() => setWizardOpen(true)} className="gap-2">
+                  <Sliders className="size-4" /> Configurar ranking
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setImportOpen(true)}
+                  className="gap-2"
+                >
+                  <Upload className="size-4" /> Importar planilha
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div
             ref={panelRef}
             className={cn(
-              "border flex flex-col gap-3 relative",
+              "border flex flex-col gap-3 relative [zoom:1] sm:[zoom:1.15]",
               tvMode
                 ? "fixed inset-0 z-[60] rounded-none p-8 overflow-y-auto justify-center"
                 : "rounded-2xl p-4",
             )}
             style={{
               background: theme.podiumGradient,
-              borderColor: theme.accent + "33",
+              borderColor: `${theme.accent}33`,
             }}
           >
             {tvMode && (
@@ -407,6 +450,7 @@ export function RankingPage() {
                     top3Label="Vendido top 3"
                     top3Value={formatBrl(top3AchievedTotal)}
                     accent={theme.accent}
+                    textOnDark={theme.textOnDark}
                   />
                   <SalesGoalPodium
                     entries={entries.slice(0, 3)}
@@ -419,25 +463,25 @@ export function RankingPage() {
                   />
                   <div
                     className={cn(
-                      "rounded-xl border px-4 py-3 flex items-center justify-between",
+                      "rounded-xl border px-4 py-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1",
                       theme.textOnDark ? "text-white" : "text-black",
                     )}
                     style={{
-                      borderColor: theme.accent + "33",
+                      borderColor: `${theme.accent}33`,
                       background: theme.totalCardGradient,
                     }}
                   >
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider opacity-60">
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider opacity-60 truncate">
                         {period.label ?? "Meta do período"}
                       </p>
-                      <p className="text-lg font-black">
+                      <p className="text-lg font-black truncate">
                         {formatBrl(goalTotal)}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right min-w-0">
                       <p className="text-[10px] opacity-60">Vendido</p>
-                      <p className="text-base font-bold text-emerald-400">
+                      <p className="text-base font-bold text-emerald-400 truncate">
                         {formatBrl(achievedTotal)}
                       </p>
                     </div>
@@ -455,27 +499,50 @@ export function RankingPage() {
 
                 {/* Painel direito: lista em 2 colunas — @container pra reagir à
                   largura real da coluna (não ao viewport), já que o pódio
-                  pode ocupar a maior parte da tela e deixar pouco espaço aqui. */}
-                <div className="min-w-0 @container">
+                  pode ocupar a maior parte da tela e deixar pouco espaço aqui.
+                  Altura travada na mesma altura do pódio, com scroll próprio,
+                  pra não esticar o quadro do ranking quando há muitas entries. */}
+                <div className="min-w-0 @container h-[420px] sm:h-[460px] lg:h-[560px] overflow-y-auto pr-1 flex flex-col gap-2">
                   {entries.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">
                       Nenhuma meta cadastrada para esta equipe.
                     </p>
                   ) : (
-                    <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-x-2">
-                      {entries.map((entry, index) => (
-                        <SalesGoalRankRow
-                          key={entry.id}
-                          entry={entry}
-                          position={index + 1}
-                          showScore={showScore}
-                          showPercent={showPercent}
-                          showSoldValue={showSoldValue}
-                          accent={theme.accent}
-                          onAdjust={handleAdjust}
-                        />
-                      ))}
-                    </div>
+                    <>
+                      <div className="flex flex-col gap-2">
+                        {entries.slice(0, 3).map((entry, index) => (
+                          <SalesGoalRankRow
+                            key={entry.id}
+                            entry={entry}
+                            position={index + 1}
+                            showScore={showScore}
+                            showPercent={showPercent}
+                            showSoldValue={showSoldValue}
+                            accent={theme.accent}
+                            canEdit={canEdit}
+                            textOnDark={theme.textOnDark}
+                            featured
+                          />
+                        ))}
+                      </div>
+                      {entries.length > 3 && (
+                        <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-x-2">
+                          {entries.slice(3).map((entry, index) => (
+                            <SalesGoalRankRow
+                              key={entry.id}
+                              entry={entry}
+                              position={index + 4}
+                              showScore={showScore}
+                              showPercent={showPercent}
+                              showSoldValue={showSoldValue}
+                              accent={theme.accent}
+                              canEdit={canEdit}
+                              textOnDark={theme.textOnDark}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -492,20 +559,36 @@ export function RankingPage() {
         )}
       </div>
 
-      <SalesGoalImportDialog open={importOpen} onOpenChange={setImportOpen} />
-      <SalesGoalSetupWizard
-        open={wizardOpen}
-        onOpenChange={setWizardOpen}
-        initialPeriodType={periodType}
-      />
-      <SalesGoalSettingsSheet
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        onOpenWizard={() => {
-          setSettingsOpen(false);
-          setWizardOpen(true);
-        }}
-      />
+      {canEdit && (
+        <>
+          <SalesGoalImportDialog
+            open={importOpen}
+            onOpenChange={setImportOpen}
+          />
+          <SalesGoalSetupWizard
+            open={wizardOpen}
+            onOpenChange={setWizardOpen}
+            initialPeriodType={periodType}
+          />
+          <SalesGoalSettingsSheet
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+            onOpenWizard={() => {
+              setSettingsOpen(false);
+              setWizardOpen(true);
+            }}
+          />
+          <SalesGoalAddEntryDialog
+            open={addEntryOpen}
+            onOpenChange={setAddEntryOpen}
+            periodType={periodType}
+            existingPeriod={period}
+            existingBranchNames={(period?.branches ?? []).map(
+              (branch) => branch.name,
+            )}
+          />
+        </>
+      )}
     </div>
   );
 }
