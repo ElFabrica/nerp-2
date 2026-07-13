@@ -59,8 +59,10 @@ function StatCard({
         >
           <Icon className="size-5" />
         </div>
-        <div className="min-w-0">
-          <p className="text-2xl font-semibold leading-tight">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-xl font-semibold leading-tight tabular-nums">
+            {value}
+          </p>
           <p className="truncate text-xs text-muted-foreground">{label}</p>
           {hint && (
             <p className="truncate text-xs text-amber-600 dark:text-amber-400">
@@ -86,7 +88,7 @@ export function TradeMarketingOverview() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {SKELETON_KEYS.map((key) => (
           <Skeleton key={key} className="h-[74px] w-full rounded-xl" />
         ))}
@@ -99,15 +101,11 @@ export function TradeMarketingOverview() {
   const pendencias = overview.storesWithoutMap + overview.booksPending;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
       <StatCard label="Lojas" value={overview.stores} icon={Store} />
+      <StatCard label="Mapas" value={overview.floorPlans} icon={MapIcon} />
       <StatCard
-        label="Mapas (plantas)"
-        value={overview.floorPlans}
-        icon={MapIcon}
-      />
-      <StatCard
-        label="Capturas de PDV"
+        label="Capturas PDV"
         value={overview.pdvPhotos}
         icon={MapPinned}
       />
