@@ -22,6 +22,8 @@ import {
   DownloadIcon,
   ImagePlusIcon,
   SparklesIcon,
+  TriangleAlert,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -50,6 +52,7 @@ export function BookEditor({ bookId }: BookEditorProps) {
   const removeItem = useRemoveBookItem();
   const reorderItems = useReorderBookItems();
   const [openImport, setOpenImport] = useState(false);
+  const [pendingMode, setPendingMode] = useState<"queue" | "sync" | null>(null);
 
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
   useEffect(() => {
@@ -80,6 +83,17 @@ export function BookEditor({ bookId }: BookEditorProps) {
   }
 
   const isGenerating = book.status === "GENERATING";
+  const isFailed = book.status === "FAILED";
+  const hasItems = book.items.length > 0;
+
+  const runGenerate = (sync: boolean) => {
+    setPendingMode(sync ? "sync" : "queue");
+    generateBook.mutate(
+      { id: bookId, sync: sync || undefined },
+      { onSettled: () => setPendingMode(null) },
+    );
+  };
+
   const existingPhotoIds = book.items.map((item) => item.pdvPhotoId);
   const itemsById = new Map(book.items.map((item) => [item.pdvPhotoId, item]));
   const orderedItems = orderedIds
@@ -123,18 +137,55 @@ export function BookEditor({ bookId }: BookEditorProps) {
             <ImagePlusIcon className="size-4" />
             Importar fotos
           </Button>
+          {(isGenerating || isFailed) && (
+            <Button
+              variant="outline"
+              onClick={() => runGenerate(true)}
+              disabled={generateBook.isPending || !hasItems}
+              title="Renderiza o PDF na hora, sem passar pela fila"
+            >
+              {pendingMode === "sync" ? (
+                <Spinner />
+              ) : (
+                <Zap className="size-4" />
+              )}
+              Gerar agora
+            </Button>
+          )}
           <Button
-            onClick={() => generateBook.mutate({ id: bookId })}
-            disabled={
-              isGenerating || generateBook.isPending || book.items.length === 0
-            }
+            onClick={() => runGenerate(false)}
+            disabled={isGenerating || generateBook.isPending || !hasItems}
           >
-            {(isGenerating || generateBook.isPending) && <Spinner />}
-            <SparklesIcon className="size-4" />
-            {isGenerating ? "Gerando…" : "Gerar PDF"}
+            {pendingMode === "queue" ? (
+              <Spinner />
+            ) : (
+              <SparklesIcon className="size-4" />
+            )}
+            {isGenerating
+              ? "Gerando…"
+              : isFailed
+                ? "Tentar novamente"
+                : "Gerar PDF"}
           </Button>
         </div>
       </div>
+
+      {isFailed && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          <p>
+            A geração do PDF falhou. Clique em <strong>Tentar novamente</strong>{" "}
+            ou em <strong>Gerar agora</strong> para renderizar sem a fila.
+          </p>
+        </div>
+      )}
+
+      {isGenerating && (
+        <p className="text-sm text-muted-foreground">
+          Gerando o PDF… Se estiver demorando, use <strong>Gerar agora</strong>{" "}
+          para renderizar imediatamente.
+        </p>
+      )}
 
       <Card>
         <CardHeader>

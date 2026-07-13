@@ -94,8 +94,12 @@ export function useGenerateBook() {
   const invalidate = useInvalidateBooks();
   return useMutation(
     orpc.book.generate.mutationOptions({
-      onSuccess: () => {
-        toast.success("Gerando o book em PDF…");
+      onSuccess: (result) => {
+        toast.success(
+          result.status === "READY"
+            ? "Book gerado com sucesso!"
+            : "Gerando o book em PDF…",
+        );
         invalidate();
       },
       onError: (error) => toast.error(error.message),

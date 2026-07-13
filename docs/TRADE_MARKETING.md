@@ -242,5 +242,6 @@ pnpm inngest:dev
 - **Verificação parcial:** rotas compilam e exigem `requirePermission`; RPC do book carrega igual aos routers existentes; PDF renderizado num smoke-test (capa + páginas + fecho, sem erro de layout). **Falta** o click-through autenticado (criar → importar → gerar via Inngest → baixar) e a conferência visual do PDF com fotos/logos reais.
 - **Bug pré-existente (fora do escopo):** `src/app/router/supplier/update.ts` e `delete.ts` não escopam por organização (vazamento cross-tenant). Registrado à parte; os handlers novos deste módulo escopam corretamente.
 - **Nota:** chamada RPC não-autenticada devolve **500** (não 401) — comportamento app-wide do middleware de auth, não específico do módulo.
+- **Resiliência da geração do book:** `book.generate` tenta o Inngest; se `inngest.send` falhar (Inngest fora do ar / `inngest:dev` desligado) faz **fallback síncrono** (renderiza inline na request e marca READY). Erro inline marca **FAILED** (nunca fica preso em GENERATING). Há modo `sync` explícito (`generate({ id, sync: true })`) exposto no editor como **"Gerar agora"** (aparece quando GENERATING/FAILED) para forçar a geração sem a fila.
 - Git `origin` foi trocado para HTTPS nesta máquina (SSH indisponível). Para voltar: `git remote set-url origin git@github.com:ElFabrica/nerp-2.git`.
 - PR aberta: **#8** — `feat/trade-marketing-map-pdv-book`.
