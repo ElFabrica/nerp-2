@@ -14,6 +14,7 @@ export interface SalesGoalRankEntry {
   remainingAmount: number;
   memberId: string | null;
   achievedSource: "AUTO" | "MANUAL";
+  photoUrl?: string | null;
 }
 
 function formatBrl(value: number): string {
@@ -24,12 +25,14 @@ function rankScore(entry: SalesGoalRankEntry): number {
   return Math.round(entry.percentAchieved ?? 0);
 }
 
-const MEDALS: Record<number, { emoji: string; border: string; text: string }> =
-  {
-    1: { emoji: "👑", border: "#ffd700", text: "#ffd700" }, // ouro
-    2: { emoji: "🥈", border: "#c0c0c0", text: "#e5e7eb" }, // prata
-    3: { emoji: "🥉", border: "#cd7f32", text: "#e8a060" }, // bronze
-  };
+export const MEDALS: Record<
+  number,
+  { emoji: string; border: string; text: string }
+> = {
+  1: { emoji: "👑", border: "#ffd700", text: "#ffd700" }, // ouro
+  2: { emoji: "🥈", border: "#c0c0c0", text: "#e5e7eb" }, // prata
+  3: { emoji: "🥉", border: "#cd7f32", text: "#e8a060" }, // bronze
+};
 
 // Altura relativa de cada posição — degrau de pódio: 1º mais alto, 2º
 // intermediário, 3º visivelmente mais baixo que o 2º.
@@ -68,10 +71,10 @@ function PodiumCard({
     >
       {prizeLabel && (
         <div
-          className="mb-2 aspect-square w-[22%] min-w-12 rounded-full flex items-center justify-center text-center px-1 border-2 shrink-0"
+          className="mb-2 aspect-square w-[22%] min-w-8 sm:min-w-12 rounded-full flex items-center justify-center text-center px-1 border-2 shrink-0"
           style={{
             borderColor: medal.border,
-            background: medal.border + "1f",
+            background: `${medal.border}1f`,
             color: medal.text,
           }}
         >
@@ -94,7 +97,11 @@ function PodiumCard({
       >
         <span
           className="leading-none drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]"
-          style={{ fontSize: isFirst ? 34 : 26 }}
+          style={{
+            fontSize: isFirst
+              ? "clamp(18px, 8vw, 34px)"
+              : "clamp(14px, 6vw, 26px)",
+          }}
         >
           {medal.emoji}
         </span>
@@ -105,7 +112,10 @@ function PodiumCard({
           <SalesGoalAvatar
             name={entry.sellerName}
             seed={entry.externalCode}
-            size={isFirst ? 104 : 82}
+            photoUrl={entry.photoUrl}
+            size={
+              isFirst ? "clamp(52px, 16vw, 104px)" : "clamp(40px, 13vw, 82px)"
+            }
           />
         </div>
         <p
@@ -117,7 +127,7 @@ function PodiumCard({
         <div
           className="flex items-center gap-1 px-2.5 py-1 rounded-full font-extrabold tabular-nums mt-1.5"
           style={{
-            background: medal.border + "22",
+            background: `${medal.border}22`,
             color: medal.text,
             border: `1px solid ${medal.border}44`,
             fontSize: isFirst ? 14 : 12,
@@ -179,7 +189,7 @@ export function SalesGoalPodium({
   return (
     <div
       className="relative rounded-2xl overflow-hidden border px-4 pt-4 pb-3 h-[420px] sm:h-[460px] lg:h-[560px] flex flex-col"
-      style={{ background: podiumGradient, borderColor: accent + "33" }}
+      style={{ background: podiumGradient, borderColor: `${accent}33` }}
     >
       <style>{`
         @keyframes salesGoalFloat {

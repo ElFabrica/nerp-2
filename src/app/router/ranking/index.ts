@@ -1,3 +1,4 @@
+import { createSalesGoalEntry } from "./create-entry";
 import { deleteSalesGoalEntry } from "./delete-entry";
 import { listSalesGoalEvolution } from "./evolution";
 import { importSalesGoalRanking } from "./import";
@@ -12,6 +13,7 @@ export const rankingRouter = {
   list: listSalesGoalRanking,
   listPeriods: listSalesGoalPeriods,
   import: importSalesGoalRanking,
+  createEntry: createSalesGoalEntry,
   upsertEntry: upsertSalesGoalEntry,
   deleteEntry: deleteSalesGoalEntry,
   updateBranch: updateSalesGoalBranch,

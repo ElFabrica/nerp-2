@@ -61,7 +61,7 @@ export function SalesGoalTeamsCarousel({
               team.id === selectedId
                 ? {
                     borderColor: accent,
-                    background: accent + "33",
+                    background: `${accent}33`,
                     color: accent,
                   }
                 : {

@@ -32,9 +32,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowDown, ArrowUp, Loader2, Play } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  Loader2,
+  Play,
+  UserPlus,
+  UserRoundSearch,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/lib/orpc";
+import { CollaboratorForm } from "@/features/collaborators/components/collaborator-form";
+import { useQueryCollaborators } from "@/features/collaborators/hooks/use-collaborators";
 import {
   useSalesGoalRankingSettings,
   useUpdateSalesGoalRankingSettings,
@@ -43,6 +53,8 @@ import {
   useUpsertSalesGoalEntry,
   useSalesGoalEvolution,
 } from "../hooks/use-ranking";
+import { normalizeCollaboratorName } from "../lib/collaborator-name-match";
+import { formatBrlAmountInput, parseBrlAmount } from "../lib/parse-brl-amount";
 import type { SalesGoalPeriodType } from "../lib/sales-goal-xlsx-parser";
 import {
   SALES_GOAL_SOUND_PRESETS,
@@ -265,9 +277,19 @@ const UNLINKED_MEMBER_VALUE = "__unlinked__";
 function SellersTab({ periodType }: { periodType: SalesGoalPeriodType }) {
   const rankingQuery = useSalesGoalRanking(periodType, undefined, true);
   const membersQuery = useQuery(orpc.members.list.queryOptions({ input: {} }));
+  const collaboratorsQuery = useQueryCollaborators(true);
   const upsertEntry = useUpsertSalesGoalEntry();
   const branches = rankingQuery.data?.branches ?? [];
   const members = membersQuery.data ?? [];
+  const collaborators = collaboratorsQuery.data ?? [];
+  const collaboratorNames = new Set(
+    collaborators.map((collaborator) =>
+      normalizeCollaboratorName(collaborator.name),
+    ),
+  );
+  const [collaboratorDraftName, setCollaboratorDraftName] = useState<
+    string | null
+  >(null);
 
   if (rankingQuery.isLoading || membersQuery.isLoading) {
     return <Loader2 className="size-5 animate-spin text-muted-foreground" />;
@@ -285,55 +307,167 @@ function SellersTab({ periodType }: { periodType: SalesGoalPeriodType }) {
       <p className="text-xs text-muted-foreground">
         Vincule cada vendedor da planilha a um membro do NERP para que o valor
         vendido seja calculado automaticamente das vendas do sistema. Sem
-        vínculo, o valor continua manual.
+        vínculo, o valor continua manual. O nome é comparado ao cadastro de{" "}
+        <a href="/colaboradores" className="underline">
+          Colaboradores
+        </a>{" "}
+        para ajudar a identificar quem é quem.
       </p>
       {branches.map((branch) => (
         <div key={branch.id} className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground">
             {branch.name}
           </p>
-          {branch.entries.map((entry) => (
-            <div
-              key={entry.id}
-              className="flex items-center gap-2 rounded-md border p-2"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {entry.sellerName}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Código {entry.externalCode}
-                  {entry.entryKind === "BUCKET" && " · sempre manual"}
-                </p>
-              </div>
-              <Select
-                disabled={entry.entryKind === "BUCKET"}
-                value={entry.memberId ?? UNLINKED_MEMBER_VALUE}
-                onValueChange={(value) =>
-                  upsertEntry.mutate({
-                    entryId: entry.id,
-                    memberId: value === UNLINKED_MEMBER_VALUE ? null : value,
-                  })
-                }
+          {branch.entries.map((entry) => {
+            const isKnownCollaborator = collaboratorNames.has(
+              normalizeCollaboratorName(entry.sellerName),
+            );
+            return (
+              <div
+                key={entry.id}
+                className="flex items-center gap-2 rounded-md border p-2"
               >
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Sem vínculo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UNLINKED_MEMBER_VALUE}>
-                    Sem vínculo (manual)
-                  </SelectItem>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.name}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium truncate">
+                      {entry.sellerName}
+                    </p>
+                    {isKnownCollaborator ? (
+                      <CheckCircle2
+                        className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400"
+                        aria-label="Cadastrado em Colaboradores"
+                      />
+                    ) : (
+                      <>
+                        <UserRoundSearch
+                          className="size-3.5 shrink-0 text-muted-foreground"
+                          aria-label="Não encontrado em Colaboradores"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCollaboratorDraftName(entry.sellerName)
+                          }
+                          title="Cadastrar como colaborador"
+                          className="flex items-center justify-center rounded-full size-4 shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        >
+                          <UserPlus className="size-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Código {entry.externalCode}
+                    {entry.entryKind === "BUCKET" && " · sempre manual"}
+                    {!isKnownCollaborator &&
+                      " · sem correspondência em Colaboradores"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="space-y-0.5">
+                    <Label
+                      htmlFor={`goal-${entry.id}`}
+                      className="text-[10px] text-muted-foreground"
+                    >
+                      Meta
+                    </Label>
+                    <Input
+                      id={`goal-${entry.id}`}
+                      type="text"
+                      inputMode="decimal"
+                      defaultValue={formatBrlAmountInput(entry.goalAmount)}
+                      onBlur={(event) => {
+                        const nextGoalAmount = parseBrlAmount(
+                          event.target.value,
+                        );
+                        if (
+                          nextGoalAmount !== null &&
+                          nextGoalAmount !== entry.goalAmount
+                        ) {
+                          upsertEntry.mutate({
+                            entryId: entry.id,
+                            goalAmount: nextGoalAmount,
+                          });
+                        }
+                        event.target.value = formatBrlAmountInput(
+                          nextGoalAmount ?? entry.goalAmount,
+                        );
+                      }}
+                      className="w-24 h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label
+                      htmlFor={`achieved-${entry.id}`}
+                      className="text-[10px] text-muted-foreground"
+                    >
+                      Vendido
+                    </Label>
+                    <Input
+                      id={`achieved-${entry.id}`}
+                      type="text"
+                      inputMode="decimal"
+                      disabled={entry.memberId !== null}
+                      defaultValue={formatBrlAmountInput(
+                        entry.achievedAmount ?? 0,
+                      )}
+                      onBlur={(event) => {
+                        const nextAchievedAmount = parseBrlAmount(
+                          event.target.value,
+                        );
+                        if (
+                          nextAchievedAmount !== null &&
+                          nextAchievedAmount !== (entry.achievedAmount ?? 0)
+                        ) {
+                          upsertEntry.mutate({
+                            entryId: entry.id,
+                            achievedAmount: nextAchievedAmount,
+                          });
+                        }
+                        event.target.value = formatBrlAmountInput(
+                          nextAchievedAmount ?? entry.achievedAmount ?? 0,
+                        );
+                      }}
+                      className="w-24 h-8 text-xs"
+                    />
+                  </div>
+                </div>
+                <Select
+                  disabled={entry.entryKind === "BUCKET"}
+                  value={entry.memberId ?? UNLINKED_MEMBER_VALUE}
+                  onValueChange={(value) =>
+                    upsertEntry.mutate({
+                      entryId: entry.id,
+                      memberId: value === UNLINKED_MEMBER_VALUE ? null : value,
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Sem vínculo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNLINKED_MEMBER_VALUE}>
+                      Sem vínculo (manual)
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
+                    {members.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            );
+          })}
         </div>
       ))}
+      <CollaboratorForm
+        open={collaboratorDraftName !== null}
+        onOpenChange={(next) => {
+          if (!next) setCollaboratorDraftName(null);
+        }}
+        defaultName={collaboratorDraftName ?? undefined}
+      />
     </div>
   );
 }
