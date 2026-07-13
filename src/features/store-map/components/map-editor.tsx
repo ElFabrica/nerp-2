@@ -83,7 +83,7 @@ export function MapEditor({ floorPlanId }: MapEditorProps) {
           ) : (
             <>
               <MapStage />
-              <div className="absolute left-2 top-2 z-10">
+              <div className="absolute left-7 top-7 z-20">
                 <BackgroundControls floorPlanId={floorPlanId} />
               </div>
             </>

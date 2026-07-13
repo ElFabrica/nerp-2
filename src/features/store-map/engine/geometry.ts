@@ -163,3 +163,92 @@ export function snapToGrid(value: number, step: number): number {
   if (step <= 0) return value;
   return Math.round(value / step) * step;
 }
+
+export interface DragSnapResult {
+  dx: number;
+  dy: number;
+  guidesX: number[];
+  guidesY: number[];
+}
+
+/**
+ * Snapping ao arrastar: alinha bordas/centro do objeto às bordas/centro dos
+ * demais (guias de alinhamento). Sem alinhamento no eixo, cai no grid quando
+ * ativo. Distâncias em metros; `threshold` já convertido de px.
+ */
+export function alignmentSnap(
+  drag: Bounds,
+  others: Bounds[],
+  threshold: number,
+  gridStep: number,
+  snapEnabled: boolean,
+): DragSnapResult {
+  const anchorsX = [drag.minX, (drag.minX + drag.maxX) / 2, drag.maxX];
+  const anchorsY = [drag.minY, (drag.minY + drag.maxY) / 2, drag.maxY];
+
+  const targetsX: number[] = [];
+  const targetsY: number[] = [];
+  for (const bounds of others) {
+    targetsX.push(bounds.minX, (bounds.minX + bounds.maxX) / 2, bounds.maxX);
+    targetsY.push(bounds.minY, (bounds.minY + bounds.maxY) / 2, bounds.maxY);
+  }
+
+  const best = (anchors: number[], targets: number[]) => {
+    let bestDiff = threshold;
+    let snap: { delta: number; line: number } | null = null;
+    for (const anchor of anchors) {
+      for (const target of targets) {
+        const diff = Math.abs(anchor - target);
+        if (diff <= bestDiff) {
+          bestDiff = diff;
+          snap = { delta: target - anchor, line: target };
+        }
+      }
+    }
+    return snap;
+  };
+
+  const snapX = best(anchorsX, targetsX);
+  const snapY = best(anchorsY, targetsY);
+
+  const guidesX: number[] = [];
+  let dx = 0;
+  if (snapX) {
+    dx = snapX.delta;
+    guidesX.push(snapX.line);
+  } else if (snapEnabled) {
+    dx = snapToGrid(drag.minX, gridStep) - drag.minX;
+  }
+
+  const guidesY: number[] = [];
+  let dy = 0;
+  if (snapY) {
+    dy = snapY.delta;
+    guidesY.push(snapY.line);
+  } else if (snapEnabled) {
+    dy = snapToGrid(drag.minY, gridStep) - drag.minY;
+  }
+
+  return { dx, dy, guidesX, guidesY };
+}
+
+const NICE_STEPS = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500];
+
+/** Passo "redondo" em metros para a régua, dado quantos px cada metro ocupa. */
+export function niceStep(pixelsPerMeter: number, minPx = 64): number {
+  for (const step of NICE_STEPS) {
+    if (step * pixelsPerMeter >= minPx) return step;
+  }
+  return NICE_STEPS[NICE_STEPS.length - 1];
+}
+
+/** Valores de mundo (metros) múltiplos de `step` dentro de [min, max]. */
+export function ticksInRange(min: number, max: number, step: number): number[] {
+  if (step <= 0) return [];
+  const ticks: number[] = [];
+  const start = Math.ceil(min / step) * step;
+  for (let value = start; value <= max; value += step) {
+    ticks.push(Math.round(value / step) * step);
+  }
+  return ticks;
+}

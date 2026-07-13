@@ -5,7 +5,7 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Layer, Line, Rect, Stage, Transformer } from "react-konva";
 import { useSceneStore } from "../../engine/scene-store";
-import { snapToGrid } from "../../engine/geometry";
+import { snapToGrid, visibleWorldBounds } from "../../engine/geometry";
 import { CREATE_TOOLS_BY_TYPE } from "../../engine/tools";
 import type { EditorTool, Vec2 } from "../../engine/types";
 import {
@@ -17,6 +17,7 @@ import { AnnotationEditor } from "../../components/annotation-editor";
 import { AnnotationLayer } from "./annotation-layer";
 import { MapBackground } from "./map-background";
 import { MapGrid } from "./map-grid";
+import { MapRulers } from "./map-rulers";
 import { MapShape } from "./shape-node";
 
 interface DraftRect {
@@ -42,6 +43,7 @@ export function MapStage() {
   const gridEnabled = useSceneStore((state) => state.gridEnabled);
   const snapEnabled = useSceneStore((state) => state.snapEnabled);
   const gridSizeM = useSceneStore((state) => state.gridSizeM);
+  const guides = useSceneStore((state) => state.guides);
   const activeLayerId = useSceneStore((state) => state.activeLayerId);
   const calibrating = useSceneStore((state) => state.calibrating);
   const calibrationPoints = useSceneStore((state) => state.calibrationPoints);
@@ -94,6 +96,11 @@ export function MapStage() {
       .filter((object) => layerById.get(object.layerId)?.visible !== false)
       .sort((a, b) => a.z - b.z);
   }, [objects, layerById]);
+
+  const worldBounds = useMemo(
+    () => visibleWorldBounds(size.width, size.height, viewport, ppm),
+    [size.width, size.height, viewport, ppm],
+  );
 
   useEffect(() => {
     const element = containerRef.current;
@@ -334,6 +341,28 @@ export function MapStage() {
                 listening={false}
               />
             )}
+            {guides.x.map((gx) => (
+              <Line
+                key={`guide-x-${gx}`}
+                points={[gx, worldBounds.minY, gx, worldBounds.maxY]}
+                stroke="#ec4899"
+                strokeWidth={1}
+                dash={[0.2, 0.15]}
+                strokeScaleEnabled={false}
+                listening={false}
+              />
+            ))}
+            {guides.y.map((gy) => (
+              <Line
+                key={`guide-y-${gy}`}
+                points={[worldBounds.minX, gy, worldBounds.maxX, gy]}
+                stroke="#ec4899"
+                strokeWidth={1}
+                dash={[0.2, 0.15]}
+                strokeScaleEnabled={false}
+                listening={false}
+              />
+            ))}
             {calibrating && calibrationPoints.length === 2 && (
               <Line
                 points={[
@@ -382,21 +411,23 @@ export function MapStage() {
         </Stage>
       )}
 
+      <MapRulers />
+
       {calibrating && (
-        <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground shadow">
+        <div className="pointer-events-none absolute left-1/2 top-7 -translate-x-1/2 rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground shadow">
           Clique em dois pontos de uma medida conhecida na planta
         </div>
       )}
 
       {annotating && (
-        <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground shadow">
+        <div className="pointer-events-none absolute left-1/2 top-7 -translate-x-1/2 rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground shadow">
           Clique na planta para adicionar uma anotação
         </div>
       )}
 
       <div
         ref={readoutRef}
-        className="pointer-events-none absolute bottom-2 left-2 rounded bg-background/80 px-2 py-1 text-xs tabular-nums text-muted-foreground"
+        className="pointer-events-none absolute bottom-2 left-7 rounded bg-background/80 px-2 py-1 text-xs tabular-nums text-muted-foreground"
       />
 
       <AnnotationEditor

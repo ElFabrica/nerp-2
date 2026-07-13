@@ -54,6 +54,8 @@ export interface SceneState {
   gridEnabled: boolean;
   snapEnabled: boolean;
   gridSizeM: number;
+  // Guias de alinhamento ativas durante o arraste (coords de mundo, metros)
+  guides: { x: number[]; y: number[] };
   // Fila de persistência
   dirtyIds: Set<ObjectId>;
   newIds: Set<ObjectId>;
@@ -90,6 +92,7 @@ export interface SceneState {
   removeLayer: (id: string) => void;
   toggleGrid: () => void;
   toggleSnap: () => void;
+  setGuides: (guides: { x: number[]; y: number[] }) => void;
   undo: () => void;
   redo: () => void;
   consumeDirty: () => { upserts: SceneObject[]; deletes: ObjectId[] };
@@ -122,6 +125,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   gridEnabled: true,
   snapEnabled: true,
   gridSizeM: 0.5,
+  guides: { x: [], y: [] },
   dirtyIds: new Set(),
   newIds: new Set(),
   deletedIds: new Set(),
@@ -407,6 +411,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   toggleGrid: () => set((state) => ({ gridEnabled: !state.gridEnabled })),
   toggleSnap: () => set((state) => ({ snapEnabled: !state.snapEnabled })),
+  setGuides: (guides) => set({ guides }),
 
   undo: () =>
     set((state) => {

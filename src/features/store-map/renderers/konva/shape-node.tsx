@@ -3,8 +3,11 @@
 import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Circle, Line, Rect } from "react-konva";
+import { alignmentSnap, boundsOf } from "../../engine/geometry";
 import { useSceneStore } from "../../engine/scene-store";
-import type { SceneObject } from "../../engine/types";
+import type { Bounds, SceneObject } from "../../engine/types";
+
+const SNAP_PX = 8;
 
 interface MapShapeProps {
   object: SceneObject;
@@ -18,6 +21,33 @@ export function MapShape({ object, isSelected, draggable }: MapShapeProps) {
   );
   const setSelection = useSceneStore((state) => state.setSelection);
   const toggleSelection = useSceneStore((state) => state.toggleSelection);
+  const setGuides = useSceneStore((state) => state.setGuides);
+
+  const applyDragSnap = (node: Konva.Node, dragBounds: Bounds) => {
+    const state = useSceneStore.getState();
+    const ppm = state.floorPlan?.pixelsPerMeter ?? 50;
+    const scale = state.viewport.zoom * ppm;
+    const threshold = SNAP_PX / scale;
+
+    const others: Bounds[] = [];
+    for (const other of Object.values(state.objects)) {
+      if (other.id === object.id) continue;
+      others.push(boundsOf(other.geometry));
+    }
+
+    const { dx, dy, guidesX, guidesY } = alignmentSnap(
+      dragBounds,
+      others,
+      threshold,
+      state.gridSizeM,
+      state.snapEnabled,
+    );
+    if (dx !== 0) node.x(node.x() + dx);
+    if (dy !== 0) node.y(node.y() + dy);
+    setGuides({ x: guidesX, y: guidesY });
+  };
+
+  const clearGuides = () => setGuides({ x: [], y: [] });
 
   const handleSelect = (event: KonvaEventObject<MouseEvent | TouchEvent>) => {
     event.cancelBubble = true;
@@ -56,13 +86,24 @@ export function MapShape({ object, isSelected, draggable }: MapShapeProps) {
         height={geometry.height}
         rotation={geometry.rotation}
         fill={fill}
-        onDragEnd={(event) =>
+        onDragMove={(event) => {
+          if (geometry.rotation !== 0) return;
+          const node = event.target;
+          applyDragSnap(node, {
+            minX: node.x(),
+            minY: node.y(),
+            maxX: node.x() + geometry.width,
+            maxY: node.y() + geometry.height,
+          });
+        }}
+        onDragEnd={(event) => {
+          clearGuides();
           updateObjectGeometry(object.id, {
             ...geometry,
             x: event.target.x(),
             y: event.target.y(),
-          })
-        }
+          });
+        }}
         onTransformEnd={(event) => {
           const node = event.target as Konva.Rect;
           const scaleX = node.scaleX();
@@ -90,13 +131,23 @@ export function MapShape({ object, isSelected, draggable }: MapShapeProps) {
         y={geometry.y}
         radius={0.25}
         fill={fill}
-        onDragEnd={(event) =>
+        onDragMove={(event) => {
+          const node = event.target;
+          applyDragSnap(node, {
+            minX: node.x(),
+            minY: node.y(),
+            maxX: node.x(),
+            maxY: node.y(),
+          });
+        }}
+        onDragEnd={(event) => {
+          clearGuides();
           updateObjectGeometry(object.id, {
             kind: "POINT",
             x: event.target.x(),
             y: event.target.y(),
-          })
-        }
+          });
+        }}
       />
     );
   }

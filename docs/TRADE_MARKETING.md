@@ -151,7 +151,7 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 | **M6** | Painel lateral: vincular **Indústria (Supplier)** e **Marca (Brand)** + seção **Fotos do PDV** | ✅ completo |
 | **M7** | **Fotos do PDV**: `MultiPhotoUploader`, router `pdvPhoto/` (create/list filtrado/update/delete/`filterOptions`), histórico por objeto, página `/lojas/[storeId]` (fallback na loja) | ✅ completo |
 | **M8** | **Book em PDF** server-side + UI | ✅ completo (backend + UI) |
-| **M9** | Extras: reordenar book (drag) ✅, dashboard/overview ✅, editar captura PDV ✅, anotações no mapa (`MapAnnotation`) ✅; **falta** minimapa, snapping/guias, culling, régua com ticks | 🔶 em andamento |
+| **M9** | Extras: reordenar book (drag) ✅, dashboard/overview ✅, editar captura PDV ✅, anotações no mapa ✅, régua com ticks ✅, guias de alinhamento/snapping no arraste ✅; **falta** minimapa, culling, reordenar camadas por drag | 🔶 em andamento |
 
 ---
 
@@ -197,9 +197,11 @@ Deps adicionadas: `konva@9`, `react-konva@19.0.10`, `use-image` (fixadas para Re
 - **Dashboard/overview:** `store/overview` (contagens org-scoped: lojas, lojas sem mapa, plantas, capturas PDV, books total/prontos/pendentes, soma R$ em ações) + `TradeMarketingOverview` no topo de `/lojas`.
 - **Editar captura do PDV:** `PdvPhotoDialog` vira criar/editar (prop `photo`, usa `pdvPhoto.update`); botão de editar no histórico.
 - **Anotações no mapa (`MapAnnotation`):** router `mapAnnotation/` (list/create/update/delete, org-scoped); hook `use-map-annotations.ts`; modo `annotating` no `scene-store` (espelha `calibrating`, fora do autosave/undo); camada Konva `annotation-layer.tsx` (pins arrastáveis coloridos por tipo); `annotation-editor.tsx` (tipo/descrição/situação/excluir); botão na `editor-toolbar`. Tipos PIN/COMMENT/ALERT/PENDING em `engine/annotations.ts`.
+- **Régua com ticks:** overlay `map-rulers.tsx` (SVG topo/esquerda em metros, passo "redondo" via `niceStep`/`ticksInRange`, sincronizado ao viewport). Overlays do editor afastados 28px da faixa.
+- **Guias de alinhamento + snapping no arraste:** `alignmentSnap` em `geometry.ts` (alinha borda/centro aos demais objetos; sem match cai no grid); slice `guides` no `scene-store`; `shape-node` aplica no `onDragMove` (RECT sem rotação e POINT) e desenha guias rosa no `map-stage`.
 
 **⏳ Falta:**
-- Minimapa, régua com ticks (hoje há só leitura de coordenadas), snapping/guias de alinhamento.
+- Minimapa.
 - Culling de viewport (renderizar só objetos visíveis) + índice espacial para mapas grandes.
 - Reordenar camadas por drag.
 
