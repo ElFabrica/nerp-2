@@ -498,7 +498,7 @@ model Customer {
   name            String
   personType      PersonType   @default(FISICA)
   document        String? // CPF ou CNPJ
-  email           String
+  email           String? // opcional; quando presente, é único por organização
   phone           String?
   // Endereço
   address         String?
@@ -1124,6 +1124,35 @@ model SupplierImport {
 
   @@index([organizationId, status])
   @@map("supplier_imports")
+}
+
+enum CustomerImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model CustomerImport {
+  id             String               @id @default(cuid())
+  organizationId String
+  createdById    String
+  fileKey        String // chave do objeto no S3
+  fileName       String
+  mapping        Json // { campoCliente: nomeColunaArquivo }
+  status         CustomerImportStatus @default(PENDING)
+  totalRows      Int                  @default(0)
+  processedRows  Int                  @default(0)
+  createdRows    Int                  @default(0)
+  skippedRows    Int                  @default(0) // duplicados (mesmo email) pulados
+  failedRows     Int                  @default(0)
+  errors         Json                 @default("[]") // [{ row, message }]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  completedAt    DateTime?
+
+  @@index([organizationId, status])
+  @@map("customer_imports")
 }
 
 model PromotionalCatalog {

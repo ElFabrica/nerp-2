@@ -12,7 +12,7 @@ export const createCustomer = base
       name: z.string(),
       document: z.string().optional(),
       phone: z.string().optional(),
-      email: z.string(),
+      email: z.string().optional(),
       type: z.enum(["FISICA", "JURIDICA"]),
       city: z.string().optional(),
       state: z.string().optional(),
@@ -28,19 +28,26 @@ export const createCustomer = base
     })
   )
   .handler(async ({ input, context, errors }) => {
-    const customerWithSameEmail = await prisma.customer.findUnique({
-      where: {
-        organizationId_email: {
-          email: input.email,
-          organizationId: context.org.id,
-        },
-      },
-    });
+    // Email é opcional; quando presente, normalizamos e garantimos unicidade
+    // por organização. Vazio/espaços viram `undefined` (gravado como null) para
+    // não colidir na constraint única `organizationId_email`.
+    const email = input.email?.trim() || undefined;
 
-    if (customerWithSameEmail) {
-      throw errors.BAD_REQUEST({
-        message: "Cliente já cadastrado",
+    if (email) {
+      const customerWithSameEmail = await prisma.customer.findUnique({
+        where: {
+          organizationId_email: {
+            email,
+            organizationId: context.org.id,
+          },
+        },
       });
+
+      if (customerWithSameEmail) {
+        throw errors.BAD_REQUEST({
+          message: "Cliente já cadastrado",
+        });
+      }
     }
 
     const customer = await prisma.customer.create({
@@ -48,7 +55,7 @@ export const createCustomer = base
         name: input.name,
         document: input.document,
         phone: input.phone,
-        email: input.email,
+        email,
         personType: input.type,
         zipCode: input.cep,
         notes: input.description,
