@@ -15,6 +15,11 @@ import { useBrands } from "@/features/brands/hooks/use-brands";
 import { PdvPhotoSection } from "@/features/pdv-photos/components/pdv-photo-section";
 import { useSupplier } from "@/features/supplier/hooks/use-supplier";
 import { Trash2 } from "lucide-react";
+import {
+  type NegotiationField,
+  readNegotiation,
+  withNegotiationField,
+} from "../engine/negotiation";
 import { useSceneStore } from "../engine/scene-store";
 import type { MapObjectType } from "../engine/types";
 
@@ -78,6 +83,13 @@ export function ObjectPropertiesPanel() {
       ? `${object.geometry.width.toFixed(2)} × ${object.geometry.height.toFixed(2)} m`
       : null;
 
+  const negotiation = readNegotiation(object.properties);
+
+  const setNegotiation = (field: NegotiationField, value: string) =>
+    updateObject(object.id, {
+      properties: withNegotiationField(object, field, value),
+    });
+
   return (
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
@@ -123,6 +135,26 @@ export function ObjectPropertiesPanel() {
             onBlur={(event) =>
               updateObject(object.id, { category: event.target.value || null })
             }
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="object-location">Localização</FieldLabel>
+          <Input
+            id="object-location"
+            defaultValue={negotiation.location ?? ""}
+            placeholder="Ex.: Corredor 05 | Lado direito"
+            onBlur={(event) => setNegotiation("location", event.target.value)}
+          />
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor="object-space-type">Tipo de espaço</FieldLabel>
+          <Input
+            id="object-space-type"
+            defaultValue={negotiation.spaceType ?? ""}
+            placeholder="Ex.: Gôndola negociada"
+            onBlur={(event) => setNegotiation("spaceType", event.target.value)}
           />
         </Field>
       </div>
@@ -179,6 +211,45 @@ export function ObjectPropertiesPanel() {
       )}
 
       <div className="space-y-4" key={`${object.id}-meta`}>
+        <Field>
+          <FieldLabel htmlFor="object-distributor">
+            Distribuidor / Representante
+          </FieldLabel>
+          <Input
+            id="object-distributor"
+            defaultValue={negotiation.distributor ?? ""}
+            placeholder="Ex.: Solar"
+            onBlur={(event) =>
+              setNegotiation("distributor", event.target.value)
+            }
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field>
+            <FieldLabel htmlFor="object-negotiation-start">Início</FieldLabel>
+            <Input
+              id="object-negotiation-start"
+              type="date"
+              defaultValue={negotiation.negotiationStart ?? ""}
+              onBlur={(event) =>
+                setNegotiation("negotiationStart", event.target.value)
+              }
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="object-negotiation-end">Fim</FieldLabel>
+            <Input
+              id="object-negotiation-end"
+              type="date"
+              defaultValue={negotiation.negotiationEnd ?? ""}
+              onBlur={(event) =>
+                setNegotiation("negotiationEnd", event.target.value)
+              }
+            />
+          </Field>
+        </div>
+
         <Field>
           <FieldLabel htmlFor="object-status">Status</FieldLabel>
           <Input

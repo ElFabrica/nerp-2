@@ -33,6 +33,10 @@ export const createPdvPhoto = base
       throw errors.NOT_FOUND({ message: "Loja não encontrada" });
     }
 
+    const photoCapturedAt = input.capturedAt
+      ? new Date(input.capturedAt)
+      : new Date();
+
     const photo = await prisma.pdvPhoto.create({
       data: {
         organizationId: context.org.id,
@@ -46,12 +50,23 @@ export const createPdvPhoto = base
         code: input.code,
         actionValue: input.actionValue,
         photos: input.photos,
-        capturedAt: input.capturedAt ? new Date(input.capturedAt) : undefined,
+        capturedAt: photoCapturedAt,
         notes: input.notes,
         createdById: context.user.id,
       },
       select: { id: true },
     });
+
+    // Fotografar um ponto do mapa é uma visita: carimba data + promotor no elemento.
+    if (input.mapObjectId) {
+      await prisma.mapObject.updateMany({
+        where: { id: input.mapObjectId, organizationId: context.org.id },
+        data: {
+          lastVisitAt: photoCapturedAt,
+          lastEditedById: context.user.id,
+        },
+      });
+    }
 
     return { id: photo.id };
   });

@@ -28,6 +28,7 @@ import {
   EditIcon,
   ImageIcon,
   MapIcon,
+  MapPinnedIcon,
   MoreVerticalIcon,
   SearchIcon,
   Trash2Icon,
@@ -142,6 +143,16 @@ export function ListStores() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link
+                                  href={`/mapa/${store.id}`}
+                                  target="_blank"
+                                  rel="noopener"
+                                >
+                                  <MapPinnedIcon className="mr-2 size-4" />
+                                  Visão do promotor
+                                </Link>
+                              </DropdownMenuItem>
                               <DropdownMenuItem asChild>
                                 <Link href={`/lojas/${store.id}`}>
                                   <ImageIcon className="mr-2 size-4" />
