@@ -1,22 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { constructUrl } from "@/hooks/use-construct-url";
-import {
-  DndContext,
-  type DragEndEvent,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  rectSortingStrategy,
-} from "@dnd-kit/sortable";
 import {
   ArrowLeft,
   DownloadIcon,
@@ -26,53 +13,23 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import {
-  useBook,
-  useGenerateBook,
-  useRemoveBookItem,
-  useReorderBookItems,
-} from "../hooks/use-books";
+import { useState } from "react";
+import { useBook, useGenerateBook } from "../hooks/use-books";
 import { formatPeriod } from "../lib/book-format";
+import { BookPagesList } from "./book-pages/book-pages-list";
 import { BookStatusBadge } from "./book-status-badge";
+import { CoverEditor } from "./cover-editor/cover-editor";
 import { ImportPhotosDialog } from "./import-photos-dialog";
-import { SortableBookItem } from "./sortable-book-item";
 
 interface BookEditorProps {
   bookId: string;
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("pt-BR");
-}
-
 export function BookEditor({ bookId }: BookEditorProps) {
   const { book, isLoading } = useBook(bookId);
   const generateBook = useGenerateBook();
-  const removeItem = useRemoveBookItem();
-  const reorderItems = useReorderBookItems();
   const [openImport, setOpenImport] = useState(false);
   const [pendingMode, setPendingMode] = useState<"queue" | "sync" | null>(null);
-
-  const [orderedIds, setOrderedIds] = useState<string[]>([]);
-  useEffect(() => {
-    if (book) setOrderedIds(book.items.map((item) => item.pdvPhotoId));
-  }, [book]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = orderedIds.indexOf(String(active.id));
-    const newIndex = orderedIds.indexOf(String(over.id));
-    if (oldIndex === -1 || newIndex === -1) return;
-    const next = arrayMove(orderedIds, oldIndex, newIndex);
-    setOrderedIds(next);
-    reorderItems.mutate({ bookId, orderedPdvPhotoIds: next });
-  };
 
   if (isLoading || !book) {
     return (
@@ -95,10 +52,6 @@ export function BookEditor({ bookId }: BookEditorProps) {
   };
 
   const existingPhotoIds = book.items.map((item) => item.pdvPhotoId);
-  const itemsById = new Map(book.items.map((item) => [item.pdvPhotoId, item]));
-  const orderedItems = orderedIds
-    .map((id) => itemsById.get(id))
-    .filter((item): item is NonNullable<typeof item> => !!item);
 
   return (
     <div className="space-y-6">
@@ -187,59 +140,35 @@ export function BookEditor({ bookId }: BookEditorProps) {
         </p>
       )}
 
-      <Card>
-        <CardHeader>
-          <p className="text-sm font-medium">
-            {book.items.length} foto(s) no book
-          </p>
-          {book.items.length > 1 && (
-            <p className="text-xs text-muted-foreground">
-              Arraste pela alça para definir a ordem das páginas no PDF.
-            </p>
-          )}
-        </CardHeader>
-        <CardContent>
-          {book.items.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Nenhuma foto adicionada. Use “Importar fotos” para montar o book.
-            </p>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={orderedIds}
-                strategy={rectSortingStrategy}
-              >
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                  {orderedItems.map((item, index) => (
-                    <SortableBookItem
-                      key={item.pdvPhotoId}
-                      id={item.pdvPhotoId}
-                      index={index}
-                      photo={item.photos[0]}
-                      storeName={item.storeName}
-                      subtitle={
-                        [item.section, item.code].filter(Boolean).join(" · ") ||
-                        formatDate(item.capturedAt)
-                      }
-                      actionValue={item.actionValue}
-                      onRemove={() =>
-                        removeItem.mutate({
-                          bookId,
-                          pdvPhotoId: item.pdvPhotoId,
-                        })
-                      }
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="photos">
+        <TabsList>
+          <TabsTrigger value="photos">Páginas</TabsTrigger>
+          <TabsTrigger value="cover">Capa e Página Final</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="photos" className="mt-4">
+          <BookPagesList
+            bookId={bookId}
+            periodMonth={book.periodMonth}
+            periodYear={book.periodYear}
+            items={book.items}
+            industryLogo={book.supplierLogo}
+            supplierManager={book.supplierManager}
+            organizationName={book.organizationName}
+          />
+        </TabsContent>
+
+        <TabsContent value="cover" className="mt-4">
+          <CoverEditor
+            bookId={bookId}
+            supplierId={book.supplierId}
+            coverLayout={book.coverLayout}
+            closingLayout={book.closingLayout}
+            coverBackground={book.coverBackground}
+            closingBackground={book.closingBackground}
+          />
+        </TabsContent>
+      </Tabs>
 
       <ImportPhotosDialog
         open={openImport}

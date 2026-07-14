@@ -6,6 +6,23 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
+import { coverBackgroundToRgba, type CoverBackground, type CoverElement } from "../lib/cover-layout";
+
+// Elemento de capa já resolvido pra renderização: `imageKey` (quando
+// type === "image") contém a URL completa, não a key do R2 — resolução
+// feita em generate-book.tsx antes de montar BookDocumentData.
+export type ResolvedCoverElement = CoverElement;
+
+export type PdvPhotoLayoutPattern =
+  | "PATTERN_1"
+  | "PATTERN_2"
+  | "PATTERN_3"
+  | "PATTERN_4";
+
+// URL simples (foto sem ajuste de enquadramento) ou o buffer já cortado
+// (pan/zoom aplicado via sharp em generate-book.tsx) — react-pdf aceita os
+// dois formatos como `src` de <Image>.
+export type PhotoSource = string | { data: Buffer; format: "jpg" };
 
 export interface BookDocumentItem {
   storeName: string;
@@ -16,7 +33,8 @@ export interface BookDocumentItem {
   section: string | null;
   code: string | null;
   actionValueLabel: string | null;
-  photoUrls: string[];
+  photoSources: PhotoSource[];
+  photoLayoutPattern: PdvPhotoLayoutPattern | null;
 }
 
 export interface BookDocumentData {
@@ -27,6 +45,10 @@ export interface BookDocumentData {
   industryName: string | null;
   brandLogoUrls: string[];
   items: BookDocumentItem[];
+  coverLayout?: ResolvedCoverElement[] | null;
+  closingLayout?: ResolvedCoverElement[] | null;
+  coverBackground?: CoverBackground | null;
+  closingBackground?: CoverBackground | null;
 }
 
 // 16:9 widescreen (mesma proporção do PPT do cliente): 960 x 540 pt.
@@ -135,6 +157,14 @@ const styles = StyleSheet.create({
     objectFit: "cover",
     borderRadius: 4,
   },
+  photoColumn: { flex: 1, flexDirection: "column", gap: 10 },
+  photoColumnItem: { flex: 1, width: "100%", objectFit: "cover", borderRadius: 4 },
+  photoStackedFull: {
+    width: "100%",
+    height: "48.5%",
+    objectFit: "cover",
+    borderRadius: 4,
+  },
   photoFullWrap: {
     width: "100%",
     height: "100%",
@@ -164,6 +194,96 @@ const styles = StyleSheet.create({
   closingText: { fontSize: 30, fontWeight: "bold", color: ACCENT },
 });
 
+function CoverLayoutView({
+  elements,
+  background,
+}: {
+  elements: ResolvedCoverElement[];
+  background?: CoverBackground | null;
+}) {
+  return (
+    <View
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        backgroundColor: background?.imageKey
+          ? "#ffffff"
+          : background
+            ? coverBackgroundToRgba(background)
+            : "#ffffff",
+      }}
+    >
+      {background?.imageKey && (
+        <Image
+          src={background.imageKey}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
+      )}
+      {background?.imageKey && (
+        <View
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: coverBackgroundToRgba(background),
+          }}
+        />
+      )}
+      {elements.map((element) => {
+        const boxStyle = {
+          position: "absolute" as const,
+          left: element.x,
+          top: element.y,
+          width: element.width,
+          height: element.height,
+        };
+
+        if (element.type === "text") {
+          return (
+            <Text
+              key={element.id}
+              style={{
+                ...boxStyle,
+                fontSize: element.fontSize,
+                color: element.color,
+                fontWeight: element.fontWeight === "bold" ? "bold" : "normal",
+                textAlign: element.align,
+              }}
+            >
+              {element.uppercase ? element.text.toUpperCase() : element.text}
+            </Text>
+          );
+        }
+
+        if (element.type === "divider") {
+          return (
+            <View key={element.id} style={{ ...boxStyle, backgroundColor: element.color }} />
+          );
+        }
+
+        if (!element.imageKey) return null;
+        return (
+          <Image
+            key={element.id}
+            src={element.imageKey}
+            style={{ ...boxStyle, objectFit: element.objectFit }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 function MetaItem({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
@@ -174,11 +294,55 @@ function MetaItem({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function PhotoLayout({ urls }: { urls: string[] }) {
-  const photos = urls.slice(0, 4);
+function PhotoLayout({
+  sources,
+  pattern,
+}: {
+  sources: PhotoSource[];
+  pattern: PdvPhotoLayoutPattern | null;
+}) {
+  const photos = sources.slice(0, 4);
   if (photos.length === 0) {
     return null;
   }
+
+  // Padrão 1: 1 vertical à esquerda + 2 horizontais empilhadas à direita.
+  if (pattern === "PATTERN_1" && photos.length === 3) {
+    return (
+      <View style={styles.photos}>
+        <Image src={photos[0]} style={styles.photoHalf} />
+        <View style={styles.photoColumn}>
+          <Image src={photos[1]} style={styles.photoColumnItem} />
+          <Image src={photos[2]} style={styles.photoColumnItem} />
+        </View>
+      </View>
+    );
+  }
+
+  // Padrão 2: 2 horizontais empilhadas à esquerda + 1 vertical à direita.
+  if (pattern === "PATTERN_2" && photos.length === 3) {
+    return (
+      <View style={styles.photos}>
+        <View style={styles.photoColumn}>
+          <Image src={photos[0]} style={styles.photoColumnItem} />
+          <Image src={photos[1]} style={styles.photoColumnItem} />
+        </View>
+        <Image src={photos[2]} style={styles.photoHalf} />
+      </View>
+    );
+  }
+
+  // Padrão 4: 2 horizontais empilhadas. (Padrão 3 = 2 verticais lado a
+  // lado, que já é o comportamento padrão de 2 fotos abaixo.)
+  if (pattern === "PATTERN_4" && photos.length === 2) {
+    return (
+      <View style={[styles.photos, { flexDirection: "column" }]}>
+        <Image src={photos[0]} style={styles.photoStackedFull} />
+        <Image src={photos[1]} style={styles.photoStackedFull} />
+      </View>
+    );
+  }
+
   if (photos.length === 1) {
     return (
       <View style={styles.photos}>
@@ -191,16 +355,18 @@ function PhotoLayout({ urls }: { urls: string[] }) {
   if (photos.length === 2) {
     return (
       <View style={styles.photos}>
-        {photos.map((url, index) => (
-          <Image key={`${url}-${index}`} src={url} style={styles.photoHalf} />
+        {photos.map((source, index) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: ordem fixa, sem reordenação
+          <Image key={index} src={source} style={styles.photoHalf} />
         ))}
       </View>
     );
   }
   return (
     <View style={styles.photos}>
-      {photos.map((url, index) => (
-        <Image key={`${url}-${index}`} src={url} style={styles.photoGrid} />
+      {photos.map((source, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: ordem fixa, sem reordenação
+        <Image key={index} src={source} style={styles.photoGrid} />
       ))}
     </View>
   );
@@ -210,25 +376,29 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
   return (
     <Document title={data.bookName}>
       <Page size={PAGE_SIZE}>
-        <View style={styles.cover}>
-          {data.distributorLogoUrl && (
-            <Image src={data.distributorLogoUrl} style={styles.coverLogo} />
-          )}
-          <Text style={styles.coverTitle}>{data.bookName}</Text>
-          <View style={styles.coverRule} />
-          <Text style={styles.coverPeriod}>{data.periodLabel}</Text>
-          {data.industryName && (
-            <View style={styles.coverIndustryRow}>
-              {data.industryLogoUrl && (
-                <Image
-                  src={data.industryLogoUrl}
-                  style={styles.coverIndustryLogo}
-                />
-              )}
-              <Text style={styles.coverIndustryName}>{data.industryName}</Text>
-            </View>
-          )}
-        </View>
+        {data.coverLayout && data.coverLayout.length > 0 ? (
+          <CoverLayoutView elements={data.coverLayout} background={data.coverBackground} />
+        ) : (
+          <View style={styles.cover}>
+            {data.distributorLogoUrl && (
+              <Image src={data.distributorLogoUrl} style={styles.coverLogo} />
+            )}
+            <Text style={styles.coverTitle}>{data.bookName}</Text>
+            <View style={styles.coverRule} />
+            <Text style={styles.coverPeriod}>{data.periodLabel}</Text>
+            {data.industryName && (
+              <View style={styles.coverIndustryRow}>
+                {data.industryLogoUrl && (
+                  <Image
+                    src={data.industryLogoUrl}
+                    style={styles.coverIndustryLogo}
+                  />
+                )}
+                <Text style={styles.coverIndustryName}>{data.industryName}</Text>
+              </View>
+            )}
+          </View>
+        )}
       </Page>
 
       {data.items.map((item, index) => (
@@ -257,7 +427,7 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
                 )}
               </View>
 
-              <PhotoLayout urls={item.photoUrls} />
+              <PhotoLayout sources={item.photoSources} pattern={item.photoLayoutPattern} />
             </View>
 
             <View style={styles.footer}>
@@ -279,12 +449,16 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
       ))}
 
       <Page size={PAGE_SIZE}>
-        <View style={styles.closing}>
-          {data.distributorLogoUrl && (
-            <Image src={data.distributorLogoUrl} style={styles.coverLogo} />
-          )}
-          <Text style={styles.closingText}>Obrigado!</Text>
-        </View>
+        {data.closingLayout && data.closingLayout.length > 0 ? (
+          <CoverLayoutView elements={data.closingLayout} background={data.closingBackground} />
+        ) : (
+          <View style={styles.closing}>
+            {data.distributorLogoUrl && (
+              <Image src={data.distributorLogoUrl} style={styles.coverLogo} />
+            )}
+            <Text style={styles.closingText}>Obrigado!</Text>
+          </View>
+        )}
       </Page>
     </Document>
   );
