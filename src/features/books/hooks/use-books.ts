@@ -1,8 +1,10 @@
 "use client";
 
 import { orpc } from "@/lib/orpc";
+import { uploadToR2 } from "@/lib/upload-to-r2";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import type { CoverBackground, CoverElement } from "../lib/cover-layout";
 
 export function useBooks() {
   const { data, isPending } = useQuery(
@@ -68,6 +70,16 @@ export function useImportBookPhotos() {
   );
 }
 
+export function useAddBookPage() {
+  const invalidate = useInvalidateBooks();
+  return useMutation(
+    orpc.book.addPage.mutationOptions({
+      onSuccess: () => invalidate(),
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
 export function useRemoveBookItem() {
   const invalidate = useInvalidateBooks();
   return useMutation(
@@ -105,4 +117,55 @@ export function useGenerateBook() {
       onError: (error) => toast.error(error.message),
     }),
   );
+}
+
+// ── Capa / página final ──────────────────────────────────────────────────
+
+export function useUpdateBookCoverLayout() {
+  return useMutation(
+    orpc.book.updateCoverLayout.mutationOptions({
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useDefaultCoverTemplate() {
+  const query = useQuery(
+    orpc.book.getDefaultCoverTemplate.queryOptions({ input: {} }),
+  );
+  return {
+    template: query.data as {
+      coverLayout: CoverElement[];
+      closingLayout: CoverElement[];
+      coverBackground: CoverBackground | null;
+      closingBackground: CoverBackground | null;
+    } | null | undefined,
+    isLoading: query.isPending,
+  };
+}
+
+export function useSetDefaultCoverTemplate() {
+  return useMutation(
+    orpc.book.setDefaultCoverTemplate.mutationOptions({
+      onSuccess: () => toast.success("Definido como padrão da organização"),
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useSupplierBrands(supplierId: string | null) {
+  const query = useQuery({
+    ...orpc.book.listSupplierBrands.queryOptions({
+      input: { supplierId: supplierId ?? "" },
+    }),
+    enabled: !!supplierId,
+  });
+  return { brands: query.data?.brands ?? [], isLoading: query.isPending };
+}
+
+export function useUploadCoverImage() {
+  return useMutation({
+    mutationFn: (file: File) => uploadToR2(file, true),
+    onError: () => toast.error("Falha ao enviar imagem"),
+  });
 }

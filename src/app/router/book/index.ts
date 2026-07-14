@@ -7,6 +7,11 @@ import { importBookPhotos } from "./import-photos";
 import { removeBookItem } from "./remove-item";
 import { reorderBookItems } from "./reorder-items";
 import { generateBookPdf } from "./generate";
+import { updateBookCoverLayout } from "./update-cover-layout";
+import { getDefaultCoverTemplate } from "./get-default-cover-template";
+import { setDefaultCoverTemplate } from "./set-default-cover-template";
+import { listSupplierBrands } from "./list-supplier-brands";
+import { addBookPage } from "./add-page";
 
 export const bookRoutes = {
   list: listBook,
@@ -18,4 +23,9 @@ export const bookRoutes = {
   removeItem: removeBookItem,
   reorderItems: reorderBookItems,
   generate: generateBookPdf,
+  updateCoverLayout: updateBookCoverLayout,
+  getDefaultCoverTemplate: getDefaultCoverTemplate,
+  setDefaultCoverTemplate: setDefaultCoverTemplate,
+  listSupplierBrands: listSupplierBrands,
+  addPage: addBookPage,
 };

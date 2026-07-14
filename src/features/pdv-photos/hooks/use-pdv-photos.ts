@@ -51,6 +51,9 @@ function useInvalidatePdvPhotos() {
       queryKey: orpc.pdvPhoto.filterOptions.key(),
     });
     queryClient.invalidateQueries({ queryKey: orpc.store.list.key() });
+    // PdvPhoto também aparece embutido nas páginas do Book (book.getOne) —
+    // sem isso, upload de foto/edição de campo lá não reflete sem F5.
+    queryClient.invalidateQueries({ queryKey: orpc.book.getOne.key() });
   };
 }
 
@@ -67,12 +70,12 @@ export function useCreatePdvPhoto() {
   );
 }
 
-export function useUpdatePdvPhoto() {
+export function useUpdatePdvPhoto(options?: { silent?: boolean }) {
   const invalidate = useInvalidatePdvPhotos();
   return useMutation(
     orpc.pdvPhoto.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Foto do PDV atualizada");
+        if (!options?.silent) toast.success("Foto do PDV atualizada");
         invalidate();
       },
       onError: (error) => toast.error(error.message),
