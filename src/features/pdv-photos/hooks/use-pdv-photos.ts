@@ -54,6 +54,8 @@ function useInvalidatePdvPhotos() {
     // PdvPhoto também aparece embutido nas páginas do Book (book.getOne) —
     // sem isso, upload de foto/edição de campo lá não reflete sem F5.
     queryClient.invalidateQueries({ queryKey: orpc.book.getOne.key() });
+    // Fotografar carimba última visita/promotor no elemento do mapa.
+    queryClient.invalidateQueries({ queryKey: orpc.mapObject.getAudit.key() });
   };
 }
 

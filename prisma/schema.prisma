@@ -36,6 +36,7 @@ model User {
   createdPdvPhotos      PdvPhoto[]           @relation("CreatedPdvPhotos")
   createdBooks          Book[]               @relation("CreatedBooks")
   authoredAnnotations   MapAnnotation[]      @relation("AuthoredAnnotations")
+  editedMapObjects      MapObject[]          @relation("EditedMapObjects")
 
   @@index([email])
   @@map("user")
@@ -202,12 +203,17 @@ model Member {
   role           String       @default("member")
   permissions    String[]     @default([]) // chaves de páginas liberadas; owner/admin ignoram
   createdAt      DateTime     @default(now())
+  // Hierarquia de campo: supervisor do promotor (mesma organização)
+  supervisorId   String?
+  supervisor     Member?      @relation("MemberSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  supervisees    Member[]     @relation("MemberSupervisor")
 
   salesGoalEntries SalesGoalEntry[]
 
   @@unique([organizationId, userId])
   @@index([organizationId])
   @@index([userId])
+  @@index([supervisorId])
   @@map("member")
 }
 
@@ -1418,6 +1424,7 @@ model MapObject {
   category        String?
   responsibleName String?
   lastVisitAt     DateTime?
+  lastEditedById  String? // promotor que fez a última edição em campo (carimbado pelo servidor)
   properties      Json?
   supplierId      String? // Empresa/Indústria responsável
   brandId         String? // Marca
@@ -1428,6 +1435,7 @@ model MapObject {
   layer           MapLayer        @relation(fields: [layerId], references: [id], onDelete: Cascade)
   supplier        Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   brand           Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  lastEditedBy    User?           @relation("EditedMapObjects", fields: [lastEditedById], references: [id], onDelete: SetNull)
   pdvPhotos       PdvPhoto[]
   annotations     MapAnnotation[]
 
@@ -1436,6 +1444,7 @@ model MapObject {
   @@index([floorPlanId, layerId])
   @@index([supplierId])
   @@index([brandId])
+  @@index([lastEditedById])
   @@map("map_objects")
 }
 
