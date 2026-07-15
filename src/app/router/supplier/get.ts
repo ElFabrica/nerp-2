@@ -12,10 +12,11 @@ export const getSupplier = base
       id: z.string(),
     })
   )
-  .handler(async ({ input, errors }) => {
-    const supplier = await prisma.supplier.findUnique({
+  .handler(async ({ input, context, errors }) => {
+    const supplier = await prisma.supplier.findFirst({
       where: {
         id: input.id,
+        organizationId: context.org.id,
       },
       select: {
         id: true,

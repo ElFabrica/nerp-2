@@ -64,3 +64,16 @@ export function useUpdateMemberPermissions() {
     }),
   );
 }
+
+export function useUpdateMemberSupervisor() {
+  const invalidate = useInvalidateMembers();
+  return useMutation(
+    orpc.members.updateSupervisor.mutationOptions({
+      onSuccess: () => {
+        toast.success("Supervisor atualizado!");
+        invalidate();
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}

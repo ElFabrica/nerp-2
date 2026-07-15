@@ -24,6 +24,8 @@ export const listMembers = base
         email: z.string(),
         image: z.string().nullable(),
         createdAt: z.string(),
+        supervisorId: z.string().nullable(),
+        supervisorName: z.string().nullable(),
       }),
     ),
   )
@@ -33,6 +35,7 @@ export const listMembers = base
       orderBy: { createdAt: "asc" },
       include: {
         user: { select: { name: true, email: true, image: true } },
+        supervisor: { select: { user: { select: { name: true } } } },
       },
     });
 
@@ -45,5 +48,7 @@ export const listMembers = base
       email: m.user.email,
       image: m.user.image ?? null,
       createdAt: m.createdAt.toISOString(),
+      supervisorId: m.supervisorId ?? null,
+      supervisorName: m.supervisor?.user.name ?? null,
     }));
   });

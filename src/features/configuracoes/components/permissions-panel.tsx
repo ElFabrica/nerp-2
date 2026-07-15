@@ -11,17 +11,30 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useMembers,
   useUpdateMemberPermissions,
+  useUpdateMemberSupervisor,
 } from "@/features/members/hooks/use-members";
 import { PAGE_PERMISSIONS, roleLabel } from "@/lib/permissions";
 import { ShieldCheck, Users } from "lucide-react";
 
+// Radix Select não aceita value="", então "sem supervisor" precisa de sentinela.
+const NO_SUPERVISOR = "__none__";
+
 export function PermissionsPanel() {
   const { members, isLoading } = useMembers();
   const updatePerms = useUpdateMemberPermissions();
+
+  const updateSupervisor = useUpdateMemberSupervisor();
 
   const toggle = (
     memberId: string,
@@ -90,6 +103,43 @@ export function PermissionsPanel() {
                     <Badge variant={isAdminLike ? "default" : "outline"}>
                       {roleLabel(member.role)}
                     </Badge>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor={`${member.id}-supervisor`}
+                      className="text-xs font-medium text-muted-foreground"
+                    >
+                      Supervisor
+                    </label>
+                    <Select
+                      value={member.supervisorId ?? NO_SUPERVISOR}
+                      onValueChange={(value) =>
+                        updateSupervisor.mutate({
+                          memberId: member.id,
+                          supervisorId: value === NO_SUPERVISOR ? null : value,
+                        })
+                      }
+                    >
+                      <SelectTrigger
+                        id={`${member.id}-supervisor`}
+                        className="w-full sm:w-64"
+                      >
+                        <SelectValue placeholder="Sem supervisor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_SUPERVISOR}>
+                          Sem supervisor
+                        </SelectItem>
+                        {members
+                          .filter((option) => option.id !== member.id)
+                          .map((option) => (
+                            <SelectItem key={option.id} value={option.id}>
+                              {option.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {isAdminLike ? (

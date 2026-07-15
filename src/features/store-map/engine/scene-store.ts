@@ -3,7 +3,7 @@
 import type { MapAnnotationType } from "@/generated/prisma/enums";
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
-import { clamp, translateGeometry } from "./geometry";
+import { boundsOf, clamp, translateGeometry } from "./geometry";
 import type {
   EditorTool,
   FloorPlanMeta,
@@ -21,6 +21,9 @@ import type {
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 8;
 const HISTORY_LIMIT = 50;
+// Sobra ao redor do objeto focado (2 = o objeto ocupa metade da tela).
+const FOCUS_PADDING_RATIO = 2.5;
+const MIN_FOCUS_SPAN_M = 1;
 
 interface Snapshot {
   objects: Record<ObjectId, SceneObject>;
@@ -76,6 +79,7 @@ export interface SceneState {
   zoomAt: (screenPoint: Vec2, factor: number) => void;
   zoomByStep: (factor: number) => void;
   fitToPlan: () => void;
+  focusObject: (id: ObjectId) => void;
   setTool: (tool: EditorTool) => void;
   setActiveLayer: (layerId: string) => void;
   setSelection: (ids: ObjectId[]) => void;
@@ -233,6 +237,43 @@ export const useSceneStore = create<SceneState>((set, get) => ({
           zoom,
           x: (stageSize.width - contentWidth) / 2,
           y: (stageSize.height - contentHeight) / 2,
+        },
+      };
+    }),
+
+  focusObject: (id) =>
+    set((state) => {
+      const object = state.objects[id];
+      const { floorPlan, stageSize } = state;
+      if (!object || !floorPlan || stageSize.width === 0) {
+        return { selectedIds: [id] };
+      }
+
+      const bounds = boundsOf(object.geometry);
+      // POINT (e retângulos degenerados) não têm área: garante um enquadramento mínimo.
+      const widthM = Math.max(bounds.maxX - bounds.minX, MIN_FOCUS_SPAN_M);
+      const heightM = Math.max(bounds.maxY - bounds.minY, MIN_FOCUS_SPAN_M);
+      const ppm = floorPlan.pixelsPerMeter;
+
+      const zoom = clamp(
+        Math.min(
+          stageSize.width / (widthM * ppm * FOCUS_PADDING_RATIO),
+          stageSize.height / (heightM * ppm * FOCUS_PADDING_RATIO),
+        ),
+        MIN_ZOOM,
+        MAX_ZOOM,
+      );
+
+      const centerX = (bounds.minX + bounds.maxX) / 2;
+      const centerY = (bounds.minY + bounds.maxY) / 2;
+      const scale = zoom * ppm;
+
+      return {
+        selectedIds: [id],
+        viewport: {
+          zoom,
+          x: stageSize.width / 2 - centerX * scale,
+          y: stageSize.height / 2 - centerY * scale,
         },
       };
     }),

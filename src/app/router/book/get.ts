@@ -12,7 +12,10 @@ export const getBook = base
     const book = await prisma.book.findFirst({
       where: { id: input.id, organizationId: context.org.id },
       include: {
-        supplier: { select: { id: true, name: true } },
+        supplier: {
+          select: { id: true, name: true, logo: true, contactPerson: true },
+        },
+        organization: { select: { name: true, tradeName: true } },
         items: {
           orderBy: { order: "asc" },
           include: {
@@ -25,9 +28,10 @@ export const getBook = base
                 actionValue: true,
                 coordinatorName: true,
                 consultantName: true,
-                responsibleCompany: true,
+                photoLayout: true,
+                photoAdjustments: true,
                 capturedAt: true,
-                store: { select: { name: true, managerName: true } },
+                store: { select: { name: true } },
               },
             },
           },
@@ -44,16 +48,23 @@ export const getBook = base
       name: book.name,
       supplierId: book.supplierId,
       supplierName: book.supplier?.name ?? null,
+      supplierLogo: book.supplier?.logo ?? null,
+      supplierManager: book.supplier?.contactPerson ?? null,
+      organizationName: book.organization.tradeName ?? book.organization.name,
+      distributorLogo: book.distributorLogo,
       periodMonth: book.periodMonth,
       periodYear: book.periodYear,
       status: book.status,
       pdfKey: book.pdfKey,
+      coverLayout: book.coverLayout,
+      closingLayout: book.closingLayout,
+      coverBackground: book.coverBackground,
+      closingBackground: book.closingBackground,
       generatedAt: book.generatedAt?.toISOString() ?? null,
       items: book.items.map((item) => ({
         pdvPhotoId: item.pdvPhotoId,
         order: item.order,
         storeName: item.pdvPhoto.store.name,
-        storeManager: item.pdvPhoto.store.managerName,
         section: item.pdvPhoto.section,
         code: item.pdvPhoto.code,
         actionValue: item.pdvPhoto.actionValue
@@ -61,7 +72,11 @@ export const getBook = base
           : null,
         coordinatorName: item.pdvPhoto.coordinatorName,
         consultantName: item.pdvPhoto.consultantName,
-        responsibleCompany: item.pdvPhoto.responsibleCompany,
+        photoLayout: item.pdvPhoto.photoLayout,
+        photoAdjustments: item.pdvPhoto.photoAdjustments as Record<
+          string,
+          { zoom: number; posX: number; posY: number }
+        > | null,
         capturedAt: item.pdvPhoto.capturedAt.toISOString(),
         photos: item.pdvPhoto.photos,
       })),

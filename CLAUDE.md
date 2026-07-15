@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git
+
+- **NUNCA** faça `git commit` ou `git push` sem uma solicitação explícita do dev. Resolver conflitos, corrigir código ou finalizar uma tarefa NÃO é autorização para commitar — deixe as mudanças no working tree e informe que estão prontas para revisão.
+
 ## Commands
 
 ```bash
@@ -141,6 +145,6 @@ Client/events in `src/lib/inngest/client.ts`, functions array in `src/lib/innges
 
 ## Reference docs
 
-- `docs/TRADE_MARKETING.md` — the map/PDV/Book module: data model, the meters-based domain decoupled from the Konva renderer (`src/features/store-map/engine/`), roadmap M1–M9, conventions (§9), and known issues (§11, including a documented cross-tenant leak in `supplier/update.ts` and `supplier/delete.ts`).
+- `docs/TRADE_MARKETING.md` — the map/PDV/Book module: data model, the meters-based domain decoupled from the Konva renderer (`src/features/store-map/engine/`), roadmap M1–M9, conventions (§9), and known issues (§11 — note the cross-tenant leak it reports in `supplier/update.ts`/`delete.ts` was fixed in `90cd7d6`, so the doc is stale there).
 - `docs/catalogo-promocional/` — promotional catalog spec (paths partly stale).
 - `.agents/skills/` — vendored third-party skills (shadcn, vercel-react-best-practices, web-design-guidelines, context7).

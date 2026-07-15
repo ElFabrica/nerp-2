@@ -36,6 +36,7 @@ model User {
   createdPdvPhotos      PdvPhoto[]           @relation("CreatedPdvPhotos")
   createdBooks          Book[]               @relation("CreatedBooks")
   authoredAnnotations   MapAnnotation[]      @relation("AuthoredAnnotations")
+  editedMapObjects      MapObject[]          @relation("EditedMapObjects")
 
   @@index([email])
   @@map("user")
@@ -180,6 +181,7 @@ model Organization {
   brands                   Brand[]
   pdvPhotos                PdvPhoto[]
   books                    Book[]
+  bookCoverTemplate        BookCoverTemplate?
   mapAnnotations           MapAnnotation[]
 
   @@index([slug])
@@ -201,12 +203,17 @@ model Member {
   role           String       @default("member")
   permissions    String[]     @default([]) // chaves de páginas liberadas; owner/admin ignoram
   createdAt      DateTime     @default(now())
+  // Hierarquia de campo: supervisor do promotor (mesma organização)
+  supervisorId   String?
+  supervisor     Member?      @relation("MemberSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  supervisees    Member[]     @relation("MemberSupervisor")
 
   salesGoalEntries SalesGoalEntry[]
 
   @@unique([organizationId, userId])
   @@index([organizationId])
   @@index([userId])
+  @@index([supervisorId])
   @@map("member")
 }
 
@@ -498,7 +505,7 @@ model Customer {
   name            String
   personType      PersonType   @default(FISICA)
   document        String? // CPF ou CNPJ
-  email           String
+  email           String? // opcional; quando presente, é único por organização
   phone           String?
   // Endereço
   address         String?
@@ -1090,6 +1097,71 @@ model ProductImport {
   @@map("product_imports")
 }
 
+// ============================================
+// Importação de fornecedores via planilha (CSV/XLSX)
+// ============================================
+// Espelha ProductImport. O arquivo bruto vai pro S3 (`fileKey`); a função Inngest
+// `supplierImportProcess` lê este registro, baixa o arquivo, processa linha a linha
+// (pulando documentos já cadastrados) e atualiza os contadores/erros para a UI.
+
+enum SupplierImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model SupplierImport {
+  id             String               @id @default(cuid())
+  organizationId String
+  createdById    String
+  fileKey        String // chave do objeto no S3
+  fileName       String
+  mapping        Json // { campoFornecedor: nomeColunaArquivo }
+  status         SupplierImportStatus @default(PENDING)
+  totalRows      Int                  @default(0)
+  processedRows  Int                  @default(0)
+  createdRows    Int                  @default(0)
+  skippedRows    Int                  @default(0) // duplicados (mesmo documento) pulados
+  failedRows     Int                  @default(0)
+  errors         Json                 @default("[]") // [{ row, message }]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  completedAt    DateTime?
+
+  @@index([organizationId, status])
+  @@map("supplier_imports")
+}
+
+enum CustomerImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model CustomerImport {
+  id             String               @id @default(cuid())
+  organizationId String
+  createdById    String
+  fileKey        String // chave do objeto no S3
+  fileName       String
+  mapping        Json // { campoCliente: nomeColunaArquivo }
+  status         CustomerImportStatus @default(PENDING)
+  totalRows      Int                  @default(0)
+  processedRows  Int                  @default(0)
+  createdRows    Int                  @default(0)
+  skippedRows    Int                  @default(0) // duplicados (mesmo email) pulados
+  failedRows     Int                  @default(0)
+  errors         Json                 @default("[]") // [{ row, message }]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  completedAt    DateTime?
+
+  @@index([organizationId, status])
+  @@map("customer_imports")
+}
+
 model PromotionalCatalog {
   id             String   @id @default(cuid())
   organizationId String
@@ -1173,17 +1245,23 @@ model SalesGoalBranch {
 }
 
 model SalesGoalEntry {
-  id             String             @id @default(cuid())
-  branchId       String
-  externalCode   String
-  goalName       String
-  sellerName     String
-  entryKind      SalesGoalEntryKind @default(SELLER)
-  goalAmount     Decimal            @db.Decimal(15, 2)
-  achievedAmount Decimal?           @db.Decimal(15, 2) // manual; ignorado quando memberId presente (vendido vem de Sale)
-  memberId       String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id               String             @id @default(cuid())
+  branchId         String
+  externalCode     String
+  goalName         String
+  sellerName       String
+  entryKind        SalesGoalEntryKind @default(SELLER)
+  goalAmount       Decimal            @db.Decimal(15, 2)
+  achievedAmount   Decimal?           @db.Decimal(15, 2) // vendido manual; com memberId vinculado só vale se achievedIsManual
+  // Override: entry vinculada a um Member tem o vendido calculado das vendas,
+  // salvo quando o admin digita um valor à mão (vendas fora do NERP, outra
+  // empresa…). Sem a flag, valores manuais latentes de antes do vínculo
+  // voltariam a aparecer sozinhos.
+  achievedIsManual Boolean            @default(false)
+  photoUrl         String? // chave S3 da foto do participante; construída em URL no client
+  memberId         String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   branch SalesGoalBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
   member Member?         @relation(fields: [memberId], references: [id], onDelete: SetNull)
@@ -1253,6 +1331,15 @@ enum BookStatus {
   GENERATING
   READY
   FAILED
+}
+
+// Padrões de disposição das fotos de um PdvPhoto (2 ou 3 fotos).
+// null = grade automática (1 foto = tela cheia, 4 fotos = grade 2x2).
+enum PdvPhotoLayoutPattern {
+  PATTERN_1 // 3 fotos: 1 vertical à esquerda + 2 horizontais empilhadas à direita
+  PATTERN_2 // 3 fotos: 2 horizontais empilhadas à esquerda + 1 vertical à direita
+  PATTERN_3 // 2 fotos: 2 verticais lado a lado
+  PATTERN_4 // 2 fotos: 2 horizontais empilhadas
 }
 
 model Store {
@@ -1338,6 +1425,7 @@ model MapObject {
   category        String?
   responsibleName String?
   lastVisitAt     DateTime?
+  lastEditedById  String? // promotor que fez a última edição em campo (carimbado pelo servidor)
   properties      Json?
   supplierId      String? // Empresa/Indústria responsável
   brandId         String? // Marca
@@ -1348,6 +1436,7 @@ model MapObject {
   layer           MapLayer        @relation(fields: [layerId], references: [id], onDelete: Cascade)
   supplier        Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   brand           Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  lastEditedBy    User?           @relation("EditedMapObjects", fields: [lastEditedById], references: [id], onDelete: SetNull)
   pdvPhotos       PdvPhoto[]
   annotations     MapAnnotation[]
 
@@ -1356,6 +1445,7 @@ model MapObject {
   @@index([floorPlanId, layerId])
   @@index([supplierId])
   @@index([brandId])
+  @@index([lastEditedById])
   @@map("map_objects")
 }
 
@@ -1390,6 +1480,8 @@ model PdvPhoto {
   code               String? // Código
   actionValue        Decimal?     @db.Decimal(10, 2) // Valor da ação (R$)
   photos             String[] // chaves R2 das fotos
+  photoLayout        PdvPhotoLayoutPattern? // padrão de disposição das fotos (2 ou 3 fotos)
+  photoAdjustments   Json? // Record<chave R2, { zoom: number; posX: number; posY: number }> — enquadramento (pan/zoom) de cada foto dentro do slot fixo
   capturedAt         DateTime     @default(now())
   notes              String?      @db.Text
   createdById        String
@@ -1421,6 +1513,13 @@ model Book {
   status          BookStatus   @default(DRAFT)
   pdfKey          String? // PDF gerado (R2)
   generatedAt     DateTime?
+  // Layout livre (array de CoverElement) da capa/página final, editado no
+  // canvas Konva. null = usa o layout fixo legado em book-document.tsx.
+  coverLayout     Json?
+  closingLayout   Json?
+  // Fundo da página { color: string, opacity: number 0-1 }. null = branco opaco.
+  coverBackground   Json?
+  closingBackground Json?
   createdById     String
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -1432,6 +1531,23 @@ model Book {
   @@index([organizationId])
   @@index([supplierId])
   @@map("books")
+}
+
+// Layout de capa/página final marcado como padrão da organização — usado
+// pra pré-preencher o editor de books novos que ainda não têm coverLayout
+// próprio. 1 por organização (o botão "Tornar padrão" faz upsert aqui).
+model BookCoverTemplate {
+  id                String       @id @default(cuid())
+  organizationId    String       @unique
+  coverLayout       Json
+  closingLayout     Json
+  coverBackground   Json?
+  closingBackground Json?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("book_cover_templates")
 }
 
 model BookItem {
