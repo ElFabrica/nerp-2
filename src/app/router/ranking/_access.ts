@@ -1,26 +1,7 @@
 import { ORPCError } from "@orpc/server";
-import prisma from "@/lib/db";
+import { getMemberRole, isOrgAdmin } from "@/lib/org-access";
 
-const FULL_ACCESS_ROLES = new Set(["owner", "admin"]);
-
-export async function getMemberRole(
-  orgId: string,
-  userId: string,
-): Promise<string | null> {
-  const member = await prisma.member.findFirst({
-    where: { organizationId: orgId, userId },
-    select: { role: true },
-  });
-  return member?.role ?? null;
-}
-
-export async function isOrgAdmin(
-  orgId: string,
-  userId: string,
-): Promise<boolean> {
-  const role = await getMemberRole(orgId, userId);
-  return role !== null && FULL_ACCESS_ROLES.has(role);
-}
+export { getMemberRole, isOrgAdmin };
 
 export async function requireOrgAdmin(
   orgId: string,

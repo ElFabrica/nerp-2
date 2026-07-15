@@ -17,11 +17,13 @@ export const getCurrentMember = base
   })
   .input(z.object({}))
   .output(
-    z.object({
-      id: z.string(),
-      role: z.string(),
-      permissions: z.array(z.string()),
-    }).nullable(),
+    z
+      .object({
+        id: z.string(),
+        role: z.string(),
+        permissions: z.array(z.string()),
+      })
+      .nullable(),
   )
   .handler(async ({ context }) => {
     const member = await prisma.member.findFirst({

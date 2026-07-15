@@ -21,6 +21,7 @@ import { mapObjectRoutes } from "./map-object";
 import { mapAnnotationRoutes } from "./map-annotation";
 import { pdvPhotoRoutes } from "./pdv-photo";
 import { bookRoutes } from "./book";
+import { invitationRoutes } from "./invitation";
 
 export const router = {
   products: productsRoutes,
@@ -46,4 +47,5 @@ export const router = {
   mapAnnotation: mapAnnotationRoutes,
   pdvPhoto: pdvPhotoRoutes,
   book: bookRoutes,
+  invitation: invitationRoutes,
 };

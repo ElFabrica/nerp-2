@@ -12,32 +12,16 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
-import { orpc } from "@/lib/orpc";
-import { PAGE_PERMISSIONS } from "@/lib/permissions";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMembers,
+  useUpdateMemberPermissions,
+} from "@/features/members/hooks/use-members";
+import { PAGE_PERMISSIONS, roleLabel } from "@/lib/permissions";
 import { ShieldCheck, Users } from "lucide-react";
-import { toast } from "sonner";
 
 export function PermissionsPanel() {
-  const queryClient = useQueryClient();
-  const { data: members, isLoading } = useQuery(
-    orpc.members.list.queryOptions({ input: {} }),
-  );
-
-  const updatePerms = useMutation(
-    orpc.members.updatePermissions.mutationOptions({
-      onSuccess: () => {
-        toast.success("Permissões atualizadas!");
-        queryClient.invalidateQueries({
-          queryKey: orpc.members.list.key(),
-        });
-        queryClient.invalidateQueries({
-          queryKey: orpc.members.getCurrent.key(),
-        });
-      },
-      onError: (error) => toast.error(error.message),
-    }),
-  );
+  const { members, isLoading } = useMembers();
+  const updatePerms = useUpdateMemberPermissions();
 
   const toggle = (
     memberId: string,
@@ -66,7 +50,7 @@ export function PermissionsPanel() {
               <Skeleton key={i} className="h-20 w-full" />
             ))}
           </div>
-        ) : !members || members.length === 0 ? (
+        ) : members.length === 0 ? (
           <Empty>
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -98,18 +82,13 @@ export function PermissionsPanel() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium leading-tight">
-                        {member.name}
-                      </p>
+                      <p className="font-medium leading-tight">{member.name}</p>
                       <p className="truncate text-xs text-muted-foreground">
                         {member.email}
                       </p>
                     </div>
-                    <Badge
-                      variant={isAdminLike ? "default" : "outline"}
-                      className="capitalize"
-                    >
-                      {member.role}
+                    <Badge variant={isAdminLike ? "default" : "outline"}>
+                      {roleLabel(member.role)}
                     </Badge>
                   </div>
 
