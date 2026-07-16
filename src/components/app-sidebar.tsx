@@ -11,6 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSkeleton,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
@@ -56,7 +57,6 @@ import { orpc } from "@/lib/orpc";
 import { hasFullAccess } from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "./ui/skeleton";
-import { Spinner } from "./ui/spinner";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useEffect, useState } from "react";
 import type { ActiveOrganization } from "@/lib/auth-types";
@@ -66,7 +66,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "./ui/collapsible";
-import { ScrollArea } from "./ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -227,7 +226,9 @@ export function AppSidebar() {
   const visibleNavigation = navigation
     .map((item): NavItem | null => {
       const parentPermitted =
-        fullAccess || !item.permission || allowedPermissions.has(item.permission);
+        fullAccess ||
+        !item.permission ||
+        allowedPermissions.has(item.permission);
 
       if (!item.children) {
         return parentPermitted ? item : null;
@@ -251,101 +252,102 @@ export function AppSidebar() {
       <SidebarHeader>
         <OrgMenu />
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <SidebarGroup>
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
-            <ScrollArea className="flex-1">
-              {isMemberPending ? (
-                <div className="flex items-center justify-center py-6">
-                  <Spinner className="size-5 text-muted-foreground" />
-                </div>
-              ) : (
-                <SidebarMenu>
-                  {visibleNavigation.map((item) => {
-                    // const isActive = pathname === item.href;
-                    const hasChildren =
-                      item.children && item.children.length > 0;
+            {isMemberPending ? (
+              <SidebarMenu>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <SidebarMenuItem key={i}>
+                    <SidebarMenuSkeleton showIcon />
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            ) : (
+              <SidebarMenu>
+                {visibleNavigation.map((item) => {
+                  // const isActive = pathname === item.href;
+                  const hasChildren = item.children && item.children.length > 0;
 
-                    if (hasChildren) {
-                      return (
-                        <Collapsible
-                          key={item.name}
-                          asChild
-                          defaultOpen={
-                            pathname === item.href ||
-                            pathname.startsWith(item.href + "/") ||
-                            item.children?.some(
-                              (child) =>
-                                pathname === child.href ||
-                                pathname.startsWith(child.href + "/"),
-                            )
-                          }
-                        >
-                          <SidebarMenuItem>
-                            <CollapsibleTrigger asChild>
-                              <SidebarMenuButton tooltip={item.name}>
-                                {item.icon && (
-                                  <item.icon
-                                    onClick={() => {
-                                      router.push(item.href);
-                                      handleNavClick();
-                                    }}
-                                  />
-                                )}
-                                <span>{item.name}</span>
-                                <ChevronDown className="ml-auto transition-transform duration-200 data-[state=open]:rotate-180" />
-                              </SidebarMenuButton>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent>
-                              <SidebarMenuSub>
-                                {item.children?.map((child) => (
-                                  <SidebarMenuSubItem key={child.name}>
-                                    <SidebarMenuSubButton
-                                      asChild
-                                      className={cn(
-                                        pathname === child.href &&
-                                          "bg-sidebar-accent text-sidebar-accent-foreground",
-                                      )}
-                                    >
-                                      <Link
-                                        href={child.href}
-                                        onClick={handleNavClick}
-                                      >
-                                        <child.icon />
-                                        <span>{child.name}</span>
-                                      </Link>
-                                    </SidebarMenuSubButton>
-                                  </SidebarMenuSubItem>
-                                ))}
-                              </SidebarMenuSub>
-                            </CollapsibleContent>
-                          </SidebarMenuItem>
-                        </Collapsible>
-                      );
-                    }
-
+                  if (hasChildren) {
                     return (
-                      <SidebarMenuButton
+                      <Collapsible
                         key={item.name}
-                        tooltip={item.name}
-                        className={cn(
-                          (pathname === item.href ||
-                            pathname.startsWith(item.href + "/")) &&
-                            "bg-sidebar-accent text-sidebar-accent-foreground",
-                        )}
                         asChild
+                        defaultOpen={
+                          pathname === item.href ||
+                          pathname.startsWith(item.href + "/") ||
+                          item.children?.some(
+                            (child) =>
+                              pathname === child.href ||
+                              pathname.startsWith(child.href + "/"),
+                          )
+                        }
                       >
-                        <Link href={item.href} onClick={handleNavClick}>
-                          {item.icon && <item.icon />}
-                          <span>{item.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
+                        <SidebarMenuItem>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton tooltip={item.name}>
+                              {item.icon && (
+                                <item.icon
+                                  onClick={() => {
+                                    router.push(item.href);
+                                    handleNavClick();
+                                  }}
+                                />
+                              )}
+                              <span>{item.name}</span>
+                              <ChevronDown className="ml-auto transition-transform duration-200 data-[state=open]:rotate-180" />
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <SidebarMenuSub>
+                              {item.children?.map((child) => (
+                                <SidebarMenuSubItem key={child.name}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    className={cn(
+                                      pathname === child.href &&
+                                        "bg-sidebar-accent text-sidebar-accent-foreground",
+                                    )}
+                                  >
+                                    <Link
+                                      href={child.href}
+                                      onClick={handleNavClick}
+                                    >
+                                      <child.icon />
+                                      <span>{child.name}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </SidebarMenuItem>
+                      </Collapsible>
                     );
-                  })}
-                </SidebarMenu>
-              )}
-            </ScrollArea>
+                  }
+
+                  return (
+                    <SidebarMenuButton
+                      key={item.name}
+                      tooltip={item.name}
+                      className={cn(
+                        (pathname === item.href ||
+                          pathname.startsWith(item.href + "/")) &&
+                          "bg-sidebar-accent text-sidebar-accent-foreground",
+                      )}
+                      asChild
+                    >
+                      <Link href={item.href} onClick={handleNavClick}>
+                        {item.icon && <item.icon />}
+                        <span>{item.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  );
+                })}
+              </SidebarMenu>
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
@@ -463,6 +465,7 @@ function OrgMenu() {
   const { isMobile } = useSidebar();
   const [organizationActive, setOrganizationActive] =
     useState<ActiveOrganization | null>();
+  const [isLoadingOrg, setIsLoadingOrg] = useState(true);
   const { data: organizations } = authClient.useListOrganizations();
   const router = useRouter();
 
@@ -488,10 +491,14 @@ function OrgMenu() {
 
   useEffect(() => {
     const getCurrentOrg = async () => {
-      const { data, error } =
-        await authClient.organization.getFullOrganization();
-      if (!error && data) {
-        setOrganizationActive(data);
+      try {
+        const { data, error } =
+          await authClient.organization.getFullOrganization();
+        if (!error && data) {
+          setOrganizationActive(data);
+        }
+      } finally {
+        setIsLoadingOrg(false);
       }
     };
     getCurrentOrg();
@@ -506,7 +513,9 @@ function OrgMenu() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
             >
-              {organizationActive?.logo ? (
+              {isLoadingOrg ? (
+                <Skeleton className="size-8 aspect-square rounded-lg" />
+              ) : organizationActive?.logo ? (
                 <Image
                   src={organizationActive.logo}
                   width={32}
@@ -520,7 +529,9 @@ function OrgMenu() {
                 </div>
               )}
               <div className="grid flex-1 text-left text-sm leading-tight">
-                {organizationActive?.name ? (
+                {isLoadingOrg ? (
+                  <Skeleton className="h-4 w-24" />
+                ) : organizationActive?.name ? (
                   <span className="truncate font-medium">
                     {organizationActive.name}
                   </span>
