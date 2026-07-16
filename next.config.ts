@@ -5,6 +5,17 @@ const s3BucketHostname =
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // O konva puxa um build Node (`index-node.js`) que faz `require('canvas')`
+  // (canvas nativo, só usado em render server-side, que não fazemos — o editor
+  // é `ssr: false`). Sem o pacote instalado, o build de produção falha ao
+  // resolver 'canvas'; apontamos para `false` para o webpack ignorá-lo.
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      canvas: false,
+    };
+    return config;
+  },
   images: {
     remotePatterns: [
       {

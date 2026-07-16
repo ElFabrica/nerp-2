@@ -20,7 +20,8 @@ export function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/cadastro") ||
-    pathname.startsWith("/auth")
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/accept-invitation")
   ) {
     return NextResponse.next();
   }
@@ -40,6 +41,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/configurações") ||
     pathname.startsWith("/registrar-pedido") ||
     pathname.startsWith("/pedido-cliente") ||
+    pathname.startsWith("/ranking-publico") ||
     pathname.startsWith("/pedidos") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/colaboradores")

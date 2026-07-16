@@ -31,11 +31,47 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { ViewSupplier } from "./view-supplier";
 import { EditSupplier } from "./edit-supplier";
 import { DeleteSupplier } from "./delete-supplier";
+import { useDebouncedValue } from "@/utils/use-debouced";
+import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 10;
+
+/** Gera os itens de paginação com reticências para muitas páginas. */
+function getPageItems(
+  current: number,
+  total: number,
+): (number | "ellipsis")[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = new Set([1, total, current, current - 1, current + 1]);
+  const sorted = [...pages]
+    .filter((p) => p >= 1 && p <= total)
+    .sort((a, b) => a - b);
+
+  const items: (number | "ellipsis")[] = [];
+  let prev = 0;
+  for (const p of sorted) {
+    if (p - prev > 1) items.push("ellipsis");
+    items.push(p);
+    prev = p;
+  }
+  return items;
+}
 
 export function ListSuppliers() {
   const [supplierId, setSupplierId] = useState("");
@@ -43,7 +79,19 @@ export function ListSuppliers() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
 
-  const { suppliers, isLoading } = useSupplier();
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(search, 400);
+
+  const { suppliers, isLoading, totalCount, totalPages } = useSupplier({
+    search: debouncedSearch || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+
+  const pageItems = getPageItems(page, totalPages);
+  const from = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(page * PAGE_SIZE, totalCount);
 
   return (
     <>
@@ -54,7 +102,14 @@ export function ListSuppliers() {
               <InputGroupAddon>
                 <SearchIcon />
               </InputGroupAddon>
-              <InputGroupInput placeholder="Buscar fornecedor..." />
+              <InputGroupInput
+                placeholder="Buscar por nome, documento ou e-mail..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+              />
             </InputGroup>
           </div>
         </CardHeader>
@@ -190,6 +245,63 @@ export function ListSuppliers() {
               </TableBody>
             </Table>
           </div>
+
+          {!isLoading && totalCount > 0 && (
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {from}–{to} de {totalCount} fornecedor(es)
+              </p>
+
+              {totalPages > 1 && (
+                <Pagination className="mx-0 w-auto justify-end">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        className={cn(
+                          "cursor-pointer select-none",
+                          page <= 1 && "pointer-events-none opacity-50",
+                        )}
+                        aria-disabled={page <= 1}
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      />
+                    </PaginationItem>
+
+                    {pageItems.map((item, i) =>
+                      item === "ellipsis" ? (
+                        <PaginationItem key={`e-${i}`}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      ) : (
+                        <PaginationItem key={item}>
+                          <PaginationLink
+                            className="cursor-pointer select-none"
+                            isActive={item === page}
+                            onClick={() => setPage(item)}
+                          >
+                            {item}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ),
+                    )}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        className={cn(
+                          "cursor-pointer select-none",
+                          page >= totalPages &&
+                            "pointer-events-none opacity-50",
+                        )}
+                        aria-disabled={page >= totalPages}
+                        onClick={() =>
+                          setPage((p) => Math.min(totalPages, p + 1))
+                        }
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

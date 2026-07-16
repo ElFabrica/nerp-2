@@ -19,7 +19,7 @@ import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import {
-  Collaborator,
+  type Collaborator,
   useMutationCreateCollaborator,
   useMutationUpdateCollaborator,
 } from "../hooks/use-collaborators";
@@ -36,9 +36,15 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   collaborator?: Collaborator | null;
+  defaultName?: string;
 }
 
-export function CollaboratorForm({ open, onOpenChange, collaborator }: Props) {
+export function CollaboratorForm({
+  open,
+  onOpenChange,
+  collaborator,
+  defaultName,
+}: Props) {
   const create = useMutationCreateCollaborator();
   const update = useMutationUpdateCollaborator();
   const isEdit = Boolean(collaborator);
@@ -52,12 +58,12 @@ export function CollaboratorForm({ open, onOpenChange, collaborator }: Props) {
   useEffect(() => {
     if (open) {
       form.reset({
-        name: collaborator?.name ?? "",
+        name: collaborator?.name ?? defaultName ?? "",
         role: collaborator?.role ?? "",
         photoUrl: collaborator?.photoUrl ?? "",
       });
     }
-  }, [open, collaborator, form]);
+  }, [open, collaborator, defaultName, form]);
 
   const onSubmit = (data: FormValues) => {
     const payload = {

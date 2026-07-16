@@ -45,7 +45,7 @@ const editCustomerSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres").optional(),
   document: z.string().optional(),
   phone: z.string().optional(),
-  email: z.email("Email inválido").optional(),
+  email: z.email("Email inválido").or(z.literal("")).optional(),
   type: z.enum(["FISICA", "JURIDICA"]),
   city: z.string().optional(),
   state: z.string().optional(),

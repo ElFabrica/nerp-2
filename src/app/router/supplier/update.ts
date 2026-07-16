@@ -1,11 +1,13 @@
 import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { Supplier } from "@/generated/prisma/client";
 import prisma from "@/lib/db";
 import { z } from "zod";
 
 export const updateSupplier = base
   .use(requireAuthMiddleware)
+  .use(requireOrgMiddleware)
   .input(
     z.object({
       id: z.string(),
@@ -29,9 +31,9 @@ export const updateSupplier = base
       supplier: z.custom<Supplier>(),
     })
   )
-  .handler(async ({ input, errors }) => {
-    const supplier = await prisma.supplier.findUnique({
-      where: { id: input.id },
+  .handler(async ({ input, context, errors }) => {
+    const supplier = await prisma.supplier.findFirst({
+      where: { id: input.id, organizationId: context.org.id },
     });
 
     if (!supplier) {

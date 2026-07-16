@@ -74,6 +74,10 @@ export function RegisterForm({
         onSuccess: () => {
           toast.success("Conta criada com sucesso");
           router.push(successPath);
+          // Invalida o Router Cache para o destino (ex.: /accept-invitation)
+          // rerenderizar já com a sessão nova, senão o fluxo de convite reexibe
+          // a tela deslogada em cache.
+          router.refresh();
         },
         onError: () => {
           toast.error("Erro ao criar conta");

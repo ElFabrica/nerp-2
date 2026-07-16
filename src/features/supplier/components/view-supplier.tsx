@@ -10,8 +10,9 @@ import {
 import { useQuerySupplier } from "../hooks/use-supplier";
 import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { BrandsManager } from "@/features/brands/components/brands-manager";
 import {
-  BuildingIcon,
   FileTextIcon,
   MailIcon,
   MapPinIcon,
@@ -128,6 +129,10 @@ export const ViewSupplier = ({ id, open, onOpenChange }: ViewSupplierProps) => {
                 <p className="text-muted-foreground">{supplier.notes}</p>
               </div>
             )}
+
+            <Separator />
+
+            <BrandsManager supplierId={id} />
           </div>
         )}
       </DialogContent>

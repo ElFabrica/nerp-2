@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { parseBrlAmount as parseBrlAmountString } from "./parse-brl-amount";
 
 // Parser heurístico da planilha de metas do Winthor: estrutura hierárquica
 // (bloco de filial → linhas de vendedor → linha de total), sem cabeçalho de
@@ -58,13 +59,7 @@ const MONTH_NAMES_PT: Record<string, number> = {
 };
 
 function parseBrlAmount(raw: unknown): number | null {
-  const str = String(raw ?? "").trim();
-  if (!str) return null;
-  const cleaned = str.replace(/[^\d,.-]/g, "");
-  if (!cleaned) return null;
-  const normalized = cleaned.replace(/\./g, "").replace(",", ".");
-  const value = parseFloat(normalized);
-  return Number.isFinite(value) ? value : null;
+  return parseBrlAmountString(String(raw ?? ""));
 }
 
 function formatBrl(value: number): string {

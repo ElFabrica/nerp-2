@@ -1,9 +1,11 @@
 import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { PersonType } from "@/generated/prisma/client";
+import { PersonType, Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/db";
 import z from "zod";
+
+const DEFAULT_PAGE_SIZE = 10;
 
 export const listSupplier = base
   .use(requireAuthMiddleware)
@@ -11,6 +13,9 @@ export const listSupplier = base
   .input(
     z.object({
       personType: z.enum(PersonType).optional(),
+      search: z.string().optional(),
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(1).max(100).default(DEFAULT_PAGE_SIZE),
     }),
   )
   .output(
@@ -31,36 +36,58 @@ export const listSupplier = base
           logo: z.string().nullable(),
         }),
       ),
+      totalCount: z.number(),
+      page: z.number(),
+      pageSize: z.number(),
+      totalPages: z.number(),
     }),
   )
   .handler(async ({ context, input }) => {
-    const suppliers = await prisma.supplier.findMany({
-      where: {
-        organizationId: context.org.id,
-        personType: {
-          equals: input.personType,
+    const { page, pageSize } = input;
+    const search = input.search?.trim();
+
+    const where: Prisma.SupplierWhereInput = {
+      organizationId: context.org.id,
+      ...(input.personType && { personType: input.personType }),
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { tradeName: { contains: search, mode: "insensitive" } },
+          { document: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ],
+      }),
+    };
+
+    const [suppliers, totalCount] = await Promise.all([
+      prisma.supplier.findMany({
+        where,
+        orderBy: { name: "asc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          name: true,
+          tradeName: true,
+          document: true,
+          personType: true,
+          phone: true,
+          email: true,
+          contactPerson: true,
+          city: true,
+          state: true,
+          isActive: true,
+          logo: true,
         },
-      },
-      orderBy: {
-        name: "asc",
-      },
-      select: {
-        id: true,
-        name: true,
-        tradeName: true,
-        document: true,
-        personType: true,
-        phone: true,
-        email: true,
-        contactPerson: true,
-        city: true,
-        state: true,
-        isActive: true,
-        logo: true,
-      },
-    });
+      }),
+      prisma.supplier.count({ where }),
+    ]);
 
     return {
       suppliers,
+      totalCount,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(totalCount / pageSize)),
     };
   });
