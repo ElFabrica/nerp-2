@@ -31,12 +31,21 @@ export function useCreateInvitation() {
   const invalidate = useInvalidateInvitations();
   return useMutation(
     orpc.invitation.create.mutationOptions({
-      onSuccess: () => {
-        toast.success("Convite enviado!");
+      // O lote é parcial por natureza: reporta os dois lados em vez de
+      // declarar sucesso quando parte falhou.
+      onSuccess: ({ sent, failed }) => {
+        if (sent.length) {
+          toast.success(
+            sent.length === 1
+              ? `Convite enviado para ${sent[0]}`
+              : `${sent.length} convites enviados`,
+          );
+        }
+        for (const { email, reason } of failed) {
+          toast.error(`${email}: ${reason}`);
+        }
         invalidate();
       },
-      // O convite pode ter sido criado e só o e-mail ter falhado — revalida
-      // para ele aparecer como pendente e permitir o reenvio.
       onError: (error) => {
         toast.error(error.message);
         invalidate();

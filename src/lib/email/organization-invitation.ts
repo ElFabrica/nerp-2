@@ -1,6 +1,6 @@
 import "server-only";
 
-import { ORGANIZATION_FROM, getResend } from "./client";
+import { getResend, organizationFrom } from "./client";
 
 interface OrganizationInvitationEmail {
   to: string;
@@ -10,6 +10,12 @@ interface OrganizationInvitationEmail {
   roleLabel: string;
   inviteLink: string;
   expiresAt: Date;
+  /**
+   * Padrão `<evento>/<id>` recomendado pelo Resend. Vale por 24h: um retry com
+   * a mesma chave não dispara outro e-mail. Só use onde reenviar é acidente
+   * (duplo-clique); o reenvio manual precisa sair sem chave.
+   */
+  idempotencyKey?: string;
 }
 
 // Mesma origem usada pelo Better Auth: o cookie de sessão é host-only, então o
@@ -46,7 +52,7 @@ function buildHtml({
   roleLabel,
   inviteLink,
   expiresAt,
-}: Omit<OrganizationInvitationEmail, "to">): string {
+}: Omit<OrganizationInvitationEmail, "to" | "idempotencyKey">): string {
   const org = escapeHtml(organizationName);
   const inviter = escapeHtml(inviterName);
   const email = escapeHtml(inviterEmail);
@@ -103,21 +109,25 @@ function buildHtml({
 
 export async function sendOrganizationInvitation({
   to,
+  idempotencyKey,
   ...content
 }: OrganizationInvitationEmail): Promise<void> {
-  const { error } = await getResend().emails.send({
-    from: ORGANIZATION_FROM,
-    to,
-    subject: `${content.inviterName} convidou você para ${content.organizationName}`,
-    html: buildHtml(content),
-    text: [
-      `${content.inviterName} (${content.inviterEmail}) convidou você para participar da organização ${content.organizationName} como ${content.roleLabel}.`,
-      "",
-      `Aceitar convite: ${content.inviteLink}`,
-      "",
-      `Este convite expira em ${formatExpiry(content.expiresAt)}.`,
-    ].join("\n"),
-  });
+  const { error } = await getResend().emails.send(
+    {
+      from: organizationFrom(),
+      to,
+      subject: `${content.inviterName} convidou você para ${content.organizationName}`,
+      html: buildHtml(content),
+      text: [
+        `${content.inviterName} (${content.inviterEmail}) convidou você para participar da organização ${content.organizationName} como ${content.roleLabel}.`,
+        "",
+        `Aceitar convite: ${content.inviteLink}`,
+        "",
+        `Este convite expira em ${formatExpiry(content.expiresAt)}.`,
+      ].join("\n"),
+    },
+    idempotencyKey ? { idempotencyKey } : undefined,
+  );
 
   // O SDK do Resend devolve erro no payload em vez de lançar.
   if (error) {

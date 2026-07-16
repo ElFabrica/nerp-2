@@ -17,6 +17,7 @@ import {
   useInvitation,
   useRejectInvitation,
 } from "@/features/invitations/hooks/use-invitations";
+import { authClient } from "@/lib/auth-client";
 import { roleLabel } from "@/lib/permissions";
 import { Building2, MailX } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +25,7 @@ import { useRouter } from "next/navigation";
 
 interface AcceptInvitationCardProps {
   invitationId: string;
+  // Sessão vista pelo servidor no primeiro render; usada só como valor inicial.
   currentUserEmail: string | null;
 }
 
@@ -65,7 +67,19 @@ export function AcceptInvitationCard({
   const acceptInvitation = useAcceptInvitation();
   const rejectInvitation = useRejectInvitation();
 
-  if (isLoading) {
+  // Fonte da verdade da sessão é o cliente: ao voltar do login o Router Cache
+  // pode reexibir o render deslogado do servidor, mas useSession refaz a busca
+  // a cada montagem e reflete o login novo. A prop do servidor é só o inicial.
+  const { data: session, isPending: sessionPending } = authClient.useSession();
+  const sessionEmail = session?.user?.email ?? null;
+  // Enquanto a sessão do cliente carrega, confia no que o servidor mandou.
+  const activeEmail = sessionPending ? currentUserEmail : sessionEmail;
+
+  // Se o servidor não viu sessão (pode ser cache velho pós-login), espera a
+  // sessão do cliente resolver antes de decidir — evita piscar a tela de login.
+  const waitingForSession = sessionPending && !currentUserEmail;
+
+  if (isLoading || waitingForSession) {
     return (
       <Card className="w-full max-w-md">
         <CardHeader className="gap-3">
@@ -152,7 +166,7 @@ export function AcceptInvitationCard({
     </CardHeader>
   );
 
-  if (!currentUserEmail) {
+  if (!activeEmail) {
     return (
       <Card className="w-full max-w-md">
         {header}
@@ -181,14 +195,14 @@ export function AcceptInvitationCard({
     );
   }
 
-  if (currentUserEmail.toLowerCase() !== invitation.email.toLowerCase()) {
+  if (activeEmail.toLowerCase() !== invitation.email.toLowerCase()) {
     return (
       <Card className="w-full max-w-md">
         {header}
         <CardContent>
           <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
             Este convite é para <strong>{invitation.email}</strong>, mas você
-            está conectado como <strong>{currentUserEmail}</strong>. Entre com a
+            está conectado como <strong>{activeEmail}</strong>. Entre com a
             conta correta para aceitar.
           </p>
         </CardContent>

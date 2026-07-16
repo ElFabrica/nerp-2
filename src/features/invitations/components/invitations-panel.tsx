@@ -26,8 +26,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { roleLabel } from "@/lib/permissions";
 import dayjs from "dayjs";
-import { MailPlus, MoreVertical, RotateCw, Send, X } from "lucide-react";
+import { Link2, MailPlus, MoreVertical, RotateCw, Send, X } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   useCancelInvitation,
   useInvitations,
@@ -42,6 +43,20 @@ export function InvitationsPanel({ canManage }: { canManage: boolean }) {
   const [actingId, setActingId] = useState<string | null>(null);
 
   const isBusy = cancelInvitation.isPending || resendInvitation.isPending;
+
+  // A Clipboard API exige contexto seguro e pode ser negada por permissão —
+  // nesse caso mostramos o link para o admin copiar na mão.
+  const copyInviteLink = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Link do convite copiado!");
+    } catch {
+      toast.error("Não foi possível copiar. Link:", {
+        description: link,
+        duration: 15000,
+      });
+    }
+  };
 
   return (
     <Card>
@@ -124,6 +139,12 @@ export function InvitationsPanel({ canManage }: { canManage: boolean }) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => copyInviteLink(invitation.inviteLink)}
+                      >
+                        <Link2 />
+                        Copiar link do convite
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => {
                           setActingId(invitation.id);

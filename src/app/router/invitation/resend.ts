@@ -77,6 +77,8 @@ export const resendInvitation = base
     }
 
     try {
+      // Sem idempotencyKey: reenviar é a intenção explícita do admin — uma
+      // chave faria o segundo pedido dentro de 24h virar no-op silencioso.
       await sendOrganizationInvitation({
         to: invitation.email,
         organizationName: context.org.name,

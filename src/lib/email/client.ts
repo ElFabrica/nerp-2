@@ -2,8 +2,14 @@ import "server-only";
 
 import { Resend } from "resend";
 
-// Remetente verificado no Resend para os e-mails transacionais da organização.
-export const ORGANIZATION_FROM = "NASA <nasa@notifications.nasaex.com>";
+const FALLBACK_FROM = "nasa@notifications.nasaex.com";
+
+// Remetente dos e-mails transacionais da organização; precisa ser um endereço
+// de domínio verificado no Resend. Lido em runtime para não congelar o valor
+// no bundle de build.
+export function organizationFrom(): string {
+  return `NASA <${process.env.BETTER_AUTH_EMAIL ?? FALLBACK_FROM}>`;
+}
 
 let client: Resend | null = null;
 

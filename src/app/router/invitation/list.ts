@@ -2,6 +2,7 @@ import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/db";
+import { buildInvitationLink } from "@/lib/email/organization-invitation";
 import { isOrgAdmin } from "@/lib/org-access";
 import z from "zod";
 
@@ -26,6 +27,10 @@ export const listInvitations = base
         createdAt: z.string(),
         isExpired: z.boolean(),
         inviterName: z.string(),
+        // Montado no servidor: o link precisa apontar para a mesma origem do
+        // e-mail (o cookie de sessão é host-only), e não para o subdomínio em
+        // que o admin por acaso está navegando.
+        inviteLink: z.string(),
       }),
     ),
   )
@@ -58,5 +63,6 @@ export const listInvitations = base
       isExpired:
         invitation.status === "pending" && invitation.expiresAt.getTime() < now,
       inviterName: invitation.user.name,
+      inviteLink: buildInvitationLink(invitation.id),
     }));
   });
