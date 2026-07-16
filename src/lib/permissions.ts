@@ -82,6 +82,47 @@ export type PagePermissionKey = (typeof PAGE_PERMISSIONS)[number]["key"];
 
 export const PAGE_PERMISSION_KEYS = PAGE_PERMISSIONS.map((p) => p.key);
 
+// Cargos oferecidos ao convidar/alterar um membro. "owner" existe no plugin
+// organization mas fica de fora: virar dono é transferência, não convite.
+export const INVITABLE_ROLE_VALUES = ["admin", "member"] as const;
+
+export type InvitableRole = (typeof INVITABLE_ROLE_VALUES)[number];
+
+export const INVITABLE_ROLES: {
+  value: InvitableRole;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "admin",
+    label: "Administrador",
+    description: "Vê todas as páginas e gerencia membros e convites.",
+  },
+  {
+    value: "member",
+    label: "Membro",
+    description: "Vê apenas as páginas liberadas nas permissões.",
+  },
+];
+
+// `role` chega do banco como string livre; estreita para um cargo convidável.
+export function toInvitableRole(
+  role: string | null | undefined,
+): InvitableRole {
+  return INVITABLE_ROLE_VALUES.find((value) => value === role) ?? "member";
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Dono",
+  admin: "Administrador",
+  member: "Membro",
+};
+
+export function roleLabel(role: string | null | undefined): string {
+  if (!role) return ROLE_LABELS.member;
+  return ROLE_LABELS[role] ?? role;
+}
+
 // Roles do plugin organization do Better Auth que sempre veem tudo.
 const ROLES_WITH_FULL_ACCESS = new Set(["owner", "admin"]);
 

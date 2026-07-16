@@ -25,6 +25,7 @@ import { spaceNegotiationRoutes } from "./space-negotiation";
 import { mediaTypeRoutes } from "./trade-catalog/media-type";
 import { negotiationTypeRoutes } from "./trade-catalog/negotiation-type";
 import { storeSectorRoutes } from "./trade-catalog/store-sector";
+import { invitationRoutes } from "./invitation";
 
 export const router = {
   products: productsRoutes,
@@ -54,4 +55,5 @@ export const router = {
   mediaType: mediaTypeRoutes,
   negotiationType: negotiationTypeRoutes,
   storeSector: storeSectorRoutes,
+  invitation: invitationRoutes,
 };

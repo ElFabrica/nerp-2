@@ -93,6 +93,10 @@ export const auth = betterAuth({
   },
   plugins: [
     organization({
+      // O envio do convite NÃO fica aqui: o Better Auth executa
+      // `sendInvitationEmail` como background task e engole exceções, o que
+      // faria um convite sem e-mail parecer sucesso. Quem envia é o handler
+      // `router/invitation/create.ts`, que consegue reportar a falha ao admin.
       organizationHooks: {
         afterCreateOrganization: async ({ organization, member }) => {
           await prisma.organization.update({
@@ -166,6 +170,21 @@ export const auth = betterAuth({
             role: member.role,
             createdAt: new Date(member.createdAt).toISOString(),
           });
+        },
+        // `permissions` é campo nosso no Invitation, fora do tipo do plugin —
+        // por isso relemos do banco em vez de usar o objeto do hook.
+        afterAcceptInvitation: async ({ invitation, member }) => {
+          const record = await prisma.invitation.findUnique({
+            where: { id: invitation.id },
+            select: { permissions: true },
+          });
+
+          if (record?.permissions.length) {
+            await prisma.member.update({
+              where: { id: member.id },
+              data: { permissions: record.permissions },
+            });
+          }
         },
       },
     }),

@@ -20,7 +20,8 @@ export function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/cadastro") ||
-    pathname.startsWith("/auth")
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/accept-invitation")
   ) {
     return NextResponse.next();
   }

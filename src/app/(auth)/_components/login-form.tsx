@@ -65,6 +65,10 @@ export function LoginForm({
         onSuccess: () => {
           toast.success("Login realizado com sucesso");
           router.push(redirectTo);
+          // Invalida o Router Cache: o destino (ex.: /accept-invitation) é um
+          // Server Component que lê a sessão; sem isto o Next reexibe a versão
+          // deslogada em cache e o fluxo de convite trava.
+          router.refresh();
         },
         onError: () => {
           toast.error("Erro ao realizar login");
@@ -77,7 +81,9 @@ export function LoginForm({
     await authClient.signIn.social({
       provider: "google",
       callbackURL: redirectTo,
-      newUserCallbackURL: "/create-organization",
+      // Um usuário novo do Google vindo de um convite deve voltar ao convite,
+      // não cair na criação de organização. Usa o param cru (sem o default).
+      newUserCallbackURL: rawRedirect ?? "/create-organization",
     });
   };
 
