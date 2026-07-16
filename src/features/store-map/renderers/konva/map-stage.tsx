@@ -14,11 +14,16 @@ import {
   useUpdateAnnotation,
 } from "../../hooks/use-map-annotations";
 import { AnnotationEditor } from "../../components/annotation-editor";
+import { SpaceActionMenu } from "../../components/space-action-menu";
 import { AnnotationLayer } from "./annotation-layer";
 import { MapBackground } from "./map-background";
 import { MapGrid } from "./map-grid";
 import { MapRulers } from "./map-rulers";
 import { MapShape } from "./shape-node";
+
+const LABEL_MIN_PX = 9;
+const DEFAULT_LABEL_FONT_M = 0.4;
+const HOVER_HIDE_MS = 200;
 
 interface DraftRect {
   x: number;
@@ -74,7 +79,21 @@ export function MapStage() {
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(
     null,
   );
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fittedPlanId = useRef<string | null>(null);
+
+  const keepHoverAlive = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  };
+  const showHover = (id: string) => {
+    keepHoverAlive();
+    setHoveredId(id);
+  };
+  const scheduleHoverHide = () => {
+    keepHoverAlive();
+    hideTimer.current = setTimeout(() => setHoveredId(null), HOVER_HIDE_MS);
+  };
 
   const annotations = useMapAnnotations(floorPlan?.id);
   const createAnnotation = useCreateAnnotation();
@@ -82,6 +101,7 @@ export function MapStage() {
 
   const ppm = floorPlan?.pixelsPerMeter ?? 50;
   const scale = viewport.zoom * ppm;
+  const showLabels = DEFAULT_LABEL_FONT_M * scale >= LABEL_MIN_PX;
 
   const editingAnnotation =
     annotations.find((item) => item.id === editingAnnotationId) ?? null;
@@ -326,6 +346,9 @@ export function MapStage() {
                 draggable={
                   tool === "SELECT" && !layerById.get(object.layerId)?.locked
                 }
+                showLabel={showLabels}
+                onHoverStart={tool === "SELECT" ? showHover : undefined}
+                onHoverEnd={tool === "SELECT" ? scheduleHoverHide : undefined}
               />
             ))}
             {draft && (
@@ -434,6 +457,16 @@ export function MapStage() {
         annotation={editingAnnotation}
         onClose={() => setEditingAnnotationId(null)}
       />
+
+      {floorPlan && tool === "SELECT" && (
+        <SpaceActionMenu
+          hoveredId={hoveredId}
+          floorPlanId={floorPlan.id}
+          isAdmin
+          onKeepAlive={keepHoverAlive}
+          onScheduleHide={scheduleHoverHide}
+        />
+      )}
     </div>
   );
 }

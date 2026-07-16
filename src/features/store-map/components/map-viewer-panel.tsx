@@ -8,6 +8,7 @@ import { useSupplier } from "@/features/supplier/hooks/use-supplier";
 import { UserCog } from "lucide-react";
 import { readNegotiation } from "../engine/negotiation";
 import { useSceneStore } from "../engine/scene-store";
+import { NEGOTIABLE_TYPES, SPACE_STATE_META } from "../engine/space-state";
 import type { MapObjectType } from "../engine/types";
 import { useMapObjectAudit } from "../hooks/use-map-object-audit";
 
@@ -92,6 +93,9 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
   const end = formatDate(negotiation.negotiationEnd);
   const period = start && end ? `${start} a ${end}` : (start ?? end);
 
+  const isNegotiable = NEGOTIABLE_TYPES.has(object.type);
+  const stateMeta = SPACE_STATE_META[object.spaceState];
+
   return (
     <div className="space-y-4 p-4">
       <div className="flex items-start justify-between gap-2">
@@ -103,11 +107,25 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
             <p className="text-xs text-muted-foreground">{storeName}</p>
           )}
         </div>
-        <Badge variant="secondary">{TYPE_LABELS[object.type]}</Badge>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <Badge variant="secondary">{TYPE_LABELS[object.type]}</Badge>
+          {isNegotiable && (
+            <span
+              className="rounded-full px-2 py-0.5 text-xs font-semibold"
+              style={{
+                backgroundColor: stateMeta.fill,
+                color: stateMeta.stroke,
+              }}
+            >
+              {stateMeta.dot} {stateMeta.label}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2 rounded-md border p-3">
         <InfoRow label="Elemento" value={object.name} />
+        <InfoRow label="ID do espaço" value={object.spaceCode} />
         <InfoRow label="Localização" value={negotiation.location} />
         <InfoRow label="Tipo de espaço" value={negotiation.spaceType} />
         <InfoRow label="Categoria" value={object.category} />
@@ -115,7 +133,6 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
         <InfoRow label="Marca ocupante" value={brandName} />
         <InfoRow label="Distribuidor" value={negotiation.distributor} />
         <InfoRow label="Período" value={period} />
-        <InfoRow label="Status" value={object.status} />
       </div>
 
       <div className="space-y-2 rounded-md bg-muted/50 p-3">

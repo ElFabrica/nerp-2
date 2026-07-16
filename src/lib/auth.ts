@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { organization } from "better-auth/plugins";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { ensureTradeCatalogs } from "@/features/trade-catalog/lib/ensure-catalogs";
 import prisma from "./db";
 import { enqueueSyncOutbox } from "./sync-outbox";
 import { crossLoginPlugin } from "./cross-login-plugin";
@@ -131,6 +132,8 @@ export const auth = betterAuth({
               },
             ],
           });
+          // Semeia os catálogos padrão do Trade (mídia, negociação, setores).
+          await ensureTradeCatalogs(organization.id);
           // Replica org + member do owner no NASA.
           await enqueueSyncOutbox("org", {
             id: organization.id,

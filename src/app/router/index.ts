@@ -21,6 +21,10 @@ import { mapObjectRoutes } from "./map-object";
 import { mapAnnotationRoutes } from "./map-annotation";
 import { pdvPhotoRoutes } from "./pdv-photo";
 import { bookRoutes } from "./book";
+import { spaceNegotiationRoutes } from "./space-negotiation";
+import { mediaTypeRoutes } from "./trade-catalog/media-type";
+import { negotiationTypeRoutes } from "./trade-catalog/negotiation-type";
+import { storeSectorRoutes } from "./trade-catalog/store-sector";
 
 export const router = {
   products: productsRoutes,
@@ -46,4 +50,8 @@ export const router = {
   mapAnnotation: mapAnnotationRoutes,
   pdvPhoto: pdvPhotoRoutes,
   book: bookRoutes,
+  spaceNegotiation: spaceNegotiationRoutes,
+  mediaType: mediaTypeRoutes,
+  negotiationType: negotiationTypeRoutes,
+  storeSector: storeSectorRoutes,
 };

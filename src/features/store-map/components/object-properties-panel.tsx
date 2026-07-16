@@ -6,24 +6,35 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { useBrands } from "@/features/brands/hooks/use-brands";
 import { PdvPhotoSection } from "@/features/pdv-photos/components/pdv-photo-section";
 import { useSupplier } from "@/features/supplier/hooks/use-supplier";
-import { Trash2 } from "lucide-react";
+import { useMediaTypes, useStoreSectors } from "@/features/trade-catalog/hooks/use-trade-catalog";
+import { RefreshCw, Trash2 } from "lucide-react";
 import {
   type NegotiationField,
   readNegotiation,
   withNegotiationField,
 } from "../engine/negotiation";
 import { useSceneStore } from "../engine/scene-store";
+import {
+  NEGOTIABLE_TYPES,
+  SPACE_STATE_META,
+  SPACE_STATE_ORDER,
+} from "../engine/space-state";
 import type { MapObjectType } from "../engine/types";
+import { useAssignSpaceCode } from "../hooks/use-assign-space-code";
 
 const NONE = "__none__";
+const DEFAULT_LABEL_FONT_M = 0.4;
 
 const TYPE_LABELS: Record<MapObjectType, string> = {
   WALL: "Parede",
@@ -50,6 +61,9 @@ export function ObjectPropertiesPanel() {
   const object = selectedIds.length === 1 ? objects[selectedIds[0]] : undefined;
   const { suppliers } = useSupplier();
   const { brands } = useBrands(object?.supplierId ?? undefined);
+  const { storeSectors } = useStoreSectors();
+  const { mediaTypes } = useMediaTypes();
+  const assignSpaceCode = useAssignSpaceCode();
 
   if (selectedIds.length === 0) {
     return (
@@ -90,6 +104,22 @@ export function ObjectPropertiesPanel() {
       properties: withNegotiationField(object, field, value),
     });
 
+  const isNegotiable = NEGOTIABLE_TYPES.has(object.type);
+  const labelFont = object.style.fontSize ?? DEFAULT_LABEL_FONT_M;
+
+  const handleAssignCode = () => {
+    assignSpaceCode.mutate(
+      { mapObjectId: object.id },
+      {
+        onSuccess: (result) =>
+          updateObject(object.id, {
+            spaceCode: result.spaceCode,
+            spaceSeq: result.spaceSeq,
+          }),
+      },
+    );
+  };
+
   return (
     <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
@@ -127,15 +157,89 @@ export function ObjectPropertiesPanel() {
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="object-category">Categoria</FieldLabel>
-          <Input
-            id="object-category"
-            defaultValue={object.category ?? ""}
-            placeholder="Ex.: Bebidas"
-            onBlur={(event) =>
-              updateObject(object.id, { category: event.target.value || null })
+          <FieldLabel>Tamanho do rótulo ({labelFont.toFixed(1)} m)</FieldLabel>
+          <Slider
+            value={[labelFont]}
+            min={0.2}
+            max={2}
+            step={0.1}
+            onValueChange={([value]) =>
+              updateObject(object.id, {
+                style: { ...object.style, fontSize: value },
+              })
             }
           />
+        </Field>
+
+        {isNegotiable && (
+          <>
+            <Field>
+              <FieldLabel>Estado do espaço</FieldLabel>
+              <Select
+                value={object.spaceState}
+                onValueChange={(value) =>
+                  updateObject(object.id, {
+                    spaceState: value as (typeof SPACE_STATE_ORDER)[number],
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SPACE_STATE_ORDER.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {SPACE_STATE_META[state].dot} {SPACE_STATE_META[state].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field>
+              <FieldLabel>ID do espaço</FieldLabel>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={object.spaceCode ?? ""}
+                  placeholder="Gere o Digital Space ID"
+                  className="font-mono text-xs"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title={object.spaceCode ? "Regenerar ID" : "Gerar ID"}
+                  disabled={assignSpaceCode.isPending}
+                  onClick={handleAssignCode}
+                >
+                  <RefreshCw className="size-4" />
+                </Button>
+              </div>
+            </Field>
+          </>
+        )}
+
+        <Field>
+          <FieldLabel>Categoria</FieldLabel>
+          <Select
+            value={object.category ?? NONE}
+            onValueChange={(value) =>
+              updateObject(object.id, { category: value === NONE ? null : value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o setor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Nenhuma</SelectItem>
+              {storeSectors.map((sector) => (
+                <SelectItem key={sector.id} value={sector.name}>
+                  {sector.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
 
         <Field>
@@ -149,13 +253,40 @@ export function ObjectPropertiesPanel() {
         </Field>
 
         <Field>
-          <FieldLabel htmlFor="object-space-type">Tipo de espaço</FieldLabel>
-          <Input
-            id="object-space-type"
-            defaultValue={negotiation.spaceType ?? ""}
-            placeholder="Ex.: Gôndola negociada"
-            onBlur={(event) => setNegotiation("spaceType", event.target.value)}
-          />
+          <FieldLabel>Tipo de espaço</FieldLabel>
+          <Select
+            value={negotiation.spaceType ?? NONE}
+            onValueChange={(value) =>
+              setNegotiation("spaceType", value === NONE ? "" : value)
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o tipo de mídia" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Nenhum</SelectItem>
+              <SelectGroup>
+                <SelectLabel>Mídia física</SelectLabel>
+                {mediaTypes
+                  .filter((media) => media.kind === "FISICA")
+                  .map((media) => (
+                    <SelectItem key={media.id} value={media.name}>
+                      {media.code} — {media.name}
+                    </SelectItem>
+                  ))}
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Mídia digital</SelectLabel>
+                {mediaTypes
+                  .filter((media) => media.kind === "DIGITAL")
+                  .map((media) => (
+                    <SelectItem key={media.id} value={media.name}>
+                      {media.code} — {media.name}
+                    </SelectItem>
+                  ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </Field>
       </div>
 
@@ -249,18 +380,6 @@ export function ObjectPropertiesPanel() {
             />
           </Field>
         </div>
-
-        <Field>
-          <FieldLabel htmlFor="object-status">Status</FieldLabel>
-          <Input
-            id="object-status"
-            defaultValue={object.status ?? ""}
-            placeholder="Ex.: Ativo / Pendente"
-            onBlur={(event) =>
-              updateObject(object.id, { status: event.target.value || null })
-            }
-          />
-        </Field>
 
         <Field>
           <FieldLabel htmlFor="object-responsible">Responsável</FieldLabel>

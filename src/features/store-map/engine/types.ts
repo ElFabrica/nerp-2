@@ -1,6 +1,10 @@
-import type { MapObjectType, MapShapeKind } from "@/generated/prisma/enums";
+import type {
+  MapObjectType,
+  MapShapeKind,
+  MapSpaceState,
+} from "@/generated/prisma/enums";
 
-export type { MapObjectType, MapShapeKind };
+export type { MapObjectType, MapShapeKind, MapSpaceState };
 
 export type ObjectId = string;
 
@@ -46,6 +50,7 @@ export interface MapObjectStyle {
   stroke?: string;
   strokeWidth?: number;
   opacity?: number;
+  fontSize?: number; // tamanho do rótulo em metros (escala junto com o mapa)
 }
 
 /** Objeto do mapa no modelo de cena — a fonte da verdade durante a edição. */
@@ -58,6 +63,9 @@ export interface SceneObject {
   heightM: number | null;
   style: MapObjectStyle;
   name: string | null;
+  spaceState: MapSpaceState;
+  spaceCode: string | null;
+  spaceSeq: number | null;
   status: string | null;
   category: string | null;
   responsibleName: string | null;

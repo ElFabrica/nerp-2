@@ -4,9 +4,11 @@ import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Layer, Line, Stage } from "react-konva";
+import { SpaceActionMenu } from "../../components/space-action-menu";
 import { boundsOf } from "../../engine/geometry";
 import { useSceneStore } from "../../engine/scene-store";
 import type { Vec2 } from "../../engine/types";
+import { useIsOrgAdmin } from "../../hooks/use-is-org-admin";
 import { MapBackground } from "./map-background";
 import { MapGrid } from "./map-grid";
 import { MapShape } from "./shape-node";
@@ -15,6 +17,11 @@ const PIN_RADIUS_PX = 9;
 const PIN_HEIGHT_PX = 26;
 const PIN_GAP_PX = 6;
 const PIN_COLOR = "#dc2626";
+// Abaixo disso o rótulo vira borrão ilegível; some para não poluir a visão geral.
+const LABEL_MIN_PX = 9;
+const DEFAULT_LABEL_FONT_M = 0.4;
+// Janela para o mouse ir do elemento até o botão "⋮" sem o menu sumir.
+const HOVER_HIDE_MS = 200;
 // Só reenquadra quando o palco muda de verdade (rotação/responsivo), não a cada
 // pixel da barra de endereço do navegador móvel.
 const RESIZE_TOLERANCE = 0.2;
@@ -51,9 +58,25 @@ export function MapViewerStage() {
 
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAdmin = useIsOrgAdmin();
+
+  const keepHoverAlive = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  };
+  const showHover = (id: string) => {
+    keepHoverAlive();
+    setHoveredId(id);
+  };
+  const scheduleHoverHide = () => {
+    keepHoverAlive();
+    hideTimer.current = setTimeout(() => setHoveredId(null), HOVER_HIDE_MS);
+  };
 
   const ppm = floorPlan?.pixelsPerMeter ?? 50;
   const scale = viewport.zoom * ppm;
+  const showLabels = DEFAULT_LABEL_FONT_M * scale >= LABEL_MIN_PX;
 
   const layerById = useMemo(
     () => new Map(layers.map((layer) => [layer.id, layer])),
@@ -224,6 +247,9 @@ export function MapViewerStage() {
                 object={object}
                 isSelected={selectedIds.includes(object.id)}
                 draggable={false}
+                showLabel={showLabels}
+                onHoverStart={showHover}
+                onHoverEnd={scheduleHoverHide}
               />
             ))}
           </Layer>
@@ -260,6 +286,16 @@ export function MapViewerStage() {
             </Layer>
           )}
         </Stage>
+      )}
+
+      {floorPlan && (
+        <SpaceActionMenu
+          hoveredId={hoveredId}
+          floorPlanId={floorPlan.id}
+          isAdmin={isAdmin}
+          onKeepAlive={keepHoverAlive}
+          onScheduleHide={scheduleHoverHide}
+        />
       )}
     </div>
   );

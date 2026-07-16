@@ -57,6 +57,11 @@ export const PAGE_PERMISSIONS = [
     href: "/books",
   },
   {
+    key: "trade-cadastros",
+    label: "Cadastros de Trade",
+    href: "/trade/cadastros",
+  },
+  {
     key: "colaboradores",
     label: "Colaboradores",
     href: "/colaboradores",
