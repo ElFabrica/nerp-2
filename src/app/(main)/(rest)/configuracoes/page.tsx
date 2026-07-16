@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/page-header";
-import { PermissionsPanel } from "@/features/configuracoes/components/permissions-panel";
+import { OrganizationSettingsTabs } from "@/features/configuracoes/components/organization-settings-tabs";
 import { requirePermission } from "@/lib/auth-utils";
 
 export default async function Page() {
@@ -8,9 +8,9 @@ export default async function Page() {
     <div className="space-y-6">
       <PageHeader
         title="Configurações"
-        description="Permissões de páginas dos membros da organização."
+        description="Membros, convites e permissões da organização."
       />
-      <PermissionsPanel />
+      <OrganizationSettingsTabs />
     </div>
   );
 }

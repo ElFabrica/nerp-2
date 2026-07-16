@@ -226,6 +226,7 @@ model Invitation {
   email          String
   role           String?
   status         String       @default("pending")
+  permissions    String[]     @default([]) // aplicadas ao Member em afterAcceptInvitation
   expiresAt      DateTime
   createdAt      DateTime     @default(now())
   inviterId      String
