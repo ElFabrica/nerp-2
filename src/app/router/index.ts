@@ -29,6 +29,7 @@ import { mediaTypePriceRoutes } from "./trade-catalog/media-type-price";
 import { tradePricingSettingsRoutes } from "./trade-catalog/pricing-settings";
 import { regionCostBenchmarkRoutes } from "./trade-catalog/region-benchmark";
 import { catalogPdvRoutes } from "./trade-catalog/catalog-pdv";
+import { tradeCatalogSeedRoutes } from "./trade-catalog/seed";
 import { invitationRoutes } from "./invitation";
 
 export const router = {
@@ -63,5 +64,6 @@ export const router = {
   tradePricingSettings: tradePricingSettingsRoutes,
   regionCostBenchmark: regionCostBenchmarkRoutes,
   catalogPdv: catalogPdvRoutes,
+  tradeCatalogSeed: tradeCatalogSeedRoutes,
   invitation: invitationRoutes,
 };

@@ -22,6 +22,31 @@ function useInvalidate(key: readonly unknown[]) {
   return () => queryClient.invalidateQueries({ queryKey: key });
 }
 
+// ---------- Semeadura dos catálogos padrão ----------
+
+export function useEnsureTradeCatalogs() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.tradeCatalogSeed.ensure.mutationOptions({
+      onSuccess: (result) => {
+        if (result.total > 0) {
+          toast.success(`${result.total} itens padrão adicionados`);
+        } else {
+          toast.info("Os catálogos padrão já estão completos");
+        }
+        queryClient.invalidateQueries({ queryKey: orpc.mediaType.list.key() });
+        queryClient.invalidateQueries({
+          queryKey: orpc.negotiationType.list.key(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: orpc.storeSector.list.key(),
+        });
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
 export function useCreateMediaType() {
   const invalidate = useInvalidate(orpc.mediaType.list.key());
   return useMutation(
