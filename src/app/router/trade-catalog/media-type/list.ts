@@ -29,6 +29,8 @@ export const listMediaType = base
         name: true,
         description: true,
         examples: true,
+        occupancyRules: true,
+        defaultPhotos: true,
         isActive: true,
         sortOrder: true,
         isSystemDefault: true,

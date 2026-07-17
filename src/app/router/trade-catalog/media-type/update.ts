@@ -15,6 +15,8 @@ export const updateMediaType = base
       name: z.string().trim().min(1).optional(),
       description: z.string().nullable().optional(),
       examples: z.array(z.string()).optional(),
+      occupancyRules: z.string().nullable().optional(),
+      defaultPhotos: z.array(z.string()).optional(),
       isActive: z.boolean().optional(),
       sortOrder: z.number().int().optional(),
     }),

@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 export interface CatalogRow {
   id: string;
@@ -31,6 +31,10 @@ interface CatalogTableProps {
   onToggleActive: (id: string, isActive: boolean) => void;
   onDelete: (id: string) => void;
   isCreating: boolean;
+  // Ação extra por linha (ex.: "editar detalhes" no cadastro de mídia) —
+  // opcional pra não afetar as outras abas (negociação/setor) que usam a
+  // mesma tabela genérica.
+  renderRowActions?: (row: CatalogRow) => ReactNode;
 }
 
 export function CatalogTable({
@@ -41,6 +45,7 @@ export function CatalogTable({
   onToggleActive,
   onDelete,
   isCreating,
+  renderRowActions,
 }: CatalogTableProps) {
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
@@ -89,19 +94,20 @@ export function CatalogTable({
               <TableHead className="w-24">Código</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead className="w-24 text-center">Ativo</TableHead>
+              {renderRowActions && <TableHead className="w-16" />}
               <TableHead className="w-16" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                <TableCell colSpan={renderRowActions ? 5 : 4} className="text-center text-sm text-muted-foreground">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                <TableCell colSpan={renderRowActions ? 5 : 4} className="text-center text-sm text-muted-foreground">
                   Nenhum item cadastrado.
                 </TableCell>
               </TableRow>
@@ -132,6 +138,9 @@ export function CatalogTable({
                       onCheckedChange={(checked) => onToggleActive(row.id, checked)}
                     />
                   </TableCell>
+                  {renderRowActions && (
+                    <TableCell>{renderRowActions(row)}</TableCell>
+                  )}
                   <TableCell>
                     <Button
                       type="button"

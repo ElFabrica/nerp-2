@@ -1,7 +1,11 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { ImageIcon } from "lucide-react";
+import { useState } from "react";
 import { CatalogTable } from "./catalog-table";
+import { MediaTypeDetailsDialog } from "./media-type-details-dialog";
 import {
   useCreateMediaType,
   useCreateNegotiationType,
@@ -22,17 +26,36 @@ function MediaTab({ kind }: { kind: "FISICA" | "DIGITAL" }) {
   const create = useCreateMediaType();
   const update = useUpdateMediaType();
   const remove = useDeleteMediaType();
+  const [detailsId, setDetailsId] = useState<string | null>(null);
 
   return (
-    <CatalogTable
-      rows={mediaTypes}
-      isLoading={isLoading}
-      isCreating={create.isPending}
-      onCreate={(code, name) => create.mutate({ kind, code, name })}
-      onRename={(id, name) => update.mutate({ id, name })}
-      onToggleActive={(id, isActive) => update.mutate({ id, isActive })}
-      onDelete={(id) => remove.mutate({ id })}
-    />
+    <>
+      <CatalogTable
+        rows={mediaTypes}
+        isLoading={isLoading}
+        isCreating={create.isPending}
+        onCreate={(code, name) => create.mutate({ kind, code, name })}
+        onRename={(id, name) => update.mutate({ id, name })}
+        onToggleActive={(id, isActive) => update.mutate({ id, isActive })}
+        onDelete={(id) => remove.mutate({ id })}
+        renderRowActions={(row) => (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            title="Fotos, descrição e regras de ocupação"
+            onClick={() => setDetailsId(row.id)}
+          >
+            <ImageIcon className="size-4" />
+          </Button>
+        )}
+      />
+      <MediaTypeDetailsDialog
+        mediaTypeId={detailsId}
+        onOpenChange={(open) => !open && setDetailsId(null)}
+      />
+    </>
   );
 }
 

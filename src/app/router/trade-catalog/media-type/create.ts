@@ -15,6 +15,8 @@ export const createMediaType = base
       name: z.string().trim().min(1),
       description: z.string().nullable().optional(),
       examples: z.array(z.string()).optional(),
+      occupancyRules: z.string().nullable().optional(),
+      defaultPhotos: z.array(z.string()).optional(),
     }),
   )
   .output(z.object({ id: z.string() }))
@@ -28,6 +30,8 @@ export const createMediaType = base
           name: input.name,
           description: input.description ?? null,
           examples: input.examples ?? [],
+          occupancyRules: input.occupancyRules ?? null,
+          defaultPhotos: input.defaultPhotos ?? [],
         },
         select: { id: true },
       });

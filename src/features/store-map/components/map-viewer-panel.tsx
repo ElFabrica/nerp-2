@@ -1,6 +1,12 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useBrands } from "@/features/brands/hooks/use-brands";
 import { PdvPhotoSection } from "@/features/pdv-photos/components/pdv-photo-section";
@@ -9,7 +15,10 @@ import {
   useMediaTypes,
   useStoreSectors,
 } from "@/features/trade-catalog/hooks/use-trade-catalog";
-import { UserCog } from "lucide-react";
+import { constructUrl } from "@/hooks/use-construct-url";
+import { ImageIcon, UserCog } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
 import { readNegotiation } from "../engine/negotiation";
 import { useSceneStore } from "../engine/scene-store";
 import {
@@ -84,6 +93,7 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
   const { audit } = useMapObjectAudit(object?.id);
   const { mediaTypes } = useMediaTypes();
   const { storeSectors } = useStoreSectors();
+  const [showModelPhotos, setShowModelPhotos] = useState(false);
 
   if (!object) {
     return (
@@ -100,9 +110,11 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
     null;
   const brandName =
     brands.find((brand) => brand.id === object.brandId)?.name ?? null;
-  const mediaTypeName =
-    mediaTypes.find((mediaType) => mediaType.id === object.mediaTypeId)
-      ?.name ?? null;
+  const mediaType = mediaTypes.find(
+    (candidate) => candidate.id === object.mediaTypeId,
+  );
+  const mediaTypeName = mediaType?.name ?? null;
+  const modelPhotos = mediaType?.defaultPhotos ?? [];
   const sector = storeSectors.find((sector) => sector.id === object.sectorId);
   const sectorName = sector?.name ?? object.category;
 
@@ -116,13 +128,31 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
   return (
     <div className="space-y-4 p-4">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <h2 className="font-semibold leading-tight">
-            Informações da Prateleira
-          </h2>
-          {storeName && (
-            <p className="text-xs text-muted-foreground">{storeName}</p>
+        <div className="flex items-center gap-2">
+          {modelPhotos.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowModelPhotos(true)}
+              className="relative size-9 shrink-0 overflow-hidden rounded-md border"
+              title="Ver foto modelo"
+            >
+              <Image
+                src={constructUrl(modelPhotos[0])}
+                alt={mediaTypeName ?? "Foto modelo"}
+                fill
+                sizes="36px"
+                className="object-cover"
+              />
+            </button>
           )}
+          <div>
+            <h2 className="font-semibold leading-tight">
+              Informações {mediaTypeName ?? "da Prateleira"}
+            </h2>
+            {storeName && (
+              <p className="text-xs text-muted-foreground">{storeName}</p>
+            )}
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <Badge variant="secondary">{TYPE_LABELS[object.type]}</Badge>
@@ -144,7 +174,27 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
         <InfoRow label="Elemento" value={object.name} />
         <InfoRow label="ID do espaço" value={object.spaceCode} />
         <InfoRow label="Localização" value={negotiation.location} />
-        <InfoRow label="Tipo de mídia" value={mediaTypeName} />
+        {mediaTypeName && (
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="shrink-0 text-xs text-muted-foreground">
+              Tipo de mídia
+            </span>
+            <span className="flex items-center gap-1.5 text-right text-sm font-medium">
+              {mediaTypeName}
+              {modelPhotos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowModelPhotos(true)}
+                  title="Ver foto modelo"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <ImageIcon className="size-3.5" />
+                </button>
+              )}
+            </span>
+          </div>
+        )}
+        <InfoRow label="Descrição da mídia" value={mediaType?.description} />
         <InfoRow label="Setor" value={sectorName} />
         <InfoRow
           label="Categoria"
@@ -190,6 +240,35 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
           />
         </>
       )}
+
+      <Dialog open={showModelPhotos} onOpenChange={setShowModelPhotos}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Foto modelo · {mediaTypeName}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2">
+            {modelPhotos.map((key) => (
+              <div
+                key={key}
+                className="relative aspect-square overflow-hidden rounded-md border"
+              >
+                <Image
+                  src={constructUrl(key)}
+                  alt={mediaTypeName ?? "Foto modelo"}
+                  fill
+                  sizes="200px"
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
+          {mediaType?.occupancyRules && (
+            <p className="text-sm text-muted-foreground">
+              {mediaType.occupancyRules}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
