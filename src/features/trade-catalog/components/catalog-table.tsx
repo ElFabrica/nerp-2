@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 export interface CatalogRow {
@@ -44,7 +44,6 @@ export function CatalogTable({
   onRename,
   onToggleActive,
   onDelete,
-  isCreating,
   renderRowActions,
 }: CatalogTableProps) {
   const [newCode, setNewCode] = useState("");
@@ -81,10 +80,12 @@ export function CatalogTable({
             }}
           />
         </div>
+        {/* Desabilitado temporariamente: fluxo de adicionar ainda não está pronto.
         <Button type="button" onClick={handleCreate} disabled={isCreating}>
           <Plus className="size-4" />
           Adicionar
         </Button>
+        */}
       </div>
 
       <div className="rounded-lg border">
@@ -101,13 +102,19 @@ export function CatalogTable({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={renderRowActions ? 5 : 4} className="text-center text-sm text-muted-foreground">
+                <TableCell
+                  colSpan={renderRowActions ? 5 : 4}
+                  className="text-center text-sm text-muted-foreground"
+                >
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={renderRowActions ? 5 : 4} className="text-center text-sm text-muted-foreground">
+                <TableCell
+                  colSpan={renderRowActions ? 5 : 4}
+                  className="text-center text-sm text-muted-foreground"
+                >
                   Nenhum item cadastrado.
                 </TableCell>
               </TableRow>
@@ -128,14 +135,17 @@ export function CatalogTable({
                       className="h-8 border-transparent hover:border-input focus:border-input"
                       onBlur={(event) => {
                         const value = event.target.value.trim();
-                        if (value && value !== row.name) onRename(row.id, value);
+                        if (value && value !== row.name)
+                          onRename(row.id, value);
                       }}
                     />
                   </TableCell>
                   <TableCell className="text-center">
                     <Switch
                       checked={row.isActive}
-                      onCheckedChange={(checked) => onToggleActive(row.id, checked)}
+                      onCheckedChange={(checked) =>
+                        onToggleActive(row.id, checked)
+                      }
                     />
                   </TableCell>
                   {renderRowActions && (
