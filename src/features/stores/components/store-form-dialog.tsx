@@ -33,6 +33,9 @@ const storeFormSchema = z.object({
   state: z.string().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
+  areaM2: z.string().optional(),
+  monthlyCost: z.string().optional(),
+  customersPerDay: z.string().optional(),
 });
 
 type StoreFormValues = z.infer<typeof storeFormSchema>;
@@ -45,7 +48,16 @@ const emptyValues: StoreFormValues = {
   state: "",
   address: "",
   notes: "",
+  areaM2: "",
+  monthlyCost: "",
+  customersPerDay: "",
 };
+
+function toNullableNumber(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 interface StoreFormDialogProps {
   open: boolean;
@@ -79,6 +91,10 @@ export function StoreFormDialog({
         state: store.state ?? "",
         address: store.address ?? "",
         notes: store.notes ?? "",
+        areaM2: store.areaM2 != null ? String(store.areaM2) : "",
+        monthlyCost: store.monthlyCost != null ? String(store.monthlyCost) : "",
+        customersPerDay:
+          store.customersPerDay != null ? String(store.customersPerDay) : "",
       });
     }
     if (!isEditing) {
@@ -89,14 +105,20 @@ export function StoreFormDialog({
   const isSaving = createStore.isPending || updateStore.isPending;
 
   const onSubmit = (values: StoreFormValues) => {
+    const payload = {
+      ...values,
+      areaM2: toNullableNumber(values.areaM2),
+      monthlyCost: toNullableNumber(values.monthlyCost),
+      customersPerDay: toNullableNumber(values.customersPerDay),
+    };
     if (isEditing && storeId) {
       updateStore.mutate(
-        { id: storeId, ...values },
+        { id: storeId, ...payload },
         { onSuccess: () => onOpenChange(false) },
       );
       return;
     }
-    createStore.mutate(values, {
+    createStore.mutate(payload, {
       onSuccess: () => {
         onOpenChange(false);
         form.reset(emptyValues);
@@ -225,6 +247,75 @@ export function StoreFormDialog({
                     </Field>
                   )}
                 />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Métricas da loja</p>
+                  <p className="text-xs text-muted-foreground">
+                    Usadas no Catálogo PDV pra sugerir preço por m² e no mapa
+                    de calor de fluxo.
+                  </p>
+                </div>
+                <div className="flex items-start gap-4">
+                  <Controller
+                    name="areaM2"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel htmlFor={field.name}>
+                          Área total (m²)
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          id={field.name}
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="Ex.: 1200"
+                          disabled={isSaving}
+                        />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="monthlyCost"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel htmlFor={field.name}>
+                          Custo mensal (R$)
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          id={field.name}
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          placeholder="Ex.: 85000"
+                          disabled={isSaving}
+                        />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="customersPerDay"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Field>
+                        <FieldLabel htmlFor={field.name}>
+                          Clientes/dia
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          id={field.name}
+                          type="number"
+                          min={0}
+                          step="1"
+                          placeholder="Ex.: 3000"
+                          disabled={isSaving}
+                        />
+                      </Field>
+                    )}
+                  />
+                </div>
                 <Controller
                   name="notes"
                   control={form.control}

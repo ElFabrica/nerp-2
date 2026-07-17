@@ -21,6 +21,7 @@ import dynamic from "next/dynamic";
 import { useEffect } from "react";
 import { useSceneStore } from "../engine/scene-store";
 import { useFloorPlanScene } from "../hooks/use-floor-plan-scene";
+import { MapFilterPanel } from "./map-filter-panel";
 import { MapObjectSearch } from "./map-object-search";
 import { MapViewerPanel } from "./map-viewer-panel";
 
@@ -107,6 +108,7 @@ export function MapViewer({
         )}
 
         <MapObjectSearch />
+        <MapFilterPanel />
 
         <div className="ml-auto flex items-center gap-1">
           <Button

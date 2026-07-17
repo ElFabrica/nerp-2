@@ -1,6 +1,20 @@
-import type { MapObjectType, MapShapeKind } from "@/generated/prisma/enums";
+import type {
+  MapObjectType,
+  MapShapeKind,
+  MapSpaceState,
+  SpaceFlowLevel,
+  SpaceTier,
+  SpaceVisibility,
+} from "@/generated/prisma/enums";
 
-export type { MapObjectType, MapShapeKind };
+export type {
+  MapObjectType,
+  MapShapeKind,
+  MapSpaceState,
+  SpaceFlowLevel,
+  SpaceTier,
+  SpaceVisibility,
+};
 
 export type ObjectId = string;
 
@@ -46,6 +60,7 @@ export interface MapObjectStyle {
   stroke?: string;
   strokeWidth?: number;
   opacity?: number;
+  fontSize?: number; // tamanho do rótulo em metros (escala junto com o mapa)
 }
 
 /** Objeto do mapa no modelo de cena — a fonte da verdade durante a edição. */
@@ -58,13 +73,36 @@ export interface SceneObject {
   heightM: number | null;
   style: MapObjectStyle;
   name: string | null;
+  spaceState: MapSpaceState;
+  spaceCode: string | null;
+  spaceSeq: number | null;
   status: string | null;
   category: string | null;
   responsibleName: string | null;
   lastVisitAt: string | null;
   supplierId: string | null;
   brandId: string | null;
+  // Biblioteca Nacional de Espaços Comerciais
+  mediaTypeId: string | null;
+  sectorId: string | null;
+  tier: SpaceTier | null;
+  flowLevel: SpaceFlowLevel | null;
+  visibility: SpaceVisibility | null;
+  isExclusive: boolean;
+  revenuePotential: number | null;
+  avgSalesAmount: number | null;
+  // Negociação FECHADA vigente hoje, resolvida no servidor (get-full.ts).
+  // Alimenta o filtro por tipo de negociação e o heatmap NEGOTIATED_VALUE —
+  // nunca escrito pelo client, só lido.
+  activeNegotiation: ActiveNegotiation | null;
   properties: Record<string, unknown>;
+}
+
+export interface ActiveNegotiation {
+  id: string;
+  negotiationTypeId: string | null;
+  amount: number | null;
+  endDate: string | null;
 }
 
 export interface SceneLayer {

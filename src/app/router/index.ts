@@ -21,6 +21,15 @@ import { mapObjectRoutes } from "./map-object";
 import { mapAnnotationRoutes } from "./map-annotation";
 import { pdvPhotoRoutes } from "./pdv-photo";
 import { bookRoutes } from "./book";
+import { spaceNegotiationRoutes } from "./space-negotiation";
+import { mediaTypeRoutes } from "./trade-catalog/media-type";
+import { negotiationTypeRoutes } from "./trade-catalog/negotiation-type";
+import { storeSectorRoutes } from "./trade-catalog/store-sector";
+import { mediaTypePriceRoutes } from "./trade-catalog/media-type-price";
+import { tradePricingSettingsRoutes } from "./trade-catalog/pricing-settings";
+import { regionCostBenchmarkRoutes } from "./trade-catalog/region-benchmark";
+import { catalogPdvRoutes } from "./trade-catalog/catalog-pdv";
+import { tradeCatalogSeedRoutes } from "./trade-catalog/seed";
 import { invitationRoutes } from "./invitation";
 
 export const router = {
@@ -47,5 +56,14 @@ export const router = {
   mapAnnotation: mapAnnotationRoutes,
   pdvPhoto: pdvPhotoRoutes,
   book: bookRoutes,
+  spaceNegotiation: spaceNegotiationRoutes,
+  mediaType: mediaTypeRoutes,
+  negotiationType: negotiationTypeRoutes,
+  storeSector: storeSectorRoutes,
+  mediaTypePrice: mediaTypePriceRoutes,
+  tradePricingSettings: tradePricingSettingsRoutes,
+  regionCostBenchmark: regionCostBenchmarkRoutes,
+  catalogPdv: catalogPdvRoutes,
+  tradeCatalogSeed: tradeCatalogSeedRoutes,
   invitation: invitationRoutes,
 };

@@ -4,21 +4,29 @@ import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Layer, Line, Rect, Stage, Transformer } from "react-konva";
+import { useMediaTypes } from "@/features/trade-catalog/hooks/use-trade-catalog";
 import { useSceneStore } from "../../engine/scene-store";
 import { snapToGrid, visibleWorldBounds } from "../../engine/geometry";
+import { DEFAULT_MEDIA_TYPE_BY_OBJECT_TYPE } from "../../engine/space-state";
 import { CREATE_TOOLS_BY_TYPE } from "../../engine/tools";
-import type { EditorTool, Vec2 } from "../../engine/types";
+import type { EditorTool, MapObjectType, Vec2 } from "../../engine/types";
+import { useUpdateSpaceParams } from "../../hooks/use-update-space-params";
 import {
   useCreateAnnotation,
   useMapAnnotations,
   useUpdateAnnotation,
 } from "../../hooks/use-map-annotations";
 import { AnnotationEditor } from "../../components/annotation-editor";
+import { SpaceActionMenu } from "../../components/space-action-menu";
 import { AnnotationLayer } from "./annotation-layer";
 import { MapBackground } from "./map-background";
 import { MapGrid } from "./map-grid";
 import { MapRulers } from "./map-rulers";
 import { MapShape } from "./shape-node";
+
+const LABEL_MIN_PX = 9;
+const DEFAULT_LABEL_FONT_M = 0.4;
+const HOVER_HIDE_MS = 200;
 
 interface DraftRect {
   x: number;
@@ -44,6 +52,7 @@ export function MapStage() {
   const snapEnabled = useSceneStore((state) => state.snapEnabled);
   const gridSizeM = useSceneStore((state) => state.gridSizeM);
   const guides = useSceneStore((state) => state.guides);
+  const backgroundImageSize = useSceneStore((state) => state.backgroundImageSize);
   const activeLayerId = useSceneStore((state) => state.activeLayerId);
   const calibrating = useSceneStore((state) => state.calibrating);
   const calibrationPoints = useSceneStore((state) => state.calibrationPoints);
@@ -55,6 +64,17 @@ export function MapStage() {
   const setAnnotating = useSceneStore((state) => state.setAnnotating);
 
   const addObject = useSceneStore((state) => state.addObject);
+  const { mediaTypes } = useMediaTypes();
+  const updateSpaceParams = useUpdateSpaceParams();
+  const mediaTypeIdByCode = useMemo(
+    () => new Map(mediaTypes.map((mediaType) => [mediaType.code, mediaType.id])),
+    [mediaTypes],
+  );
+  const suggestMediaTypeId = (type: MapObjectType) => {
+    const code = DEFAULT_MEDIA_TYPE_BY_OBJECT_TYPE[type];
+    if (!code) return null;
+    return mediaTypeIdByCode.get(code) ?? null;
+  };
   const panBy = useSceneStore((state) => state.panBy);
   const zoomAt = useSceneStore((state) => state.zoomAt);
   const clearSelection = useSceneStore((state) => state.clearSelection);
@@ -74,7 +94,21 @@ export function MapStage() {
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(
     null,
   );
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fittedPlanId = useRef<string | null>(null);
+
+  const keepHoverAlive = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  };
+  const showHover = (id: string) => {
+    keepHoverAlive();
+    setHoveredId(id);
+  };
+  const scheduleHoverHide = () => {
+    keepHoverAlive();
+    hideTimer.current = setTimeout(() => setHoveredId(null), HOVER_HIDE_MS);
+  };
 
   const annotations = useMapAnnotations(floorPlan?.id);
   const createAnnotation = useCreateAnnotation();
@@ -82,6 +116,7 @@ export function MapStage() {
 
   const ppm = floorPlan?.pixelsPerMeter ?? 50;
   const scale = viewport.zoom * ppm;
+  const showLabels = DEFAULT_LABEL_FONT_M * scale >= LABEL_MIN_PX;
 
   const editingAnnotation =
     annotations.find((item) => item.id === editingAnnotationId) ?? null;
@@ -117,13 +152,20 @@ export function MapStage() {
     return () => observer.disconnect();
   }, [setStageSize]);
 
+  // Espera a imagem de fundo carregar (quando existe) antes do primeiro fit —
+  // senão o fit roda sem o tamanho real da imagem e sobra borda em branco.
+  // Booleano primitivo (não o objeto) na dependência, pra manter o array de
+  // deps do efeito abaixo trivialmente estável.
+  const backgroundReady = !floorPlan?.backgroundImageKey || !!backgroundImageSize;
+
   // Enquadra o mapa na primeira vez que ele carrega com a tela já medida.
   useEffect(() => {
     if (!floorPlan || size.width === 0) return;
+    if (!backgroundReady) return;
     if (fittedPlanId.current === floorPlan.id) return;
     fittedPlanId.current = floorPlan.id;
     fitToPlan();
-  }, [floorPlan, size.width, fitToPlan]);
+  }, [floorPlan, size.width, backgroundReady, fitToPlan]);
 
   // Reatacha o Transformer aos retângulos selecionados (ferramenta SELECT).
   useEffect(() => {
@@ -189,12 +231,15 @@ export function MapStage() {
     if (!def || !activeLayerId) return;
 
     if (def.shapeKind === "POINT") {
-      addObject({
+      const mediaTypeId = suggestMediaTypeId(def.type);
+      const id = addObject({
         type: def.type,
         layerId: activeLayerId,
         geometry: { kind: "POINT", x: snap(world.x), y: snap(world.y) },
         style: def.style,
+        mediaTypeId,
       });
+      if (mediaTypeId) updateSpaceParams.mutate({ id, mediaTypeId });
       setTool("SELECT");
       return;
     }
@@ -265,12 +310,15 @@ export function MapStage() {
       }
     }
 
-    addObject({
+    const mediaTypeId = suggestMediaTypeId(def.type);
+    const id = addObject({
       type: def.type,
       layerId: activeLayerId,
       geometry: { kind: "RECT", x, y, width, height, rotation: 0 },
       style: def.style,
+      mediaTypeId,
     });
+    if (mediaTypeId) updateSpaceParams.mutate({ id, mediaTypeId });
     setTool("SELECT");
   };
 
@@ -326,6 +374,9 @@ export function MapStage() {
                 draggable={
                   tool === "SELECT" && !layerById.get(object.layerId)?.locked
                 }
+                showLabel={showLabels}
+                onHoverStart={tool === "SELECT" ? showHover : undefined}
+                onHoverEnd={tool === "SELECT" ? scheduleHoverHide : undefined}
               />
             ))}
             {draft && (
@@ -434,6 +485,16 @@ export function MapStage() {
         annotation={editingAnnotation}
         onClose={() => setEditingAnnotationId(null)}
       />
+
+      {floorPlan && tool === "SELECT" && (
+        <SpaceActionMenu
+          hoveredId={hoveredId}
+          floorPlanId={floorPlan.id}
+          isAdmin
+          onKeepAlive={keepHoverAlive}
+          onScheduleHide={scheduleHoverHide}
+        />
+      )}
     </div>
   );
 }

@@ -21,6 +21,9 @@ export const getStore = base
         state: true,
         notes: true,
         isActive: true,
+        areaM2: true,
+        monthlyCost: true,
+        customersPerDay: true,
       },
     });
 
@@ -28,5 +31,10 @@ export const getStore = base
       throw errors.NOT_FOUND({ message: "Loja não encontrada" });
     }
 
-    return { store };
+    return {
+      store: {
+        ...store,
+        monthlyCost: store.monthlyCost ? Number(store.monthlyCost) : null,
+      },
+    };
   });

@@ -1,4 +1,5 @@
 import { Inngest, eventType, staticSchema } from "inngest";
+import type { MapSpaceState } from "@/generated/prisma/enums";
 import type { SyncType } from "@/lib/sync-payloads";
 
 /**
@@ -87,4 +88,36 @@ export type BookGenerateRequestedData = { bookId: string };
 
 export const bookGenerateRequested = eventType("book/generate.requested", {
   schema: staticSchema<BookGenerateRequestedData>(),
+});
+
+/**
+ * PDV Map — preparação da integração com o Tracking Órbita e o Forge.
+ *
+ * Emitidos quando o estado de um espaço muda ou uma negociação nasce, para que
+ * o Forge (futuro) automatize prazos e alertas de contrato. Nesta fase são só
+ * declarações: não há função consumidora, então são inertes até a integração.
+ */
+export type MapSpaceStateChangedData = {
+  organizationId: string;
+  floorPlanId: string;
+  mapObjectId: string;
+  spaceCode: string | null;
+  from: MapSpaceState;
+  to: MapSpaceState;
+};
+
+export const mapSpaceStateChanged = eventType("pdv/space.state.changed", {
+  schema: staticSchema<MapSpaceStateChangedData>(),
+});
+
+export type NegotiationCreatedData = {
+  organizationId: string;
+  mapObjectId: string;
+  negotiationId: string;
+  supplierId: string | null;
+  endDate: string | null;
+};
+
+export const negotiationCreated = eventType("pdv/negotiation.created", {
+  schema: staticSchema<NegotiationCreatedData>(),
 });

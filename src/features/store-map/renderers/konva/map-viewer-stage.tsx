@@ -4,17 +4,89 @@ import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Layer, Line, Stage } from "react-konva";
+import { SpaceActionMenu } from "../../components/space-action-menu";
 import { boundsOf } from "../../engine/geometry";
+import { buildQuantileColorScale, getHeatMetricValue } from "../../engine/heatmap";
+import { hasActiveFilters, useMapFilterStore } from "../../engine/map-filter-store";
 import { useSceneStore } from "../../engine/scene-store";
-import type { Vec2 } from "../../engine/types";
+import { isNegotiable } from "../../engine/space-state";
+import type { SceneObject, Vec2 } from "../../engine/types";
+import { useIsOrgAdmin } from "../../hooks/use-is-org-admin";
 import { MapBackground } from "./map-background";
 import { MapGrid } from "./map-grid";
 import { MapShape } from "./shape-node";
+
+function matchesFilters(
+  object: SceneObject,
+  filters: {
+    mediaTypeIds: string[];
+    negotiationTypeIds: string[];
+    sectorIds: string[];
+    spaceStates: string[];
+    minAvgSales: number | null;
+    topSellersOnly: boolean;
+  },
+  topSellerIds: Set<string>,
+): boolean {
+  if (
+    filters.mediaTypeIds.length > 0 &&
+    (!object.mediaTypeId || !filters.mediaTypeIds.includes(object.mediaTypeId))
+  ) {
+    return false;
+  }
+  if (filters.negotiationTypeIds.length > 0) {
+    const negotiationTypeId = object.activeNegotiation?.negotiationTypeId;
+    if (!negotiationTypeId || !filters.negotiationTypeIds.includes(negotiationTypeId)) {
+      return false;
+    }
+  }
+  if (
+    filters.sectorIds.length > 0 &&
+    (!object.sectorId || !filters.sectorIds.includes(object.sectorId))
+  ) {
+    return false;
+  }
+  if (
+    filters.spaceStates.length > 0 &&
+    !filters.spaceStates.includes(object.spaceState)
+  ) {
+    return false;
+  }
+  if (
+    filters.minAvgSales != null &&
+    (object.avgSalesAmount == null || object.avgSalesAmount < filters.minAvgSales)
+  ) {
+    return false;
+  }
+  if (filters.topSellersOnly && !topSellerIds.has(object.id)) {
+    return false;
+  }
+  return true;
+}
+
+// "Mais vendidos" = top 20% por venda média entre os espaços negociáveis
+// visíveis — relativo ao conjunto da loja, não um valor fixo em R$.
+const TOP_SELLER_PERCENTILE = 0.8;
+
+function computeTopSellerIds(objects: SceneObject[]): Set<string> {
+  const candidates = objects
+    .filter((object) => isNegotiable(object) && object.avgSalesAmount != null)
+    .map((object) => ({ id: object.id, value: object.avgSalesAmount as number }))
+    .sort((a, b) => a.value - b.value);
+  if (candidates.length === 0) return new Set();
+  const cutoffIndex = Math.floor(candidates.length * TOP_SELLER_PERCENTILE);
+  return new Set(candidates.slice(cutoffIndex).map((candidate) => candidate.id));
+}
 
 const PIN_RADIUS_PX = 9;
 const PIN_HEIGHT_PX = 26;
 const PIN_GAP_PX = 6;
 const PIN_COLOR = "#dc2626";
+// Abaixo disso o rótulo vira borrão ilegível; some para não poluir a visão geral.
+const LABEL_MIN_PX = 9;
+const DEFAULT_LABEL_FONT_M = 0.4;
+// Janela para o mouse ir do elemento até o botão "⋮" sem o menu sumir.
+const HOVER_HIDE_MS = 200;
 // Só reenquadra quando o palco muda de verdade (rotação/responsivo), não a cada
 // pixel da barra de endereço do navegador móvel.
 const RESIZE_TOLERANCE = 0.2;
@@ -35,6 +107,7 @@ export function MapViewerStage() {
   const selectedIds = useSceneStore((state) => state.selectedIds);
   const gridEnabled = useSceneStore((state) => state.gridEnabled);
   const gridSizeM = useSceneStore((state) => state.gridSizeM);
+  const backgroundImageSize = useSceneStore((state) => state.backgroundImageSize);
 
   const panBy = useSceneStore((state) => state.panBy);
   const zoomAt = useSceneStore((state) => state.zoomAt);
@@ -51,9 +124,60 @@ export function MapViewerStage() {
 
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAdmin = useIsOrgAdmin();
+
+  const mediaTypeIds = useMapFilterStore((state) => state.mediaTypeIds);
+  const negotiationTypeIds = useMapFilterStore((state) => state.negotiationTypeIds);
+  const sectorIds = useMapFilterStore((state) => state.sectorIds);
+  const spaceStates = useMapFilterStore((state) => state.spaceStates);
+  const minAvgSales = useMapFilterStore((state) => state.minAvgSales);
+  const topSellersOnly = useMapFilterStore((state) => state.topSellersOnly);
+  const heatMetric = useMapFilterStore((state) => state.heatMetric);
+  const resetFilters = useMapFilterStore((state) => state.reset);
+  const filters = useMemo(
+    () => ({
+      mediaTypeIds,
+      negotiationTypeIds,
+      sectorIds,
+      spaceStates,
+      minAvgSales,
+      topSellersOnly,
+    }),
+    [
+      mediaTypeIds,
+      negotiationTypeIds,
+      sectorIds,
+      spaceStates,
+      minAvgSales,
+      topSellersOnly,
+    ],
+  );
+  const filtersActive = hasActiveFilters(filters);
+
+  // Store de filtro é singleton de módulo (como o useSceneStore) e o
+  // key={selectedId} do workspace não o limpa ao trocar de loja — sem isto o
+  // filtro da loja anterior vazaria pra próxima.
+  useEffect(() => {
+    resetFilters();
+  }, [floorPlan?.id, resetFilters]);
+
+  const keepHoverAlive = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  };
+  const showHover = (id: string) => {
+    keepHoverAlive();
+    setHoveredId(id);
+  };
+  const scheduleHoverHide = () => {
+    keepHoverAlive();
+    hideTimer.current = setTimeout(() => setHoveredId(null), HOVER_HIDE_MS);
+  };
 
   const ppm = floorPlan?.pixelsPerMeter ?? 50;
   const scale = viewport.zoom * ppm;
+  const showLabels = DEFAULT_LABEL_FONT_M * scale >= LABEL_MIN_PX;
 
   const layerById = useMemo(
     () => new Map(layers.map((layer) => [layer.id, layer])),
@@ -71,6 +195,31 @@ export function MapViewerStage() {
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const selectedObject = selectedId ? objects[selectedId] : undefined;
 
+  const topSellerIds = useMemo(
+    () => (topSellersOnly ? computeTopSellerIds(visibleObjects) : new Set<string>()),
+    [visibleObjects, topSellersOnly],
+  );
+
+  const heatColorScale = useMemo(() => {
+    if (heatMetric === "NONE") return null;
+    const values = visibleObjects
+      .filter((object) => isNegotiable(object))
+      .map((object) => getHeatMetricValue(object, heatMetric))
+      .filter((value): value is number => value != null);
+    return buildQuantileColorScale(values);
+  }, [visibleObjects, heatMetric]);
+
+  const resolveObjectDisplay = (object: SceneObject) => {
+    const negotiable = isNegotiable(object);
+    const dimmed = negotiable && filtersActive && !matchesFilters(object, filters, topSellerIds);
+    let heatFill: string | undefined;
+    if (heatColorScale && negotiable) {
+      const value = getHeatMetricValue(object, heatMetric);
+      if (value != null) heatFill = heatColorScale(value);
+    }
+    return { dimmed, heatFill };
+  };
+
   useEffect(() => {
     const element = containerRef.current;
     if (!element) return;
@@ -86,8 +235,16 @@ export function MapViewerStage() {
     return () => observer.disconnect();
   }, [setStageSize]);
 
+  // Espera a imagem de fundo carregar (quando existe) antes do primeiro
+  // enquadramento — senão o fit roda sem o tamanho real da imagem e sobra
+  // borda em branco até o próximo resize/troca de planta. Booleano primitivo
+  // (não o objeto) na dependência do efeito abaixo, pra manter o array de
+  // deps trivialmente estável.
+  const backgroundReady = !floorPlan?.backgroundImageKey || !!backgroundImageSize;
+
   useEffect(() => {
     if (!floorPlan || size.width === 0 || size.height === 0) return;
+    if (!backgroundReady) return;
 
     const planChanged = fittedPlanId.current !== floorPlan.id;
     const previous = fittedSize.current;
@@ -106,7 +263,7 @@ export function MapViewerStage() {
     fittedPlanId.current = floorPlan.id;
     fittedSize.current = { width: size.width, height: size.height };
     fitToPlan();
-  }, [floorPlan, size.width, size.height, fitToPlan]);
+  }, [floorPlan, size.width, size.height, backgroundReady, fitToPlan]);
 
   const getScreenPoint = (): Vec2 | null =>
     stageRef.current?.getPointerPosition() ?? null;
@@ -218,14 +375,22 @@ export function MapViewerStage() {
           </Layer>
 
           <Layer>
-            {visibleObjects.map((object) => (
-              <MapShape
-                key={object.id}
-                object={object}
-                isSelected={selectedIds.includes(object.id)}
-                draggable={false}
-              />
-            ))}
+            {visibleObjects.map((object) => {
+              const { dimmed, heatFill } = resolveObjectDisplay(object);
+              return (
+                <MapShape
+                  key={object.id}
+                  object={object}
+                  isSelected={selectedIds.includes(object.id)}
+                  draggable={false}
+                  showLabel={showLabels}
+                  onHoverStart={showHover}
+                  onHoverEnd={scheduleHoverHide}
+                  dimmed={dimmed}
+                  heatFill={heatFill}
+                />
+              );
+            })}
           </Layer>
 
           {highlight && (
@@ -260,6 +425,16 @@ export function MapViewerStage() {
             </Layer>
           )}
         </Stage>
+      )}
+
+      {floorPlan && (
+        <SpaceActionMenu
+          hoveredId={hoveredId}
+          floorPlanId={floorPlan.id}
+          isAdmin={isAdmin}
+          onKeepAlive={keepHoverAlive}
+          onScheduleHide={scheduleHoverHide}
+        />
       )}
     </div>
   );

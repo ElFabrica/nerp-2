@@ -1,8 +1,13 @@
 import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
-import { MapObjectType, type Prisma } from "@/generated/prisma/client";
+import {
+  MapObjectType,
+  MapSpaceState,
+  type Prisma,
+} from "@/generated/prisma/client";
 import prisma from "@/lib/db";
+import { inngest, mapSpaceStateChanged } from "@/lib/inngest/client";
 import { z } from "zod";
 
 const vec2 = z.object({ x: z.number(), y: z.number() });
@@ -37,6 +42,11 @@ const objectSchema = z.object({
   heightM: z.number().nullable().optional(),
   style: styleSchema.optional(),
   name: z.string().nullable().optional(),
+  // Obrigatório de propósito: se fosse opcional com `?? "LIVRE"` no handler, um
+  // client desatualizado rebaixaria silenciosamente um espaço EXECUTADO/PENDENTE.
+  spaceState: z.enum(MapSpaceState),
+  // `spaceCode`/`spaceSeq` NÃO entram aqui: são escritos só pela procedure
+  // `assignSpaceCode`. Fora do autosave, um arraste nunca apaga o Digital Space ID.
   status: z.string().nullable().optional(),
   category: z.string().nullable().optional(),
   responsibleName: z.string().nullable().optional(),
@@ -77,12 +87,13 @@ export const bulkUpsertMapObjects = base
     }
 
     // Só atualiza ids já pertencentes a este mapa; os demais são criados.
-    // Isso evita que um id de outra organização seja sobrescrito.
+    // Isso evita que um id de outra organização seja sobrescrito. Traz também
+    // o estado + spaceCode atuais para diffar as transições sem round-trip extra.
     const existing = await prisma.mapObject.findMany({
       where: { floorPlanId: input.floorPlanId, organizationId: context.org.id },
-      select: { id: true },
+      select: { id: true, spaceState: true, spaceCode: true },
     });
-    const existingIds = new Set(existing.map((object) => object.id));
+    const before = new Map(existing.map((object) => [object.id, object]));
 
     await prisma.$transaction(
       input.objects.map((object) => {
@@ -95,6 +106,7 @@ export const bulkUpsertMapObjects = base
           heightM: object.heightM ?? null,
           style: (object.style ?? {}) as Prisma.InputJsonValue,
           name: object.name ?? null,
+          spaceState: object.spaceState,
           status: object.status ?? null,
           category: object.category ?? null,
           responsibleName: object.responsibleName ?? null,
@@ -104,7 +116,7 @@ export const bulkUpsertMapObjects = base
           properties: (object.properties ?? {}) as Prisma.InputJsonValue,
         };
 
-        if (existingIds.has(object.id)) {
+        if (before.has(object.id)) {
           return prisma.mapObject.update({
             where: { id: object.id },
             data: shared,
@@ -121,6 +133,29 @@ export const bulkUpsertMapObjects = base
         });
       }),
     );
+
+    // Emite só transições reais de estado, DEPOIS do commit (evento de write
+    // revertido é pior que nenhum). Falha de broker não pode derrubar o autosave.
+    const events = input.objects
+      .map((object) => {
+        const previous = before.get(object.id);
+        if (!previous || previous.spaceState === object.spaceState) return null;
+        return mapSpaceStateChanged.create({
+          organizationId: context.org.id,
+          floorPlanId: input.floorPlanId,
+          mapObjectId: object.id,
+          spaceCode: previous.spaceCode,
+          from: previous.spaceState,
+          to: object.spaceState,
+        });
+      })
+      .filter((event): event is NonNullable<typeof event> => event !== null);
+
+    if (events.length > 0) {
+      await inngest.send(events).catch((error) => {
+        console.error("[map-object.bulkUpsert] inngest.send falhou:", error);
+      });
+    }
 
     return { success: true };
   });

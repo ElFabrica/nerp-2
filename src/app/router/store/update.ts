@@ -18,6 +18,9 @@ export const updateStore = base
       state: z.string().optional(),
       notes: z.string().optional(),
       isActive: z.boolean().optional(),
+      areaM2: z.number().positive().nullable().optional(),
+      monthlyCost: z.number().nonnegative().nullable().optional(),
+      customersPerDay: z.number().int().nonnegative().nullable().optional(),
     }),
   )
   .handler(async ({ input, context, errors }) => {

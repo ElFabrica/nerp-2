@@ -20,6 +20,9 @@ function toBulkInput(object: SceneObject) {
     heightM: object.heightM,
     style: object.style,
     name: object.name,
+    spaceState: object.spaceState,
+    // spaceCode/spaceSeq NÃO vão no autosave — são escritos só por assignSpaceCode
+    // (bulk-upsert nem aceita), então um arraste nunca apaga o Digital Space ID.
     status: object.status,
     category: object.category,
     responsibleName: object.responsibleName,
