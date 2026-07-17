@@ -4,10 +4,13 @@ import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Circle, Layer, Line, Rect, Stage, Transformer } from "react-konva";
+import { useMediaTypes } from "@/features/trade-catalog/hooks/use-trade-catalog";
 import { useSceneStore } from "../../engine/scene-store";
 import { snapToGrid, visibleWorldBounds } from "../../engine/geometry";
+import { DEFAULT_MEDIA_TYPE_BY_OBJECT_TYPE } from "../../engine/space-state";
 import { CREATE_TOOLS_BY_TYPE } from "../../engine/tools";
-import type { EditorTool, Vec2 } from "../../engine/types";
+import type { EditorTool, MapObjectType, Vec2 } from "../../engine/types";
+import { useUpdateSpaceParams } from "../../hooks/use-update-space-params";
 import {
   useCreateAnnotation,
   useMapAnnotations,
@@ -49,6 +52,7 @@ export function MapStage() {
   const snapEnabled = useSceneStore((state) => state.snapEnabled);
   const gridSizeM = useSceneStore((state) => state.gridSizeM);
   const guides = useSceneStore((state) => state.guides);
+  const backgroundImageSize = useSceneStore((state) => state.backgroundImageSize);
   const activeLayerId = useSceneStore((state) => state.activeLayerId);
   const calibrating = useSceneStore((state) => state.calibrating);
   const calibrationPoints = useSceneStore((state) => state.calibrationPoints);
@@ -60,6 +64,17 @@ export function MapStage() {
   const setAnnotating = useSceneStore((state) => state.setAnnotating);
 
   const addObject = useSceneStore((state) => state.addObject);
+  const { mediaTypes } = useMediaTypes();
+  const updateSpaceParams = useUpdateSpaceParams();
+  const mediaTypeIdByCode = useMemo(
+    () => new Map(mediaTypes.map((mediaType) => [mediaType.code, mediaType.id])),
+    [mediaTypes],
+  );
+  const suggestMediaTypeId = (type: MapObjectType) => {
+    const code = DEFAULT_MEDIA_TYPE_BY_OBJECT_TYPE[type];
+    if (!code) return null;
+    return mediaTypeIdByCode.get(code) ?? null;
+  };
   const panBy = useSceneStore((state) => state.panBy);
   const zoomAt = useSceneStore((state) => state.zoomAt);
   const clearSelection = useSceneStore((state) => state.clearSelection);
@@ -137,13 +152,20 @@ export function MapStage() {
     return () => observer.disconnect();
   }, [setStageSize]);
 
+  // Espera a imagem de fundo carregar (quando existe) antes do primeiro fit —
+  // senão o fit roda sem o tamanho real da imagem e sobra borda em branco.
+  // Booleano primitivo (não o objeto) na dependência, pra manter o array de
+  // deps do efeito abaixo trivialmente estável.
+  const backgroundReady = !floorPlan?.backgroundImageKey || !!backgroundImageSize;
+
   // Enquadra o mapa na primeira vez que ele carrega com a tela já medida.
   useEffect(() => {
     if (!floorPlan || size.width === 0) return;
+    if (!backgroundReady) return;
     if (fittedPlanId.current === floorPlan.id) return;
     fittedPlanId.current = floorPlan.id;
     fitToPlan();
-  }, [floorPlan, size.width, fitToPlan]);
+  }, [floorPlan, size.width, backgroundReady, fitToPlan]);
 
   // Reatacha o Transformer aos retângulos selecionados (ferramenta SELECT).
   useEffect(() => {
@@ -209,12 +231,15 @@ export function MapStage() {
     if (!def || !activeLayerId) return;
 
     if (def.shapeKind === "POINT") {
-      addObject({
+      const mediaTypeId = suggestMediaTypeId(def.type);
+      const id = addObject({
         type: def.type,
         layerId: activeLayerId,
         geometry: { kind: "POINT", x: snap(world.x), y: snap(world.y) },
         style: def.style,
+        mediaTypeId,
       });
+      if (mediaTypeId) updateSpaceParams.mutate({ id, mediaTypeId });
       setTool("SELECT");
       return;
     }
@@ -285,12 +310,15 @@ export function MapStage() {
       }
     }
 
-    addObject({
+    const mediaTypeId = suggestMediaTypeId(def.type);
+    const id = addObject({
       type: def.type,
       layerId: activeLayerId,
       geometry: { kind: "RECT", x, y, width, height, rotation: 0 },
       style: def.style,
+      mediaTypeId,
     });
+    if (mediaTypeId) updateSpaceParams.mutate({ id, mediaTypeId });
     setTool("SELECT");
   };
 

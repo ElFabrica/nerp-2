@@ -1,4 +1,4 @@
-import type { MediaKind } from "@/generated/prisma/enums";
+import type { MediaKind, MediaPricingBasis } from "@/generated/prisma/enums";
 
 // Catálogos padrão do Trade Marketing — a base da "Biblioteca Nacional de
 // Espaços Comerciais". Semeados por org na criação e no backfill. Dados puros:
@@ -8,6 +8,10 @@ export interface MediaTypeSeed {
   kind: MediaKind;
   code: string;
   name: string;
+  // Omitido = AREA (padrão do schema). FLAT: mídia sem área de piso real —
+  // sinalização pequena (wobbler, móbile) e toda mídia digital (QR, push,
+  // app...), que se cota por veiculação, não por m².
+  pricingBasis?: MediaPricingBasis;
 }
 
 export interface NegotiationTypeSeed {
@@ -35,8 +39,8 @@ export const DEFAULT_MEDIA_TYPES: readonly MediaTypeSeed[] = [
   { kind: "FISICA", code: "TG", name: "Terminal de Gôndola" },
   { kind: "FISICA", code: "FG", name: "Faixa de Gôndola" },
   { kind: "FISICA", code: "SP", name: "Stopper" },
-  { kind: "FISICA", code: "WB", name: "Wobbler" },
-  { kind: "FISICA", code: "MB", name: "Móbile" },
+  { kind: "FISICA", code: "WB", name: "Wobbler", pricingBasis: "FLAT" },
+  { kind: "FISICA", code: "MB", name: "Móbile", pricingBasis: "FLAT" },
   { kind: "FISICA", code: "BN", name: "Banner" },
   { kind: "FISICA", code: "TT", name: "Totem" },
   { kind: "FISICA", code: "AP", name: "Adesivação de Piso" },
@@ -53,22 +57,32 @@ export const DEFAULT_MEDIA_TYPES: readonly MediaTypeSeed[] = [
   { kind: "FISICA", code: "PA", name: "Padaria" },
   { kind: "FISICA", code: "HF", name: "Hortifruti" },
   { kind: "FISICA", code: "AG", name: "Adega" },
-  // Mídia digital
-  { kind: "DIGITAL", code: "QR", name: "QR Code Map" },
-  { kind: "DIGITAL", code: "TV", name: "TV Corporativa" },
-  { kind: "DIGITAL", code: "LED", name: "Painel LED" },
-  { kind: "DIGITAL", code: "TD", name: "Totem Digital" },
-  { kind: "DIGITAL", code: "ED", name: "Etiqueta Digital" },
-  { kind: "DIGITAL", code: "RI", name: "Rádio Interna" },
-  { kind: "DIGITAL", code: "APP", name: "Aplicativo do Supermercado" },
-  { kind: "DIGITAL", code: "WA", name: "WhatsApp Oficial" },
-  { kind: "DIGITAL", code: "PN", name: "Push Notification" },
-  { kind: "DIGITAL", code: "GEO", name: "Geolocalização" },
-  { kind: "DIGITAL", code: "MAP", name: "Mapa Digital" },
-  { kind: "DIGITAL", code: "CP", name: "Cupom Digital" },
-  { kind: "DIGITAL", code: "CB", name: "Cashback" },
-  { kind: "DIGITAL", code: "FD", name: "Programa de Fidelidade" },
-  { kind: "DIGITAL", code: "RM", name: "Retail Media" },
+  // Mídia digital — cotada por veiculação, não por m² de piso.
+  { kind: "DIGITAL", code: "QR", name: "QR Code Map", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "TV", name: "TV Corporativa", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "LED", name: "Painel LED", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "TD", name: "Totem Digital", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "ED", name: "Etiqueta Digital", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "RI", name: "Rádio Interna", pricingBasis: "FLAT" },
+  {
+    kind: "DIGITAL",
+    code: "APP",
+    name: "Aplicativo do Supermercado",
+    pricingBasis: "FLAT",
+  },
+  { kind: "DIGITAL", code: "WA", name: "WhatsApp Oficial", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "PN", name: "Push Notification", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "GEO", name: "Geolocalização", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "MAP", name: "Mapa Digital", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "CP", name: "Cupom Digital", pricingBasis: "FLAT" },
+  { kind: "DIGITAL", code: "CB", name: "Cashback", pricingBasis: "FLAT" },
+  {
+    kind: "DIGITAL",
+    code: "FD",
+    name: "Programa de Fidelidade",
+    pricingBasis: "FLAT",
+  },
+  { kind: "DIGITAL", code: "RM", name: "Retail Media", pricingBasis: "FLAT" },
 ];
 
 // Códigos atribuídos à mão: derivar do nome colidiria ("Merchandising

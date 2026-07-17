@@ -62,6 +62,11 @@ export const PAGE_PERMISSIONS = [
     href: "/trade/cadastros",
   },
   {
+    key: "catalogo-pdv",
+    label: "Catálogo PDV",
+    href: "/trade/catalogo-pdv",
+  },
+  {
     key: "colaboradores",
     label: "Colaboradores",
     href: "/colaboradores",

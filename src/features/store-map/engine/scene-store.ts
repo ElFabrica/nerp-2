@@ -3,8 +3,9 @@
 import type { MapAnnotationType } from "@/generated/prisma/enums";
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
-import { boundsOf, clamp, translateGeometry } from "./geometry";
+import { boundsOf, clamp, translateGeometry, unionBounds } from "./geometry";
 import type {
+  Bounds,
   EditorTool,
   FloorPlanMeta,
   FloorPlanScene,
@@ -17,6 +18,58 @@ import type {
   Vec2,
   Viewport,
 } from "./types";
+
+export interface ImageSize {
+  width: number;
+  height: number;
+}
+
+// Enquadra pelo conteúdo real (imagem de fundo + objetos), não pelo tamanho
+// nominal widthM/heightM da planta — que costuma ficar no default (50x50) e
+// sobra bem maior que a imagem calibrada, deixando faixas em branco na tela.
+function computeContentBounds(
+  floorPlan: FloorPlanMeta,
+  objects: Record<ObjectId, SceneObject>,
+  backgroundImageSize: ImageSize | null,
+): Bounds {
+  let bounds: Bounds | null = null;
+
+  if (backgroundImageSize && floorPlan.backgroundImageKey) {
+    const transform = floorPlan.backgroundTransform;
+    const scale = transform?.scale ?? floorPlan.widthM / backgroundImageSize.width;
+    const x = transform?.x ?? 0;
+    const y = transform?.y ?? 0;
+    bounds = {
+      minX: x,
+      minY: y,
+      maxX: x + backgroundImageSize.width * scale,
+      maxY: y + backgroundImageSize.height * scale,
+    };
+  }
+
+  for (const object of Object.values(objects)) {
+    const objectBounds = boundsOf(object.geometry);
+    bounds = bounds ? unionBounds(bounds, objectBounds) : objectBounds;
+  }
+
+  // Planta nova, sem imagem nem objetos: cai no tamanho nominal.
+  if (!bounds) {
+    return { minX: 0, minY: 0, maxX: floorPlan.widthM, maxY: floorPlan.heightM };
+  }
+
+  // Não deixa o enquadramento colapsar num único ponto/objeto minúsculo.
+  const MIN_CONTENT_SPAN_M = 2;
+  const width = Math.max(bounds.maxX - bounds.minX, MIN_CONTENT_SPAN_M);
+  const height = Math.max(bounds.maxY - bounds.minY, MIN_CONTENT_SPAN_M);
+  const cx = (bounds.minX + bounds.maxX) / 2;
+  const cy = (bounds.minY + bounds.maxY) / 2;
+  return {
+    minX: cx - width / 2,
+    minY: cy - height / 2,
+    maxX: cx + width / 2,
+    maxY: cy + height / 2,
+  };
+}
 
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 8;
@@ -37,6 +90,9 @@ export interface AddObjectInput {
   style?: MapObjectStyle;
   name?: string | null;
   heightM?: number | null;
+  // Sugestão de mídia por tipo de ferramenta (DEFAULT_MEDIA_TYPE_BY_OBJECT_TYPE)
+  // — o admin troca livremente no painel, nunca é obrigatório.
+  mediaTypeId?: string | null;
 }
 
 export interface SceneState {
@@ -47,6 +103,9 @@ export interface SceneState {
   activeLayerId: string | null;
   viewport: Viewport;
   stageSize: { width: number; height: number };
+  // Tamanho natural (px) da imagem de fundo carregada — usado por fitToPlan
+  // pra enquadrar pelo conteúdo real, não pelo widthM/heightM nominal.
+  backgroundImageSize: ImageSize | null;
   tool: EditorTool;
   // Calibração de escala (medir uma referência real sobre a planta)
   calibrating: boolean;
@@ -75,6 +134,7 @@ export interface SceneState {
   setAnnotating: (on: boolean, type?: MapAnnotationType) => void;
   setViewport: (viewport: Viewport) => void;
   setStageSize: (size: { width: number; height: number }) => void;
+  setBackgroundImageSize: (size: ImageSize | null) => void;
   panBy: (dx: number, dy: number) => void;
   zoomAt: (screenPoint: Vec2, factor: number) => void;
   zoomByStep: (factor: number) => void;
@@ -121,6 +181,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   activeLayerId: null,
   viewport: { x: 0, y: 0, zoom: 1 },
   stageSize: { width: 0, height: 0 },
+  backgroundImageSize: null,
   tool: "SELECT",
   calibrating: false,
   calibrationPoints: [],
@@ -146,6 +207,9 @@ export const useSceneStore = create<SceneState>((set, get) => ({
       layers,
       activeLayerId: layers[0]?.id ?? null,
       selectedIds: [],
+      // Nova planta pode ter outra imagem (ou nenhuma); descarta o tamanho da
+      // anterior até o MapBackground carregar e reportar de novo.
+      backgroundImageSize: null,
       dirtyIds: new Set(),
       newIds: new Set(),
       deletedIds: new Set(),
@@ -183,6 +247,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   setViewport: (viewport) => set({ viewport }),
   setStageSize: (stageSize) => set({ stageSize }),
+  setBackgroundImageSize: (backgroundImageSize) => set({ backgroundImageSize }),
 
   panBy: (dx, dy) =>
     set((state) => ({
@@ -218,25 +283,27 @@ export const useSceneStore = create<SceneState>((set, get) => ({
 
   fitToPlan: () =>
     set((state) => {
-      const { floorPlan, stageSize } = state;
+      const { floorPlan, stageSize, objects, backgroundImageSize } = state;
       if (!floorPlan || stageSize.width === 0 || stageSize.height === 0) {
         return {};
       }
+      const content = computeContentBounds(floorPlan, objects, backgroundImageSize);
+      const contentWidthM = content.maxX - content.minX;
+      const contentHeightM = content.maxY - content.minY;
       const padding = 40;
       const scaleX =
-        (stageSize.width - padding * 2) /
-        (floorPlan.widthM * floorPlan.pixelsPerMeter);
+        (stageSize.width - padding * 2) / (contentWidthM * floorPlan.pixelsPerMeter);
       const scaleY =
-        (stageSize.height - padding * 2) /
-        (floorPlan.heightM * floorPlan.pixelsPerMeter);
-      const zoom = clamp(Math.min(scaleX, scaleY), 0.05, 8);
-      const contentWidth = floorPlan.widthM * floorPlan.pixelsPerMeter * zoom;
-      const contentHeight = floorPlan.heightM * floorPlan.pixelsPerMeter * zoom;
+        (stageSize.height - padding * 2) / (contentHeightM * floorPlan.pixelsPerMeter);
+      const zoom = clamp(Math.min(scaleX, scaleY), MIN_ZOOM, MAX_ZOOM);
+      const scale = zoom * floorPlan.pixelsPerMeter;
+      const centerX = (content.minX + content.maxX) / 2;
+      const centerY = (content.minY + content.maxY) / 2;
       return {
         viewport: {
           zoom,
-          x: (stageSize.width - contentWidth) / 2,
-          y: (stageSize.height - contentHeight) / 2,
+          x: stageSize.width / 2 - centerX * scale,
+          y: stageSize.height / 2 - centerY * scale,
         },
       };
     }),
@@ -314,6 +381,15 @@ export const useSceneStore = create<SceneState>((set, get) => ({
         lastVisitAt: null,
         supplierId: null,
         brandId: null,
+        mediaTypeId: input.mediaTypeId ?? null,
+        sectorId: null,
+        tier: null,
+        flowLevel: null,
+        visibility: null,
+        isExclusive: false,
+        revenuePotential: null,
+        avgSalesAmount: null,
+        activeNegotiation: null,
         properties: {},
       };
       const dirtyIds = new Set(state.dirtyIds).add(id);

@@ -81,6 +81,44 @@ export function boundsOfPoints(points: Vec2[]): Bounds {
   return { minX, minY, maxX, maxY };
 }
 
+/**
+ * Área real em m². Não usar `boundsOf` para isso — ele projeta os cantos
+ * rotacionados e devolve a AABB (uma gôndola 4×1 girada 45° reportaria
+ * ~12,5 m² em vez de 4). RECT usa w×h direto (rotação não muda área);
+ * POLYGON usa a fórmula do shoelace; POLYLINE/POINT não têm área.
+ */
+export function areaOf(geometry: Geometry): number {
+  switch (geometry.kind) {
+    case "RECT":
+      return Math.abs(geometry.width * geometry.height);
+    case "POLYGON":
+      return shoelaceArea(geometry.points);
+    case "POLYLINE":
+    case "POINT":
+      return 0;
+  }
+}
+
+function shoelaceArea(points: Vec2[]): number {
+  if (points.length < 3) return 0;
+  let sum = 0;
+  for (let i = 0; i < points.length; i++) {
+    const current = points[i];
+    const next = points[(i + 1) % points.length];
+    sum += current.x * next.y - next.x * current.y;
+  }
+  return Math.abs(sum) / 2;
+}
+
+export function unionBounds(a: Bounds, b: Bounds): Bounds {
+  return {
+    minX: Math.min(a.minX, b.minX),
+    minY: Math.min(a.minY, b.minY),
+    maxX: Math.max(a.maxX, b.maxX),
+    maxY: Math.max(a.maxY, b.maxY),
+  };
+}
+
 export function boundsIntersect(a: Bounds, b: Bounds): boolean {
   return (
     a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY

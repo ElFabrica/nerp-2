@@ -25,6 +25,10 @@ import { spaceNegotiationRoutes } from "./space-negotiation";
 import { mediaTypeRoutes } from "./trade-catalog/media-type";
 import { negotiationTypeRoutes } from "./trade-catalog/negotiation-type";
 import { storeSectorRoutes } from "./trade-catalog/store-sector";
+import { mediaTypePriceRoutes } from "./trade-catalog/media-type-price";
+import { tradePricingSettingsRoutes } from "./trade-catalog/pricing-settings";
+import { regionCostBenchmarkRoutes } from "./trade-catalog/region-benchmark";
+import { catalogPdvRoutes } from "./trade-catalog/catalog-pdv";
 import { invitationRoutes } from "./invitation";
 
 export const router = {
@@ -55,5 +59,9 @@ export const router = {
   mediaType: mediaTypeRoutes,
   negotiationType: negotiationTypeRoutes,
   storeSector: storeSectorRoutes,
+  mediaTypePrice: mediaTypePriceRoutes,
+  tradePricingSettings: tradePricingSettingsRoutes,
+  regionCostBenchmark: regionCostBenchmarkRoutes,
+  catalogPdv: catalogPdvRoutes,
   invitation: invitationRoutes,
 };

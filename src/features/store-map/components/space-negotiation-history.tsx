@@ -92,6 +92,11 @@ export function SpaceNegotiationHistory({
                       Marca: {negotiation.brandName}
                     </p>
                   )}
+                  {negotiation.negotiationTypeName && (
+                    <p className="text-sm text-muted-foreground">
+                      Tipo: {negotiation.negotiationTypeName}
+                    </p>
+                  )}
                   {negotiation.distributor && (
                     <p className="text-sm text-muted-foreground">
                       Distribuidor: {negotiation.distributor}

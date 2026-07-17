@@ -16,11 +16,33 @@ export const getFullFloorPlan = base
   .use(requireOrgMiddleware)
   .input(z.object({ id: z.string() }))
   .handler(async ({ input, context, errors }): Promise<FloorPlanScene> => {
+    const now = new Date();
     const floorPlan = await prisma.floorPlan.findFirst({
       where: { id: input.id, organizationId: context.org.id },
       include: {
         layers: { orderBy: { order: "asc" } },
-        objects: true,
+        objects: {
+          include: {
+            // Negociação FECHADA vigente hoje (entre startDate/endDate), a
+            // mais recente. `take: 1` no include evita N+1 — um único join,
+            // não uma query por objeto. Alimenta o filtro/heatmap da Fase 4.
+            negotiations: {
+              where: {
+                status: "FECHADA",
+                startDate: { lte: now },
+                endDate: { gte: now },
+              },
+              orderBy: { startDate: "desc" },
+              take: 1,
+              select: {
+                id: true,
+                negotiationTypeId: true,
+                amount: true,
+                endDate: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -46,7 +68,25 @@ export const getFullFloorPlan = base
       lastVisitAt: object.lastVisitAt?.toISOString() ?? null,
       supplierId: object.supplierId,
       brandId: object.brandId,
+      mediaTypeId: object.mediaTypeId,
+      sectorId: object.sectorId,
+      tier: object.tier,
+      flowLevel: object.flowLevel,
+      visibility: object.visibility,
+      isExclusive: object.isExclusive,
+      revenuePotential: object.revenuePotential ? Number(object.revenuePotential) : null,
+      avgSalesAmount: object.avgSalesAmount ? Number(object.avgSalesAmount) : null,
       properties: (object.properties as Record<string, unknown> | null) ?? {},
+      activeNegotiation: object.negotiations[0]
+        ? {
+            id: object.negotiations[0].id,
+            negotiationTypeId: object.negotiations[0].negotiationTypeId,
+            amount: object.negotiations[0].amount
+              ? Number(object.negotiations[0].amount)
+              : null,
+            endDate: object.negotiations[0].endDate?.toISOString() ?? null,
+          }
+        : null,
     }));
 
     return {

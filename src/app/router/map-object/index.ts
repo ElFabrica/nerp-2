@@ -4,6 +4,7 @@ import { bulkUpsertMapObjects } from "./bulk-upsert";
 import { getMapObjectAudit } from "./get-audit";
 import { listOpportunities } from "./list-opportunities";
 import { listSpaces } from "./list-spaces";
+import { updateSpaceParams } from "./update-space-params";
 
 export const mapObjectRoutes = {
   bulkUpsert: bulkUpsertMapObjects,
@@ -12,4 +13,5 @@ export const mapObjectRoutes = {
   assignSpaceCode,
   listSpaces,
   listOpportunities,
+  updateSpaceParams,
 };

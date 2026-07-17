@@ -13,6 +13,7 @@ export const updateSpaceNegotiation = base
       id: z.string(),
       supplierId: z.string().nullable().optional(),
       brandId: z.string().nullable().optional(),
+      negotiationTypeId: z.string().nullable().optional(),
       distributor: z.string().nullable().optional(),
       startDate: z.string().nullable().optional(),
       endDate: z.string().nullable().optional(),

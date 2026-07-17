@@ -17,6 +17,10 @@ export const assignSpaceCode = base
       mapObjectId: z.string(),
       // Código digitado à mão. Ausente = gerar/regerar automaticamente.
       customCode: z.string().trim().min(1).optional(),
+      // Regenerar sobrescreve um código já existente (ex.: setor mudou) — exige
+      // confirmação explícita pra não reescrever o ID silenciosamente na
+      // primeira vez que mídia/setor forem preenchidos.
+      confirmRegenerate: z.boolean().optional(),
     }),
   )
   .output(z.object({ spaceCode: z.string(), spaceSeq: z.number().nullable() }))
@@ -25,9 +29,10 @@ export const assignSpaceCode = base
       where: { id: input.mapObjectId, organizationId: context.org.id },
       select: {
         id: true,
-        type: true,
-        category: true,
+        spaceCode: true,
         spaceSeq: true,
+        mediaType: { select: { code: true } },
+        sector: { select: { code: true } },
         floorPlan: { select: { store: { select: { code: true } } } },
       },
     });
@@ -75,9 +80,9 @@ export const assignSpaceCode = base
       });
     }
 
-    // Regerar (categoria mudou) reaproveita o sequencial — o "CPF" do espaço não
-    // muda de número. Primeira geração pega o próximo sequencial da org sob lock
-    // de aviso, evitando corrida entre criações concorrentes.
+    // Regerar (mídia/setor mudou) reaproveita o sequencial — o "CPF" do
+    // espaço não muda de número. Primeira geração pega o próximo sequencial
+    // da org sob lock de aviso, evitando corrida entre criações concorrentes.
     const spaceCode = await prisma.$transaction(async (tx) => {
       let seq = object.spaceSeq;
       if (seq === null) {
@@ -91,10 +96,19 @@ export const assignSpaceCode = base
       const code = formatSpaceCode({
         orgSigla,
         storeCode,
-        type: object.type,
+        mediaCode: object.mediaType?.code ?? null,
         seq,
-        category: object.category,
+        sectorCode: object.sector?.code ?? null,
       });
+
+      // Regenerar um código já existente pra um valor diferente reescreve o
+      // identificador impresso na prateleira — só com confirmação explícita.
+      if (object.spaceCode && object.spaceCode !== code && !input.confirmRegenerate) {
+        throw errors.BAD_REQUEST({
+          message: "O ID mudaria de acordo com a mídia/setor atuais. Confirme a regeneração.",
+        });
+      }
+
       await tx.mapObject.update({
         where: { id: object.id },
         data: { spaceCode: code, spaceSeq: seq },

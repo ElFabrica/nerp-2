@@ -19,6 +19,11 @@ interface MapShapeProps {
   showLabel?: boolean;
   onHoverStart?: (id: string) => void;
   onHoverEnd?: () => void;
+  // Só o viewer preenche isto (filtro/heatmap da Fase 4). O editor nunca
+  // passa essas props, então este componente fica estruturalmente intacto
+  // pra ele — resolveObjectStyle continua a única fonte de cor no editor.
+  dimmed?: boolean;
+  heatFill?: string;
 }
 
 export function MapShape({
@@ -28,6 +33,8 @@ export function MapShape({
   showLabel = true,
   onHoverStart,
   onHoverEnd,
+  dimmed = false,
+  heatFill,
 }: MapShapeProps) {
   const updateObjectGeometry = useSceneStore(
     (state) => state.updateObjectGeometry,
@@ -74,8 +81,8 @@ export function MapShape({
   const resolved = resolveObjectStyle(object);
   const stroke = isSelected ? "#2563eb" : (resolved.stroke ?? "#334155");
   const strokeWidth = isSelected ? 2 : (resolved.strokeWidth ?? 1);
-  const fill = resolved.fill ?? "#cbd5e1";
-  const opacity = resolved.opacity ?? 1;
+  const fill = heatFill ?? resolved.fill ?? "#cbd5e1";
+  const opacity = dimmed ? (resolved.opacity ?? 1) * 0.2 : (resolved.opacity ?? 1);
 
   const hoverProps = {
     onMouseEnter: () => onHoverStart?.(object.id),

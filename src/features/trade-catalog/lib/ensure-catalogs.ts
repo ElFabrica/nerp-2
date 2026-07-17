@@ -22,6 +22,7 @@ export async function ensureTradeCatalogs(
       kind: media.kind,
       code: media.code,
       name: media.name,
+      pricingBasis: media.pricingBasis ?? "AREA",
       sortOrder: index,
       isSystemDefault: true,
     })),

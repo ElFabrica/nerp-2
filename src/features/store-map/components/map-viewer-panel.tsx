@@ -5,10 +5,20 @@ import { Separator } from "@/components/ui/separator";
 import { useBrands } from "@/features/brands/hooks/use-brands";
 import { PdvPhotoSection } from "@/features/pdv-photos/components/pdv-photo-section";
 import { useSupplier } from "@/features/supplier/hooks/use-supplier";
+import {
+  useMediaTypes,
+  useStoreSectors,
+} from "@/features/trade-catalog/hooks/use-trade-catalog";
 import { UserCog } from "lucide-react";
 import { readNegotiation } from "../engine/negotiation";
 import { useSceneStore } from "../engine/scene-store";
-import { NEGOTIABLE_TYPES, SPACE_STATE_META } from "../engine/space-state";
+import {
+  isNegotiable,
+  SPACE_FLOW_LABELS,
+  SPACE_STATE_META,
+  SPACE_TIER_LABELS,
+  SPACE_VISIBILITY_LABELS,
+} from "../engine/space-state";
 import type { MapObjectType } from "../engine/types";
 import { useMapObjectAudit } from "../hooks/use-map-object-audit";
 
@@ -72,6 +82,8 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
   const { suppliers } = useSupplier({ pageSize: 100 });
   const { brands } = useBrands(object?.supplierId ?? undefined);
   const { audit } = useMapObjectAudit(object?.id);
+  const { mediaTypes } = useMediaTypes();
+  const { storeSectors } = useStoreSectors();
 
   if (!object) {
     return (
@@ -88,12 +100,17 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
     null;
   const brandName =
     brands.find((brand) => brand.id === object.brandId)?.name ?? null;
+  const mediaTypeName =
+    mediaTypes.find((mediaType) => mediaType.id === object.mediaTypeId)
+      ?.name ?? null;
+  const sector = storeSectors.find((sector) => sector.id === object.sectorId);
+  const sectorName = sector?.name ?? object.category;
 
   const start = formatDate(negotiation.negotiationStart);
   const end = formatDate(negotiation.negotiationEnd);
   const period = start && end ? `${start} a ${end}` : (start ?? end);
 
-  const isNegotiable = NEGOTIABLE_TYPES.has(object.type);
+  const negotiable = isNegotiable(object);
   const stateMeta = SPACE_STATE_META[object.spaceState];
 
   return (
@@ -109,7 +126,7 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <Badge variant="secondary">{TYPE_LABELS[object.type]}</Badge>
-          {isNegotiable && (
+          {negotiable && (
             <span
               className="rounded-full px-2 py-0.5 text-xs font-semibold"
               style={{
@@ -127,8 +144,22 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
         <InfoRow label="Elemento" value={object.name} />
         <InfoRow label="ID do espaço" value={object.spaceCode} />
         <InfoRow label="Localização" value={negotiation.location} />
-        <InfoRow label="Tipo de espaço" value={negotiation.spaceType} />
-        <InfoRow label="Categoria" value={object.category} />
+        <InfoRow label="Tipo de mídia" value={mediaTypeName} />
+        <InfoRow label="Setor" value={sectorName} />
+        <InfoRow
+          label="Categoria"
+          value={object.tier ? SPACE_TIER_LABELS[object.tier] : null}
+        />
+        <InfoRow
+          label="Fluxo"
+          value={object.flowLevel ? SPACE_FLOW_LABELS[object.flowLevel] : null}
+        />
+        <InfoRow
+          label="Visibilidade"
+          value={
+            object.visibility ? SPACE_VISIBILITY_LABELS[object.visibility] : null
+          }
+        />
         <InfoRow label="Indústria" value={supplierName} />
         <InfoRow label="Marca ocupante" value={brandName} />
         <InfoRow label="Distribuidor" value={negotiation.distributor} />
@@ -155,7 +186,7 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
             storeId={storeId}
             mapObjectId={object.id}
             defaultSupplierId={object.supplierId}
-            defaultSection={object.category}
+            defaultSection={sectorName}
           />
         </>
       )}

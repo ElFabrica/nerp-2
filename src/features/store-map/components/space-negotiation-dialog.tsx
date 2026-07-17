@@ -20,6 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useBrands } from "@/features/brands/hooks/use-brands";
 import { useSupplier } from "@/features/supplier/hooks/use-supplier";
+import { useNegotiationTypes } from "@/features/trade-catalog/hooks/use-trade-catalog";
 import type { NegotiationStatus } from "@/generated/prisma/enums";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -48,8 +49,10 @@ export function SpaceNegotiationDialog({
   onOpenChange,
 }: SpaceNegotiationDialogProps) {
   const { suppliers } = useSupplier();
+  const { negotiationTypes } = useNegotiationTypes();
   const [supplierId, setSupplierId] = useState<string | null>(null);
   const [brandId, setBrandId] = useState<string | null>(null);
+  const [negotiationTypeId, setNegotiationTypeId] = useState<string | null>(null);
   const [distributor, setDistributor] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -63,6 +66,7 @@ export function SpaceNegotiationDialog({
   const reset = () => {
     setSupplierId(null);
     setBrandId(null);
+    setNegotiationTypeId(null);
     setDistributor("");
     setStartDate("");
     setEndDate("");
@@ -77,6 +81,7 @@ export function SpaceNegotiationDialog({
         mapObjectId,
         supplierId,
         brandId,
+        negotiationTypeId,
         distributor: distributor || null,
         startDate: startDate || null,
         endDate: endDate || null,
@@ -148,6 +153,28 @@ export function SpaceNegotiationDialog({
               </Select>
             </Field>
           )}
+
+          <Field>
+            <FieldLabel>Tipo de negociação</FieldLabel>
+            <Select
+              value={negotiationTypeId ?? NONE}
+              onValueChange={(value) =>
+                setNegotiationTypeId(value === NONE ? null : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Nenhum</SelectItem>
+                {negotiationTypes.map((negotiationType) => (
+                  <SelectItem key={negotiationType.id} value={negotiationType.id}>
+                    {negotiationType.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
           <Field>
             <FieldLabel htmlFor="negotiation-distributor">

@@ -168,6 +168,12 @@ const navigation: Array<{
         icon: Library,
         permission: "trade-cadastros",
       },
+      {
+        name: "Catálogo PDV",
+        href: "/trade/catalogo-pdv",
+        icon: Tag,
+        permission: "catalogo-pdv",
+      },
     ],
   },
   {

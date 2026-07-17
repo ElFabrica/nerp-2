@@ -16,6 +16,9 @@ export const createStore = base
       city: z.string().optional(),
       state: z.string().optional(),
       notes: z.string().optional(),
+      areaM2: z.number().positive().nullable().optional(),
+      monthlyCost: z.number().nonnegative().nullable().optional(),
+      customersPerDay: z.number().int().nonnegative().nullable().optional(),
     }),
   )
   .output(z.object({ id: z.string(), name: z.string() }))
@@ -30,6 +33,9 @@ export const createStore = base
         city: input.city,
         state: input.state,
         notes: input.notes,
+        areaM2: input.areaM2,
+        monthlyCost: input.monthlyCost,
+        customersPerDay: input.customersPerDay,
       },
     });
 
