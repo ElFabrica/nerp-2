@@ -22,17 +22,32 @@ export const getCurrentMember = base
         id: z.string(),
         role: z.string(),
         permissions: z.array(z.string()),
+        hiddenModules: z.array(z.string()),
+        dashboardModules: z.array(z.string()),
+        orgDisabledModules: z.array(z.string()),
       })
       .nullable(),
   )
   .handler(async ({ context }) => {
-    const member = await prisma.member.findFirst({
-      where: {
-        organizationId: context.org.id,
-        userId: context.user.id,
-      },
-      select: { id: true, role: true, permissions: true },
-    });
+    const [member, organization] = await Promise.all([
+      prisma.member.findFirst({
+        where: {
+          organizationId: context.org.id,
+          userId: context.user.id,
+        },
+        select: {
+          id: true,
+          role: true,
+          permissions: true,
+          hiddenModules: true,
+          dashboardModules: true,
+        },
+      }),
+      prisma.organization.findUnique({
+        where: { id: context.org.id },
+        select: { disabledModules: true },
+      }),
+    ]);
 
     if (!member) return null;
 
@@ -40,5 +55,9 @@ export const getCurrentMember = base
       id: member.id,
       role: member.role,
       permissions: member.permissions ?? [],
+      hiddenModules: member.hiddenModules ?? [],
+      dashboardModules: member.dashboardModules ?? [],
+      // Vem junto porque a sidebar precisa das três camadas numa consulta só.
+      orgDisabledModules: organization?.disabledModules ?? [],
     };
   });

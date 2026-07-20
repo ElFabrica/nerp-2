@@ -1,0 +1,240 @@
+import { requireAuthMiddleware } from "@/app/middlewares/auth";
+import { base } from "@/app/middlewares/base";
+import { requireOrgMiddleware } from "@/app/middlewares/org";
+import type { CatalogRow } from "@/features/pdv-catalog/lib/catalog-types";
+import {
+  computeSuggestedPrice,
+  DEFAULT_FLOW_MULTIPLIERS,
+  DEFAULT_TIER_MULTIPLIERS,
+  DEFAULT_VISIBILITY_MULTIPLIERS,
+  resolveDisplayPrice,
+} from "@/features/trade-catalog/lib/pricing";
+import { SPACE_STATE_META } from "@/features/store-map/engine/space-state";
+import type {
+  Geometry,
+  MapSpaceState,
+} from "@/features/store-map/engine/types";
+import type { Prisma } from "@/generated/prisma/client";
+import type {
+  SpaceFlowLevel,
+  SpaceTier,
+  SpaceVisibility,
+} from "@/generated/prisma/enums";
+import prisma from "@/lib/db";
+import { z } from "zod";
+
+// O núcleo do catálogo: agrupa os espaços reais do mapa por (mídia, loja) e
+// gera uma página por tipo de mídia, com uma linha por loja + quantidade.
+// Passa geometria real e tier/fluxo/visibilidade pro computeSuggestedPrice —
+// diferente do catalogPdv.list (genérico, sem objeto), aqui o preço reflete o
+// espaço de verdade. Reexecutar pra um tipo de mídia que já tem página
+// atualiza os dados (rows/fotos) sem perder o título customizado.
+export const generateTradeCatalogPages = base
+  .use(requireAuthMiddleware)
+  .use(requireOrgMiddleware)
+  .input(
+    z.object({
+      catalogId: z.string(),
+      mediaTypeIds: z.array(z.string()).min(1),
+      onlyAvailable: z.boolean().optional(),
+    }),
+  )
+  .handler(async ({ input, context, errors }) => {
+    const catalog = await prisma.tradeCatalog.findFirst({
+      where: { id: input.catalogId, organizationId: context.org.id },
+      select: { id: true },
+    });
+    if (!catalog) {
+      throw errors.NOT_FOUND({ message: "Catálogo não encontrado" });
+    }
+
+    const mediaTypes = await prisma.mediaType.findMany({
+      where: { id: { in: input.mediaTypeIds }, organizationId: context.org.id },
+    });
+    if (mediaTypes.length === 0) {
+      throw errors.BAD_REQUEST({ message: "Selecione ao menos uma mídia válida" });
+    }
+
+    const [settings, globalPhotos, existingPages, lastPage] = await Promise.all([
+      prisma.tradePricingSettings.findUnique({
+        where: { organizationId: context.org.id },
+      }),
+      prisma.mediaModelPhoto.findMany({
+        where: { code: { in: mediaTypes.map((mediaType) => mediaType.code) } },
+        select: { code: true, imageKey: true },
+      }),
+      prisma.tradeCatalogPage.findMany({
+        where: {
+          catalogId: input.catalogId,
+          mediaTypeCode: { in: mediaTypes.map((mediaType) => mediaType.code) },
+        },
+        select: { id: true, mediaTypeCode: true },
+      }),
+      prisma.tradeCatalogPage.findFirst({
+        where: { catalogId: input.catalogId },
+        orderBy: { order: "desc" },
+        select: { order: true },
+      }),
+    ]);
+
+    const pricingSettings = {
+      markup: settings?.markup ?? 3,
+      floorPrice: settings?.floorPrice ? Number(settings.floorPrice) : null,
+      tierMultipliers:
+        (settings?.tierMultipliers as Record<SpaceTier, number> | undefined) ??
+        DEFAULT_TIER_MULTIPLIERS,
+      flowMultipliers:
+        (settings?.flowMultipliers as
+          | Record<SpaceFlowLevel, number>
+          | undefined) ?? DEFAULT_FLOW_MULTIPLIERS,
+      visibilityMultipliers:
+        (settings?.visibilityMultipliers as
+          | Record<SpaceVisibility, number>
+          | undefined) ?? DEFAULT_VISIBILITY_MULTIPLIERS,
+    };
+
+    const existingPageByCode = new Map(
+      existingPages.map((page) => [page.mediaTypeCode, page.id]),
+    );
+    let nextOrder = (lastPage?.order ?? -1) + 1;
+
+    const createdOrUpdatedPageIds: string[] = [];
+
+    for (const mediaType of mediaTypes) {
+      const objects = await prisma.mapObject.findMany({
+        where: {
+          organizationId: context.org.id,
+          mediaTypeId: mediaType.id,
+          spaceState: input.onlyAvailable ? "LIVRE" : undefined,
+        },
+        select: {
+          geometry: true,
+          tier: true,
+          flowLevel: true,
+          visibility: true,
+          spaceState: true,
+          floorPlan: {
+            select: {
+              store: {
+                select: { id: true, name: true, areaM2: true, monthlyCost: true },
+              },
+            },
+          },
+        },
+      });
+
+      const manualPrices = await prisma.mediaTypePrice.findMany({
+        where: { organizationId: context.org.id, mediaTypeId: mediaType.id },
+        select: { storeId: true, price: true },
+      });
+      const manualByStoreId = new Map(
+        manualPrices.map((price) => [price.storeId, Number(price.price)]),
+      );
+
+      const groups = new Map<
+        string,
+        {
+          storeName: string;
+          suggestedPrices: number[];
+          states: MapSpaceState[];
+          storeCost: { areaM2: number | null; monthlyCost: number | null };
+        }
+      >();
+
+      for (const object of objects) {
+        const store = object.floorPlan.store;
+        const group = groups.get(store.id) ?? {
+          storeName: store.name,
+          suggestedPrices: [],
+          states: [],
+          storeCost: {
+            areaM2: store.areaM2,
+            monthlyCost: store.monthlyCost ? Number(store.monthlyCost) : null,
+          },
+        };
+
+        const suggested = computeSuggestedPrice(
+          group.storeCost,
+          {
+            pricingBasis: mediaType.pricingBasis,
+            notionalAreaM2: mediaType.notionalAreaM2,
+          },
+          {
+            tier: object.tier,
+            flowLevel: object.flowLevel,
+            visibility: object.visibility,
+          },
+          object.geometry as unknown as Geometry,
+          pricingSettings,
+        );
+        if (suggested != null) group.suggestedPrices.push(suggested);
+        group.states.push(object.spaceState);
+
+        groups.set(store.id, group);
+      }
+
+      const rows: CatalogRow[] = [...groups.entries()].map(([storeId, group]) => {
+        const averageSuggested =
+          group.suggestedPrices.length > 0
+            ? group.suggestedPrices.reduce((sum, price) => sum + price, 0) /
+              group.suggestedPrices.length
+            : null;
+        const resolved = resolveDisplayPrice(
+          manualByStoreId.get(storeId) ?? null,
+          mediaType.basePrice ? Number(mediaType.basePrice) : null,
+          averageSuggested,
+        );
+
+        const stateCounts = new Map<MapSpaceState, number>();
+        for (const state of group.states) {
+          stateCounts.set(state, (stateCounts.get(state) ?? 0) + 1);
+        }
+        const dominantState = [...stateCounts.entries()].sort(
+          (a, b) => b[1] - a[1],
+        )[0]?.[0];
+
+        return {
+          id: crypto.randomUUID(),
+          storeId,
+          storeName: group.storeName,
+          mediaTypeName: mediaType.name,
+          quantity: group.states.length,
+          price: resolved.value,
+          status: dominantState ? SPACE_STATE_META[dominantState].label : "—",
+          note: null,
+        };
+      });
+
+      const photoKeys = [
+        ...globalPhotos
+          .filter((photo) => photo.code === mediaType.code)
+          .map((photo) => photo.imageKey),
+        ...mediaType.defaultPhotos,
+      ];
+
+      const rowsJson = rows as unknown as Prisma.InputJsonValue;
+      const existingPageId = existingPageByCode.get(mediaType.code);
+      if (existingPageId) {
+        await prisma.tradeCatalogPage.update({
+          where: { id: existingPageId },
+          data: { rows: rowsJson, photoKeys },
+        });
+        createdOrUpdatedPageIds.push(existingPageId);
+      } else {
+        const page = await prisma.tradeCatalogPage.create({
+          data: {
+            catalogId: input.catalogId,
+            title: mediaType.name,
+            mediaTypeCode: mediaType.code,
+            order: nextOrder++,
+            photoKeys,
+            rows: rowsJson,
+          },
+          select: { id: true },
+        });
+        createdOrUpdatedPageIds.push(page.id);
+      }
+    }
+
+    return { pageIds: createdOrUpdatedPageIds };
+  });

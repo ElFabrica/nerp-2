@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import { constructUrl } from "@/hooks/use-construct-url";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { compressImage } from "@/lib/compress-image";
 import { uploadToR2 } from "@/lib/upload-to-r2";
 import { cn } from "@/lib/utils";
 import {
@@ -10,9 +12,10 @@ import {
   type PhotoAdjustment,
   type PhotoAdjustmentMap,
 } from "../../lib/photo-adjustment";
+import { AddPhotoButton } from "./add-photo-button";
 import { PhotoAdjustDialog } from "./photo-adjust-dialog";
 
-const MAX_PHOTOS = 4;
+export const MAX_PHOTOS = 4;
 
 export type PhotoLayoutPattern =
   | "PATTERN_1"
@@ -21,8 +24,14 @@ export type PhotoLayoutPattern =
   | "PATTERN_4";
 
 const PATTERNS: { value: PhotoLayoutPattern; label: string }[] = [
-  { value: "PATTERN_1", label: "1 vertical à esquerda + 2 horizontais à direita" },
-  { value: "PATTERN_2", label: "2 horizontais à esquerda + 1 vertical à direita" },
+  {
+    value: "PATTERN_1",
+    label: "1 vertical à esquerda + 2 horizontais à direita",
+  },
+  {
+    value: "PATTERN_2",
+    label: "2 horizontais à esquerda + 1 vertical à direita",
+  },
   { value: "PATTERN_3", label: "2 verticais lado a lado" },
   { value: "PATTERN_4", label: "2 horizontais empilhadas" },
 ];
@@ -115,6 +124,8 @@ export function BookPagePhotoGrid({
   editable,
 }: BookPagePhotoGridProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
   const [isUploading, setIsUploading] = useState(false);
   const [adjustingKey, setAdjustingKey] = useState<string | null>(null);
   const [adjustingAspectRatio, setAdjustingAspectRatio] = useState(1);
@@ -136,7 +147,11 @@ export function BookPagePhotoGrid({
     const toUpload = Array.from(files).slice(0, remaining);
     setIsUploading(true);
     try {
-      const keys = await Promise.all(toUpload.map((file) => uploadToR2(file, true)));
+      const keys = await Promise.all(
+        toUpload.map(async (file) =>
+          uploadToR2(await compressImage(file), true),
+        ),
+      );
       // Updater funcional: se outro upload/remoção terminou primeiro
       // enquanto este ainda subia pro R2, aplica em cima do estado mais
       // recente em vez de sobrescrever com a foto antiga capturada no
@@ -154,13 +169,13 @@ export function BookPagePhotoGrid({
   return (
     <div className="flex h-full min-h-64 flex-col gap-2 md:min-h-0">
       {editable && onLayoutChange && (
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-2 md:gap-1.5">
           <button
             type="button"
             title="Automático (sem padrão)"
             onClick={() => onLayoutChange(null)}
             className={cn(
-              "flex size-6 items-center justify-center rounded-md border transition-colors",
+              "flex size-9 items-center justify-center rounded-md border transition-colors md:size-6",
               !layoutPattern
                 ? "border-[#c1121f] bg-[#c1121f]"
                 : "border-neutral-300 bg-neutral-200 hover:border-[#c1121f]",
@@ -173,7 +188,7 @@ export function BookPagePhotoGrid({
               title={pattern.label}
               onClick={() => onLayoutChange(pattern.value)}
               className={cn(
-                "flex items-center justify-center rounded-md border p-1 text-neutral-400 transition-colors hover:border-[#c1121f] hover:text-[#c1121f]",
+                "flex items-center justify-center rounded-md border p-2 text-neutral-400 transition-colors hover:border-[#c1121f] hover:text-[#c1121f] md:p-1",
                 layoutPattern === pattern.value &&
                   "border-[#c1121f] bg-[#c1121f]/5 text-[#c1121f]",
               )}
@@ -210,8 +225,7 @@ export function BookPagePhotoGrid({
                     alt=""
                     onClick={(event) => {
                       if (!editable || !onAdjustmentChange) return;
-                      const rect =
-                        event.currentTarget.getBoundingClientRect();
+                      const rect = event.currentTarget.getBoundingClientRect();
                       setAdjustingAspectRatio(rect.width / rect.height);
                       setAdjustingKey(cell.key);
                     }}
@@ -231,7 +245,9 @@ export function BookPagePhotoGrid({
                         event.stopPropagation();
                         removePhoto(cell.key);
                       }}
-                      className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      // Sem hover em toque: no mobile precisa ficar sempre
+                      // visível, senão a foto não tem como ser removida.
+                      className="absolute right-1.5 top-1.5 flex size-8 items-center justify-center rounded-full bg-black/60 text-white transition-opacity md:size-6 md:opacity-0 md:group-hover:opacity-100"
                       title="Remover foto"
                     >
                       <X className="size-3.5" />
@@ -243,43 +259,30 @@ export function BookPagePhotoGrid({
 
             // Tile "+" do tamanho exato do slot vazio do padrão escolhido.
             return (
-              <button
+              <AddPhotoButton
                 key="add-tile"
-                type="button"
-                disabled={isUploading}
-                onClick={() => fileInputRef.current?.click()}
-                title="Adicionar foto"
+                isMobile={isMobile}
+                isUploading={isUploading}
+                onCamera={() => cameraInputRef.current?.click()}
+                onGallery={() => fileInputRef.current?.click()}
                 className={cn(
                   "flex items-center justify-center rounded-lg bg-neutral-300 transition-colors hover:bg-neutral-400",
                   cellClassName(layoutPattern, index, totalCells),
                 )}
-              >
-                <span className="flex size-11 items-center justify-center rounded-full bg-neutral-500/80 text-white">
-                  {isUploading ? (
-                    <Loader2 className="size-5 animate-spin" />
-                  ) : (
-                    <Plus className="size-5" />
-                  )}
-                </span>
-              </button>
+                iconWrapperClassName="flex size-11 items-center justify-center rounded-full bg-neutral-500/80 text-white"
+              />
             );
           })}
         </div>
 
         {showFloatingAddButton && (
-          <button
-            type="button"
-            disabled={isUploading}
-            onClick={() => fileInputRef.current?.click()}
-            title="Adicionar foto"
-            className="absolute bottom-3 right-3 z-20 flex size-10 items-center justify-center rounded-full border-2 border-white bg-[#c1121f] text-white shadow-lg ring-2 ring-black/10 transition-colors hover:bg-[#a30f1a]"
-          >
-            {isUploading ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Plus className="size-5" />
-            )}
-          </button>
+          <AddPhotoButton
+            isMobile={isMobile}
+            isUploading={isUploading}
+            onCamera={() => cameraInputRef.current?.click()}
+            onGallery={() => fileInputRef.current?.click()}
+            className="absolute bottom-3 right-3 z-20 flex size-12 items-center justify-center rounded-full border-2 border-white bg-[#c1121f] text-white shadow-lg ring-2 ring-black/10 transition-colors hover:bg-[#a30f1a] md:size-10"
+          />
         )}
 
         <input
@@ -287,6 +290,20 @@ export function BookPagePhotoGrid({
           type="file"
           accept="image/*"
           multiple
+          className="hidden"
+          onChange={(event) => {
+            handleFiles(event.target.files);
+            event.target.value = "";
+          }}
+        />
+
+        {/* `capture` e `multiple` se excluem na prática (Chrome Android ignora
+            o multiple), por isso o input de câmera é separado. */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
           className="hidden"
           onChange={(event) => {
             handleFiles(event.target.files);

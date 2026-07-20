@@ -4,6 +4,7 @@ import {
   DndContext,
   type DragEndEvent,
   PointerSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -14,14 +15,18 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import { useUpdatePdvPhoto } from "@/features/pdv-photos/hooks/use-pdv-photos";
+import { Plus } from "lucide-react";
 import {
   useAddBookPage,
   useRemoveBookItem,
   useReorderBookItems,
 } from "../../hooks/use-books";
 import { formatPeriod } from "../../lib/book-format";
-import { AddPageButton } from "./add-page-button";
+import { AddPageSheet } from "./add-page-sheet";
 import { BookPageCard, type BookPageItem } from "./book-page-card";
 
 interface BookPagesListProps {
@@ -30,7 +35,6 @@ interface BookPagesListProps {
   periodYear: number;
   items: (BookPageItem & { order: number })[];
   industryLogo?: string | null;
-  supplierManager?: string | null;
   organizationName?: string | null;
 }
 
@@ -40,12 +44,35 @@ export function BookPagesList({
   periodYear,
   items,
   industryLogo,
-  supplierManager,
   organizationName,
 }: BookPagesListProps) {
   const addPage = useAddBookPage();
+  const updatePhoto = useUpdatePdvPhoto({ silent: true });
   const removeItem = useRemoveBookItem();
   const reorderItems = useReorderBookItems();
+  const [openAddPage, setOpenAddPage] = useState(false);
+
+  // A página só nasce no "Salvar": criar o PdvPhoto lá no passo 1 deixaria uma
+  // página fantasma vazia toda vez que o promotor abandonasse o fluxo — e em
+  // 4G de supermercado isso acontece bastante.
+  const handleConfirmPage = async ({
+    storeId,
+    mediaTypeId,
+    photoKeys,
+  }: {
+    storeId: string;
+    mediaTypeId?: string;
+    photoKeys: string[];
+  }) => {
+    const { pdvPhotoId } = await addPage.mutateAsync({
+      bookId,
+      storeId,
+      mediaTypeId,
+    });
+    if (photoKeys.length > 0) {
+      await updatePhoto.mutateAsync({ id: pdvPhotoId, photos: photoKeys });
+    }
+  };
 
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
   useEffect(() => {
@@ -54,6 +81,11 @@ export function BookPagesList({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // O delay é o que resolve o conflito com o scroll no celular: toque curto
+    // rola a página, toque longo começa a arrastar.
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 8 },
+    }),
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -73,20 +105,41 @@ export function BookPagesList({
     .filter((item): item is (typeof items)[number] => !!item);
 
   const periodLabel = formatPeriod(periodMonth, periodYear);
+  const isSavingPage = addPage.isPending || updatePhoto.isPending;
+
+  const addPageButton = (
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full gap-2 border-dashed py-6"
+      disabled={isSavingPage}
+      onClick={() => setOpenAddPage(true)}
+    >
+      {isSavingPage ? <Spinner /> : <Plus className="size-4" />}
+      Adicionar página
+    </Button>
+  );
+
+  const addPageSheet = (
+    <AddPageSheet
+      open={openAddPage}
+      onOpenChange={setOpenAddPage}
+      onConfirm={handleConfirmPage}
+      isSaving={isSavingPage}
+    />
+  );
 
   if (orderedItems.length === 0) {
     return (
       <div className="space-y-3">
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Nenhuma página ainda. Clique em "Adicionar página" e escolha a
-            loja pra começar a montar o book.
+            Nenhuma página ainda. Clique em "Adicionar página" e escolha a loja
+            pra começar a montar o book.
           </CardContent>
         </Card>
-        <AddPageButton
-          isPending={addPage.isPending}
-          onSelectStore={(storeId) => addPage.mutate({ bookId, storeId })}
-        />
+        {addPageButton}
+        {addPageSheet}
       </div>
     );
   }
@@ -98,7 +151,10 @@ export function BookPagesList({
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
+        <SortableContext
+          items={orderedIds}
+          strategy={verticalListSortingStrategy}
+        >
           <div className="space-y-4">
             {orderedItems.map((item, index) => (
               <BookPageCard
@@ -108,7 +164,6 @@ export function BookPagesList({
                 position={index + 1}
                 total={orderedItems.length}
                 industryLogo={industryLogo}
-                supplierManager={supplierManager}
                 organizationName={organizationName}
                 onRemove={() =>
                   removeItem.mutate({ bookId, pdvPhotoId: item.pdvPhotoId })
@@ -119,10 +174,8 @@ export function BookPagesList({
         </SortableContext>
       </DndContext>
 
-      <AddPageButton
-        isPending={addPage.isPending}
-        onSelectStore={(storeId) => addPage.mutate({ bookId, storeId })}
-      />
+      {addPageButton}
+      {addPageSheet}
     </div>
   );
 }

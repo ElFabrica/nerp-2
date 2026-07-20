@@ -15,7 +15,9 @@ export default async function Layout({
   const org = await currentOrganization();
 
   return (
-    <SidebarProvider className="flex h-screen overflow-hidden">
+    // h-dvh e não h-screen: no Safari/Chrome do celular a barra de endereço
+    // não entra no 100vh, e o rodapé do conteúdo ficava inalcançável.
+    <SidebarProvider className="flex h-dvh overflow-hidden">
       <AppSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppHeader />
@@ -26,7 +28,7 @@ export default async function Layout({
             // o <main> ganha largura via flex-1 do SidebarProvider e o
             // conteúdo se expande junto. Páginas que precisam de largura
             // contida (forms longos) podem usar max-w-* localmente.
-            <div className="w-full p-6 space-y-6">
+            <div className="w-full space-y-6 p-4 md:p-6">
               <BreadcrumbNav />
               {children}
             </div>

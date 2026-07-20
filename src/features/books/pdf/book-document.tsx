@@ -6,7 +6,11 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import { coverBackgroundToRgba, type CoverBackground, type CoverElement } from "../lib/cover-layout";
+import {
+  coverBackgroundToRgba,
+  type CoverBackground,
+  type CoverElement,
+} from "../lib/cover-layout";
 
 // Elemento de capa já resolvido pra renderização: `imageKey` (quando
 // type === "image") contém a URL completa, não a key do R2 — resolução
@@ -30,6 +34,7 @@ export interface BookDocumentItem {
   coordinatorName: string | null;
   consultantName: string | null;
   responsibleCompany: string | null;
+  mediaTypeName: string | null;
   section: string | null;
   code: string | null;
   actionValueLabel: string | null;
@@ -158,7 +163,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   photoColumn: { flex: 1, flexDirection: "column", gap: 10 },
-  photoColumnItem: { flex: 1, width: "100%", objectFit: "cover", borderRadius: 4 },
+  photoColumnItem: {
+    flex: 1,
+    width: "100%",
+    objectFit: "cover",
+    borderRadius: 4,
+  },
   photoStackedFull: {
     width: "100%",
     height: "48.5%",
@@ -267,7 +277,10 @@ function CoverLayoutView({
 
         if (element.type === "divider") {
           return (
-            <View key={element.id} style={{ ...boxStyle, backgroundColor: element.color }} />
+            <View
+              key={element.id}
+              style={{ ...boxStyle, backgroundColor: element.color }}
+            />
           );
         }
 
@@ -377,7 +390,10 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
     <Document title={data.bookName}>
       <Page size={PAGE_SIZE}>
         {data.coverLayout && data.coverLayout.length > 0 ? (
-          <CoverLayoutView elements={data.coverLayout} background={data.coverBackground} />
+          <CoverLayoutView
+            elements={data.coverLayout}
+            background={data.coverBackground}
+          />
         ) : (
           <View style={styles.cover}>
             {data.distributorLogoUrl && (
@@ -394,7 +410,9 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
                     style={styles.coverIndustryLogo}
                   />
                 )}
-                <Text style={styles.coverIndustryName}>{data.industryName}</Text>
+                <Text style={styles.coverIndustryName}>
+                  {data.industryName}
+                </Text>
               </View>
             )}
           </View>
@@ -415,6 +433,7 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
                 <MetaItem label="Coordenador(a)" value={item.coordinatorName} />
                 <MetaItem label="Consultor(a)" value={item.consultantName} />
                 <MetaItem label="Empresa PDV" value={item.responsibleCompany} />
+                <MetaItem label="Mídia" value={item.mediaTypeName} />
                 <MetaItem label="Seção" value={item.section} />
                 <MetaItem label="Código" value={item.code} />
                 {item.actionValueLabel && (
@@ -427,7 +446,10 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
                 )}
               </View>
 
-              <PhotoLayout sources={item.photoSources} pattern={item.photoLayoutPattern} />
+              <PhotoLayout
+                sources={item.photoSources}
+                pattern={item.photoLayoutPattern}
+              />
             </View>
 
             <View style={styles.footer}>
@@ -450,7 +472,10 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
 
       <Page size={PAGE_SIZE}>
         {data.closingLayout && data.closingLayout.length > 0 ? (
-          <CoverLayoutView elements={data.closingLayout} background={data.closingBackground} />
+          <CoverLayoutView
+            elements={data.closingLayout}
+            background={data.closingBackground}
+          />
         ) : (
           <View style={styles.closing}>
             {data.distributorLogoUrl && (

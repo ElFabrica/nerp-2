@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { useBrands } from "@/features/brands/hooks/use-brands";
 import { PdvPhotoSection } from "@/features/pdv-photos/components/pdv-photo-section";
 import { useSupplier } from "@/features/supplier/hooks/use-supplier";
+import { useMediaModelPhotos } from "@/features/trade-catalog/hooks/use-media-model-photos";
 import {
   useMediaTypes,
   useStoreSectors,
@@ -93,6 +94,7 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
   const { audit } = useMapObjectAudit(object?.id);
   const { mediaTypes } = useMediaTypes();
   const { storeSectors } = useStoreSectors();
+  const { photos: globalPhotos } = useMediaModelPhotos();
   const [showModelPhotos, setShowModelPhotos] = useState(false);
 
   if (!object) {
@@ -114,7 +116,13 @@ export function MapViewerPanel({ storeName }: MapViewerPanelProps) {
     (candidate) => candidate.id === object.mediaTypeId,
   );
   const mediaTypeName = mediaType?.name ?? null;
-  const modelPhotos = mediaType?.defaultPhotos ?? [];
+  // Biblioteca global do Órbita (por código) + fotos da própria org.
+  const modelPhotos = [
+    ...globalPhotos
+      .filter((photo) => photo.code === mediaType?.code)
+      .map((photo) => photo.imageKey),
+    ...(mediaType?.defaultPhotos ?? []),
+  ];
   const sector = storeSectors.find((sector) => sector.id === object.sectorId);
   const sectorName = sector?.name ?? object.category;
 

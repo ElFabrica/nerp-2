@@ -3,6 +3,7 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/db";
 import { z } from "zod";
+import { assertMediaTypeInOrg } from "../pdv-photo/assert-relations";
 
 // Cria uma página em branco (PdvPhoto vazio) e já vincula ao book — o
 // vendedor preenche os campos e sobe as fotos direto na página, sem
@@ -10,7 +11,13 @@ import { z } from "zod";
 export const addBookPage = base
   .use(requireAuthMiddleware)
   .use(requireOrgMiddleware)
-  .input(z.object({ bookId: z.string(), storeId: z.string() }))
+  .input(
+    z.object({
+      bookId: z.string(),
+      storeId: z.string(),
+      mediaTypeId: z.string().optional(),
+    }),
+  )
   .output(z.object({ pdvPhotoId: z.string() }))
   .handler(async ({ input, context, errors }) => {
     const book = await prisma.book.findFirst({
@@ -29,11 +36,16 @@ export const addBookPage = base
       throw errors.NOT_FOUND({ message: "Loja não encontrada" });
     }
 
+    if (input.mediaTypeId) {
+      await assertMediaTypeInOrg(input.mediaTypeId, context.org.id, errors);
+    }
+
     const pdvPhotoId = await prisma.$transaction(async (tx) => {
       const photo = await tx.pdvPhoto.create({
         data: {
           organizationId: context.org.id,
           storeId: input.storeId,
+          mediaTypeId: input.mediaTypeId,
           photos: [],
           createdById: context.user.id,
         },

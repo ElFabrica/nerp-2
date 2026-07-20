@@ -150,6 +150,44 @@ export function memberHasPermission(
   return (member.permissions ?? []).includes(key);
 }
 
+// ── Visibilidade de módulos ─────────────────────────────────────────────────
+// Camada SEPARADA das permissões: permissão é segurança ("pode acessar"),
+// visibilidade é organização da tela ("quero ver"). Esconder um módulo nunca
+// bloqueia a rota — quem tiver permissão e a URL continua entrando.
+
+// Dashboard e Configurações não são ocultáveis: sem elas o usuário perderia o
+// caminho de volta pra própria tela que religa os módulos.
+export const ALWAYS_VISIBLE_MODULE_KEYS = [
+  "dashboard",
+  "configuracoes",
+] as const;
+
+const ALWAYS_VISIBLE_KEYS = new Set<string>(ALWAYS_VISIBLE_MODULE_KEYS);
+
+export const HIDEABLE_MODULES = PAGE_PERMISSIONS.filter(
+  (page) => !ALWAYS_VISIBLE_KEYS.has(page.key),
+);
+
+export function isModuleHideable(key: string): boolean {
+  return !ALWAYS_VISIBLE_KEYS.has(key);
+}
+
+interface ModuleVisibilityInput {
+  orgDisabledModules?: string[] | null;
+  userHiddenModules?: string[] | null;
+}
+
+// Um módulo aparece no menu quando as três camadas concordam: tem permissão,
+// a empresa usa o módulo, e o usuário não escondeu.
+export function isModuleVisible(
+  key: string,
+  { orgDisabledModules, userHiddenModules }: ModuleVisibilityInput,
+): boolean {
+  if (!isModuleHideable(key)) return true;
+  if ((orgDisabledModules ?? []).includes(key)) return false;
+  return !(userHiddenModules ?? []).includes(key);
+}
+
 // Resolve a primeira página acessível por uma lista de permissões (para usar
 // como fallback de redirect quando o usuário cai numa rota proibida).
 export function firstAllowedHref(

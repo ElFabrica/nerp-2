@@ -7,7 +7,10 @@ import { toast } from "sonner";
 export interface PdvPhotoFilters {
   storeId?: string;
   mapObjectId?: string;
+  // Fotos tiradas em campo antes de a loja ter mapa.
+  unlinkedOnly?: boolean;
   supplierId?: string;
+  mediaTypeId?: string;
   section?: string;
   responsibleCompany?: string;
   coordinatorName?: string;
@@ -78,6 +81,23 @@ export function useUpdatePdvPhoto(options?: { silent?: boolean }) {
     orpc.pdvPhoto.update.mutationOptions({
       onSuccess: () => {
         if (!options?.silent) toast.success("Foto do PDV atualizada");
+        invalidate();
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useLinkPhotoToMapObject() {
+  const invalidate = useInvalidatePdvPhotos();
+  return useMutation(
+    orpc.pdvPhoto.linkMapObject.mutationOptions({
+      onSuccess: (result) => {
+        toast.success(
+          result.mapObjectId
+            ? "Foto vinculada ao espaço do mapa"
+            : "Vínculo removido",
+        );
         invalidate();
       },
       onError: (error) => toast.error(error.message),

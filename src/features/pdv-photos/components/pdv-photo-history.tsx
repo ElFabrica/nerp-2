@@ -124,6 +124,8 @@ export function PdvPhotoHistory({
         );
       })}
 
+      {/* Sem mapObjectId: em modo edição o vínculo com o mapa é imutável —
+          trocar de espaço é a ação `pdvPhoto.linkMapObject`. */}
       {editing && (
         <PdvPhotoDialog
           open={!!editing}
@@ -131,7 +133,6 @@ export function PdvPhotoHistory({
             if (!open) setEditing(null);
           }}
           storeId={editing.storeId}
-          mapObjectId={editing.mapObjectId ?? undefined}
           photo={editing}
         />
       )}

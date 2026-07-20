@@ -1,11 +1,13 @@
 "use client";
 
 import { constructUrl } from "@/hooks/use-construct-url";
+import { compressImage } from "@/lib/compress-image";
 import { uploadToR2 } from "@/lib/upload-to-r2";
-import { Loader2, Plus, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
+import { PhotoCaptureInput } from "./photo-capture-input";
 
 interface MultiPhotoUploaderProps {
   value: string[];
@@ -18,22 +20,22 @@ export function MultiPhotoUploader({
   onChange,
   disabled,
 }: MultiPhotoUploaderProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
 
-  const handleFiles = async (files: FileList) => {
-    const list = Array.from(files);
-    if (list.length === 0) return;
-    setUploadingCount((count) => count + list.length);
+  const handleFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+    setUploadingCount((count) => count + files.length);
     try {
-      const keys = await Promise.all(list.map((file) => uploadToR2(file)));
+      const keys = await Promise.all(
+        files.map(async (file) => uploadToR2(await compressImage(file))),
+      );
       onChange([...value, ...keys]);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Falha ao enviar fotos",
       );
     } finally {
-      setUploadingCount((count) => Math.max(0, count - list.length));
+      setUploadingCount((count) => Math.max(0, count - files.length));
     }
   };
 
@@ -42,59 +44,49 @@ export function MultiPhotoUploader({
   };
 
   return (
-    <div className="grid grid-cols-3 gap-2">
-      {value.map((key, index) => (
-        <div
-          key={key}
-          className="group relative aspect-square overflow-hidden rounded-md border"
-        >
-          <Image
-            src={constructUrl(key)}
-            alt="Foto do PDV"
-            fill
-            sizes="120px"
-            className="object-cover"
-          />
-          <button
-            type="button"
-            onClick={() => removeAt(index)}
-            className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition group-hover:opacity-100"
-            aria-label="Remover foto"
-          >
-            <X className="size-3" />
-          </button>
-        </div>
-      ))}
+    <div className="space-y-3">
+      {(value.length > 0 || uploadingCount > 0) && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {value.map((key, index) => (
+            <div
+              key={key}
+              className="group relative aspect-square overflow-hidden rounded-md border"
+            >
+              <Image
+                src={constructUrl(key)}
+                alt="Foto do PDV"
+                fill
+                sizes="120px"
+                className="object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => removeAt(index)}
+                // Sempre visível no mobile: não existe hover em toque, e sem
+                // isso a foto fica impossível de remover no celular.
+                className="absolute right-1 top-1 rounded-full bg-black/60 p-1.5 text-white transition md:p-1 md:opacity-0 md:group-hover:opacity-100"
+                aria-label="Remover foto"
+              >
+                <X className="size-3.5 md:size-3" />
+              </button>
+            </div>
+          ))}
 
-      {Array.from({ length: uploadingCount }).map((_, index) => (
-        <div
-          key={`uploading-${index}`}
-          className="flex aspect-square items-center justify-center rounded-md border"
-        >
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          {Array.from({ length: uploadingCount }).map((_, index) => (
+            <div
+              key={`uploading-${index}`}
+              className="flex aspect-square items-center justify-center rounded-md border"
+            >
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          ))}
         </div>
-      ))}
+      )}
 
-      <button
-        type="button"
+      <PhotoCaptureInput
+        onFiles={handleFiles}
         disabled={disabled}
-        onClick={() => inputRef.current?.click()}
-        className="flex aspect-square items-center justify-center rounded-md border border-dashed text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-50"
-        aria-label="Adicionar fotos"
-      >
-        <Plus className="size-5" />
-      </button>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(event) => {
-          if (event.target.files) handleFiles(event.target.files);
-          event.target.value = "";
-        }}
+        isUploading={uploadingCount > 0}
       />
     </div>
   );

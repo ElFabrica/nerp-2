@@ -1,9 +1,15 @@
+import { getApiSession } from "@/lib/api-auth";
 import { S3 } from "@/lib/s3-client";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 
 export async function DELETE(request: Request) {
   try {
+    const session = await getApiSession(request);
+    if (!session) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     const key = body.key;

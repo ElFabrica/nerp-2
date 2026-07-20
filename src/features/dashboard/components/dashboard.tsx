@@ -41,6 +41,7 @@ import {
   getSaleStatusLabel,
 } from "@/utils/convert-sale-status";
 import { ReactNode } from "react";
+import { DashboardShortcuts } from "./dashboard-shortcuts";
 import {
   FormatMessageSalesToday,
   FormatMessageTotalSales,
@@ -59,6 +60,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Dashboard" description="Visão geral do seu negócio" />
+
+      <DashboardShortcuts />
 
       {/* Metrics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

@@ -4,6 +4,7 @@ import { requireOrgMiddleware } from "@/app/middlewares/org";
 import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/db";
 import { z } from "zod";
+import { assertMediaTypeInOrg, assertSupplierInOrg } from "./assert-relations";
 
 export const updatePdvPhoto = base
   .use(requireAuthMiddleware)
@@ -12,8 +13,10 @@ export const updatePdvPhoto = base
     z.object({
       id: z.string(),
       supplierId: z.string().nullable().optional(),
+      mediaTypeId: z.string().nullable().optional(),
       section: z.string().nullable().optional(),
       responsibleCompany: z.string().nullable().optional(),
+      managerName: z.string().nullable().optional(),
       coordinatorName: z.string().nullable().optional(),
       consultantName: z.string().nullable().optional(),
       code: z.string().nullable().optional(),
@@ -39,7 +42,16 @@ export const updatePdvPhoto = base
     }),
   )
   .handler(async ({ input, context, errors }) => {
-    const { id, capturedAt, photoAdjustments, ...rest } = input;
+    // As FKs saem do spread de propósito: espalhar FK sem validar deixa um id
+    // de outra org entrar no banco.
+    const {
+      id,
+      capturedAt,
+      photoAdjustments,
+      supplierId,
+      mediaTypeId,
+      ...rest
+    } = input;
 
     const photo = await prisma.pdvPhoto.findFirst({
       where: { id, organizationId: context.org.id },
@@ -49,8 +61,18 @@ export const updatePdvPhoto = base
       throw errors.NOT_FOUND({ message: "Foto do PDV não encontrada" });
     }
 
+    // null = desvincular (não precisa validar); undefined = não mexe.
+    if (supplierId) {
+      await assertSupplierInOrg(supplierId, context.org.id, errors);
+    }
+    if (mediaTypeId) {
+      await assertMediaTypeInOrg(mediaTypeId, context.org.id, errors);
+    }
+
     const data: Prisma.PdvPhotoUncheckedUpdateInput = {
       ...rest,
+      supplierId,
+      mediaTypeId,
       capturedAt: capturedAt ? new Date(capturedAt) : undefined,
       photoAdjustments:
         photoAdjustments === undefined
