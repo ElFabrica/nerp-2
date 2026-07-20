@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useStores } from "@/features/stores/hooks/use-stores";
+import { CatalogList } from "@/features/pdv-catalog/components/catalog-list";
 import { useState } from "react";
 import { useCatalogPdv } from "../hooks/use-catalog-pdv";
 import { CatalogPdvPriceRow } from "./catalog-pdv-price-row";
@@ -99,12 +100,16 @@ export function CatalogPdvManager() {
       <TabsList>
         <TabsTrigger value="precos">Preços por loja</TabsTrigger>
         <TabsTrigger value="benchmark">Benchmark regional</TabsTrigger>
+        <TabsTrigger value="catalogos">Catálogos</TabsTrigger>
       </TabsList>
       <TabsContent value="precos" className="mt-4">
         <PriceListTab />
       </TabsContent>
       <TabsContent value="benchmark" className="mt-4">
         <RegionBenchmarkPanel />
+      </TabsContent>
+      <TabsContent value="catalogos" className="mt-4">
+        <CatalogList />
       </TabsContent>
     </Tabs>
   );

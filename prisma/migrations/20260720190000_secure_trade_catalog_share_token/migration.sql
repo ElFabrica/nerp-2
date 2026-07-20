@@ -1,0 +1,11 @@
+-- shareToken deixa de ter default do banco: cuid() é anti-colisão, não
+-- imprevisível (timestamp + contador + fingerprint + ~20 bits de aleatório), e
+-- este token é a única barreira do link público sem login. Passa a ser gerado
+-- com randomBytes(32) na aplicação (src/lib/share-token.ts).
+--
+-- Sem UPDATE de rotação de propósito: a tabela nasce em
+-- 20260720104850_add_trade_catalog, desta mesma leva ainda não publicada, então
+-- não existe token cuid emitido fora de banco de desenvolvimento. Rotacionar
+-- aqui exigiria gen_random_bytes (extensão pgcrypto) e `pnpm build` roda
+-- `migrate deploy` — extensão ausente derrubaria o build, não só o runtime.
+ALTER TABLE "trade_catalogs" ALTER COLUMN "shareToken" DROP DEFAULT;

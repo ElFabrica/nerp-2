@@ -10,9 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { MultiPhotoUploader } from "@/features/pdv-photos/components/multi-photo-uploader";
 import { useEffect, useState } from "react";
 import { useMediaTypes, useUpdateMediaType } from "../hooks/use-trade-catalog";
+import { MediaModelPhotoLibrary } from "./media-model-photo-library";
+import { MediaPhotoUploader } from "./media-photo-uploader";
 
 interface MediaTypeDetailsDialogProps {
   mediaTypeId: string | null;
@@ -65,9 +66,16 @@ export function MediaTypeDetailsDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {mediaType && (
+            <Field>
+              <FieldLabel>Fotos modelo do Órbita (biblioteca global)</FieldLabel>
+              <MediaModelPhotoLibrary code={mediaType.code} />
+            </Field>
+          )}
+
           <Field>
-            <FieldLabel>Fotos modelo</FieldLabel>
-            <MultiPhotoUploader
+            <FieldLabel>Fotos da sua organização</FieldLabel>
+            <MediaPhotoUploader
               value={defaultPhotos}
               onChange={setDefaultPhotos}
               disabled={update.isPending}

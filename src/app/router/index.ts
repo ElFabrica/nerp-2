@@ -29,6 +29,8 @@ import { mediaTypePriceRoutes } from "./trade-catalog/media-type-price";
 import { tradePricingSettingsRoutes } from "./trade-catalog/pricing-settings";
 import { regionCostBenchmarkRoutes } from "./trade-catalog/region-benchmark";
 import { catalogPdvRoutes } from "./trade-catalog/catalog-pdv";
+import { tradeCatalogDocRoutes } from "./trade-catalog/catalog-doc";
+import { mediaModelPhotoRoutes } from "./media-model-photo";
 import { tradeCatalogSeedRoutes } from "./trade-catalog/seed";
 import { invitationRoutes } from "./invitation";
 
@@ -64,6 +66,8 @@ export const router = {
   tradePricingSettings: tradePricingSettingsRoutes,
   regionCostBenchmark: regionCostBenchmarkRoutes,
   catalogPdv: catalogPdvRoutes,
+  tradeCatalogDoc: tradeCatalogDocRoutes,
+  mediaModelPhoto: mediaModelPhotoRoutes,
   tradeCatalogSeed: tradeCatalogSeedRoutes,
   invitation: invitationRoutes,
 };

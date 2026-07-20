@@ -14,8 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatBRL } from "../../lib/book-format";
-import type { PhotoAdjustment, PhotoAdjustmentMap } from "../../lib/photo-adjustment";
+import { formatBRL } from "@/utils/currency-formatter";
+import type {
+  PhotoAdjustment,
+  PhotoAdjustmentMap,
+} from "../../lib/photo-adjustment";
 import {
   BookPagePhotoGrid,
   type PhotoLayoutPattern,
@@ -24,6 +27,7 @@ import {
 export interface BookPageItem {
   pdvPhotoId: string;
   storeName: string;
+  managerName: string | null;
   section: string | null;
   code: string | null;
   actionValue: number | null;
@@ -40,7 +44,6 @@ interface BookPageCardProps {
   position: number;
   total: number;
   industryLogo?: string | null;
-  supplierManager?: string | null;
   organizationName?: string | null;
   onRemove: () => void;
 }
@@ -102,12 +105,17 @@ export function BookPageCard({
   position,
   total,
   industryLogo,
-  supplierManager,
   organizationName,
   onRemove,
 }: BookPageCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.pdvPhotoId });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.pdvPhotoId });
   // silent: autosave em cada campo/foto/padrão — um toast por ação empilha
   // rápido (e um deles chegou a crescer e cobrir o botão "+" da grade).
   const updatePdvPhoto = useUpdatePdvPhoto({ silent: true });
@@ -116,6 +124,7 @@ export function BookPageCard({
     (collaborator) => collaborator.name,
   );
 
+  const [manager, setManager] = useState(item.managerName ?? "");
   const [section, setSection] = useState(item.section ?? "");
   const [code, setCode] = useState(item.code ?? "");
   const [coordinator, setCoordinator] = useState(item.coordinatorName ?? "");
@@ -146,6 +155,7 @@ export function BookPageCard({
     saveTimeoutRef.current = setTimeout(() => {
       updatePdvPhoto.mutate({
         id: item.pdvPhotoId,
+        managerName: manager || null,
         section: section || null,
         code: code || null,
         coordinatorName: coordinator || null,
@@ -157,7 +167,7 @@ export function BookPageCard({
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section, code, coordinator, consultant, actionValue]);
+  }, [manager, section, code, coordinator, consultant, actionValue]);
 
   const updatePhotos = (updater: (prev: string[]) => string[]) => {
     setPhotos((prev) => {
@@ -190,8 +200,11 @@ export function BookPageCard({
       }}
       className="flex flex-col overflow-hidden rounded-xl border bg-white text-neutral-900 shadow-sm md:aspect-[960/540]"
     >
-      <div className="flex shrink-0 items-center justify-between bg-[#c1121f] px-5 py-3">
-        <h3 className="truncate text-lg font-bold uppercase tracking-tight text-white">
+      <div className="flex shrink-0 items-center justify-between gap-2 bg-[#c1121f] px-3 py-3 md:px-5">
+        {/* No celular o nome quebra em até 2 linhas — nomes de supermercado
+            não cabem em 375px. No desktop segue truncando, senão uma segunda
+            linha estouraria o aspect-ratio fixo de 960x540 da página. */}
+        <h3 className="line-clamp-2 min-w-0 text-base font-bold uppercase leading-tight tracking-tight text-white md:line-clamp-none md:truncate md:text-lg">
           {item.storeName}
         </h3>
         <div className="flex shrink-0 items-center gap-3">
@@ -200,7 +213,9 @@ export function BookPageCard({
           </span>
           <button
             type="button"
-            className="flex size-7 cursor-grab items-center justify-center rounded-md bg-white/15 text-white active:cursor-grabbing"
+            // touch-none: sem isso o browser sequestra o gesto pro scroll
+            // antes do dnd-kit enxergar o toque longo.
+            className="flex size-9 cursor-grab touch-none items-center justify-center rounded-md bg-white/15 text-white active:cursor-grabbing md:size-7"
             title="Arraste para reordenar"
             {...attributes}
             {...listeners}
@@ -209,7 +224,7 @@ export function BookPageCard({
           </button>
           <button
             type="button"
-            className="flex size-7 items-center justify-center rounded-md bg-white/15 text-white hover:bg-white/25"
+            className="flex size-9 items-center justify-center rounded-md bg-white/15 text-white hover:bg-white/25 md:size-7"
             title="Remover página"
             onClick={onRemove}
           >
@@ -218,13 +233,20 @@ export function BookPageCard({
         </div>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 gap-5 overflow-hidden p-5 md:min-h-0 md:grid-cols-[240px_1fr]">
-        <div className="space-y-3 overflow-y-auto">
+      <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 md:min-h-0 md:grid-cols-[240px_1fr] md:gap-5 md:p-5">
+        {/* No celular as fotos vêm primeiro: o promotor abriu a página pra
+            fotografar, não pra preencher coordenador. */}
+        <div className="order-2 space-y-3 overflow-y-auto md:order-1">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
               Gerente
             </p>
-            <p className="text-sm font-bold">{supplierManager || "—"}</p>
+            <InlineField
+              value={manager}
+              placeholder="—"
+              onChange={setManager}
+              className="text-sm font-bold"
+            />
           </div>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
@@ -308,15 +330,17 @@ export function BookPageCard({
           )}
         </div>
 
-        <BookPagePhotoGrid
-          photos={photos}
-          layoutPattern={photoLayout}
-          photoAdjustments={photoAdjustments}
-          onChange={updatePhotos}
-          onLayoutChange={saveLayoutPattern}
-          onAdjustmentChange={saveAdjustment}
-          editable
-        />
+        <div className="order-1 flex min-h-0 flex-col md:order-2">
+          <BookPagePhotoGrid
+            photos={photos}
+            layoutPattern={photoLayout}
+            photoAdjustments={photoAdjustments}
+            onChange={updatePhotos}
+            onLayoutChange={saveLayoutPattern}
+            onAdjustmentChange={saveAdjustment}
+            editable
+          />
+        </div>
       </div>
 
       <div className="flex shrink-0 items-center justify-end border-t px-5 py-2 text-xs text-neutral-500">

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { LinkPhotosToMapPanel } from "@/features/pdv-photos/components/link-photos-to-map-panel";
 import { PdvPhotoSection } from "@/features/pdv-photos/components/pdv-photo-section";
 import { ArrowLeft, MapIcon } from "lucide-react";
 import Link from "next/link";
@@ -48,6 +49,8 @@ export function StoreDetail({ storeId }: StoreDetailProps) {
           </Link>
         </Button>
       </div>
+
+      <LinkPhotosToMapPanel storeId={storeId} />
 
       <Card>
         <CardContent className="pt-6">

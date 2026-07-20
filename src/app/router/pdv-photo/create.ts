@@ -3,6 +3,11 @@ import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/db";
 import { z } from "zod";
+import {
+  assertMapObjectInStore,
+  assertMediaTypeInOrg,
+  assertSupplierInOrg,
+} from "./assert-relations";
 
 export const createPdvPhoto = base
   .use(requireAuthMiddleware)
@@ -12,8 +17,10 @@ export const createPdvPhoto = base
       storeId: z.string(),
       mapObjectId: z.string().optional(),
       supplierId: z.string().optional(),
+      mediaTypeId: z.string().optional(),
       section: z.string().optional(),
       responsibleCompany: z.string().optional(),
+      managerName: z.string().optional(),
       coordinatorName: z.string().optional(),
       consultantName: z.string().optional(),
       code: z.string().optional(),
@@ -33,6 +40,21 @@ export const createPdvPhoto = base
       throw errors.NOT_FOUND({ message: "Loja não encontrada" });
     }
 
+    if (input.supplierId) {
+      await assertSupplierInOrg(input.supplierId, context.org.id, errors);
+    }
+    if (input.mediaTypeId) {
+      await assertMediaTypeInOrg(input.mediaTypeId, context.org.id, errors);
+    }
+    if (input.mapObjectId) {
+      await assertMapObjectInStore(
+        input.mapObjectId,
+        input.storeId,
+        context.org.id,
+        errors,
+      );
+    }
+
     const photoCapturedAt = input.capturedAt
       ? new Date(input.capturedAt)
       : new Date();
@@ -45,6 +67,7 @@ export const createPdvPhoto = base
         supplierId: input.supplierId,
         section: input.section,
         responsibleCompany: input.responsibleCompany,
+        managerName: input.managerName,
         coordinatorName: input.coordinatorName,
         consultantName: input.consultantName,
         code: input.code,

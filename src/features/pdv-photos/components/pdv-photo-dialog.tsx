@@ -21,6 +21,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useSupplier } from "@/features/supplier/hooks/use-supplier";
+import {
+  useMediaTypes,
+  useStoreSectors,
+} from "@/features/trade-catalog/hooks/use-trade-catalog";
 import { useEffect, useState } from "react";
 import {
   type PdvPhoto,
@@ -55,12 +59,15 @@ export function PdvPhotoDialog({
   photo,
 }: PdvPhotoDialogProps) {
   const { suppliers } = useSupplier();
+  const { storeSectors } = useStoreSectors();
+  const { mediaTypes } = useMediaTypes();
   const createPdvPhoto = useCreatePdvPhoto();
   const updatePdvPhoto = useUpdatePdvPhoto();
   const isEditing = !!photo;
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [supplierId, setSupplierId] = useState<string>(NONE);
+  const [mediaTypeId, setMediaTypeId] = useState<string>(NONE);
   const [section, setSection] = useState("");
   const [company, setCompany] = useState("");
   const [coordinator, setCoordinator] = useState("");
@@ -75,6 +82,7 @@ export function PdvPhotoDialog({
     if (photo) {
       setPhotos(photo.photos);
       setSupplierId(photo.supplierId ?? NONE);
+      setMediaTypeId(photo.mediaTypeId ?? NONE);
       setSection(photo.section ?? "");
       setCompany(photo.responsibleCompany ?? "");
       setCoordinator(photo.coordinatorName ?? "");
@@ -89,6 +97,7 @@ export function PdvPhotoDialog({
     }
     setPhotos([]);
     setSupplierId(defaultSupplierId ?? NONE);
+    setMediaTypeId(NONE);
     setSection(defaultSection ?? "");
     setCompany("");
     setCoordinator("");
@@ -101,12 +110,29 @@ export function PdvPhotoDialog({
 
   const isPending = createPdvPhoto.isPending || updatePdvPhoto.isPending;
 
+  // O rótulo mostra "PER - Perfumaria" (igual ao cadastro de Setores), mas o
+  // valor gravado continua sendo só o nome — `PdvPhoto.section` é texto livre
+  // e as fotos já salvas guardam o nome puro.
+  const sectorOptions = storeSectors.map((sector) => ({
+    value: sector.name,
+    label: `${sector.code} - ${sector.name}`,
+  }));
+  // Fotos antigas podem ter uma seção que não existe mais no cadastro — entra
+  // como opção extra pra não sumir silenciosamente ao editar.
+  const hasCurrentSection = sectorOptions.some(
+    (option) => option.value === section,
+  );
+  if (section && !hasCurrentSection) {
+    sectorOptions.unshift({ value: section, label: section });
+  }
+
   const handleSubmit = () => {
     if (photo) {
       updatePdvPhoto.mutate(
         {
           id: photo.id,
           supplierId: supplierId === NONE ? null : supplierId,
+          mediaTypeId: mediaTypeId === NONE ? null : mediaTypeId,
           section: section || null,
           responsibleCompany: company || null,
           coordinatorName: coordinator || null,
@@ -127,6 +153,7 @@ export function PdvPhotoDialog({
         storeId,
         mapObjectId,
         supplierId: supplierId === NONE ? undefined : supplierId,
+        mediaTypeId: mediaTypeId === NONE ? undefined : mediaTypeId,
         section: section || undefined,
         responsibleCompany: company || undefined,
         coordinatorName: coordinator || undefined,
@@ -161,13 +188,25 @@ export function PdvPhotoDialog({
 
           <div className="flex gap-4">
             <Field>
-              <FieldLabel htmlFor="pdv-section">Seção</FieldLabel>
-              <Input
-                id="pdv-section"
-                value={section}
-                onChange={(event) => setSection(event.target.value)}
-                placeholder="Ex.: Bebidas"
-              />
+              <FieldLabel>Seção</FieldLabel>
+              <Select
+                value={section || NONE}
+                onValueChange={(value) =>
+                  setSection(value === NONE ? "" : value)
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione a seção" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Nenhuma</SelectItem>
+                  {sectorOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
             <Field>
               <FieldLabel htmlFor="pdv-code">Código</FieldLabel>
@@ -191,6 +230,23 @@ export function PdvPhotoDialog({
               />
             </Field>
           </div>
+
+          <Field>
+            <FieldLabel>Tipo de mídia</FieldLabel>
+            <Select value={mediaTypeId} onValueChange={setMediaTypeId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o tipo de mídia" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Não informar</SelectItem>
+                {mediaTypes.map((mediaType) => (
+                  <SelectItem key={mediaType.id} value={mediaType.id}>
+                    {mediaType.code} - {mediaType.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
           <Field>
             <FieldLabel>Indústria</FieldLabel>

@@ -55,7 +55,11 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { orpc } from "@/lib/orpc";
-import { hasFullAccess } from "@/lib/permissions";
+import {
+  ALWAYS_VISIBLE_MODULE_KEYS,
+  hasFullAccess,
+  isModuleVisible,
+} from "@/lib/permissions";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "./ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -230,18 +234,48 @@ export function AppSidebar() {
 
   // Permissões do member ativo: filtra os itens do menu para que cada usuário
   // veja apenas o que tem acesso. Owner/Admin sempre veem tudo.
-  const { data: currentMember, isPending: isMemberPending } = useQuery(
-    orpc.members.getCurrent.queryOptions({ input: {} }),
-  );
+  const {
+    data: currentMember,
+    isPending: isMemberPending,
+    isError: isMemberError,
+  } = useQuery(orpc.members.getCurrent.queryOptions({ input: {} }));
   const fullAccess = hasFullAccess(currentMember?.role);
   const allowedPermissions = new Set(currentMember?.permissions ?? []);
+
+  // Duas camadas independentes da permissão: a empresa desliga módulos que não
+  // usa e o usuário esconde o que não quer ver. Nenhuma das duas bloqueia a
+  // rota — só tira do menu.
+  const moduleVisibility = {
+    orgDisabledModules: currentMember?.orgDisabledModules ?? [],
+    userHiddenModules: currentMember?.hiddenModules ?? [],
+  };
+  const isVisible = (permission?: string) =>
+    !permission || isModuleVisible(permission, moduleVisibility);
+
   type NavItem = (typeof navigation)[number];
+
+  // Rede de segurança: se a consulta do member falhar, o filtro esconderia
+  // TODOS os itens (nenhuma permissão conhecida) e o usuário ficaria preso
+  // numa tela sem navegação. Nesse caso mostra o mínimo pra ele conseguir
+  // chegar em Configurações e se recuperar.
+  const fallbackNavigation = navigation.filter(
+    (item) =>
+      item.permission &&
+      (ALWAYS_VISIBLE_MODULE_KEYS as readonly string[]).includes(
+        item.permission,
+      ),
+  );
+
   const visibleNavigation = navigation
     .map((item): NavItem | null => {
+      // Esconder o pai esconde a subárvore inteira. Precisa vir antes do filtro
+      // dos filhos: o `fullAccess` lá embaixo aprova o filho sozinho, então sem
+      // este corte desligar "Produtos"/"Estoque" não teria efeito nenhum para
+      // owner/admin — justamente quem configura os módulos.
+      if (!isVisible(item.permission)) return null;
+
       const parentPermitted =
-        fullAccess ||
-        !item.permission ||
-        allowedPermissions.has(item.permission);
+        fullAccess || !item.permission || allowedPermissions.has(item.permission);
 
       if (!item.children) {
         return parentPermitted ? item : null;
@@ -250,6 +284,7 @@ export function AppSidebar() {
       // Filtra os filhos: filhos com permissão própria são checados
       // individualmente; filhos sem permissão herdam a visibilidade do pai.
       const children = item.children.filter((child) => {
+        if (!isVisible(child.permission)) return false;
         if (fullAccess) return true;
         if (child.permission) return allowedPermissions.has(child.permission);
         return parentPermitted;
@@ -259,6 +294,14 @@ export function AppSidebar() {
       return { ...item, children };
     })
     .filter((item): item is NavItem => item !== null);
+
+  // Menu vazio por falha de carregamento é diferente de menu vazio por falta
+  // de permissão: no primeiro caso o usuário perderia até o acesso a
+  // Configurações, sem nenhuma pista do que aconteceu.
+  const navigationToRender =
+    isMemberError || (!currentMember && !isMemberPending)
+      ? fallbackNavigation
+      : visibleNavigation;
 
   return (
     <Sidebar collapsible="icon">
@@ -279,7 +322,7 @@ export function AppSidebar() {
               </SidebarMenu>
             ) : (
               <SidebarMenu>
-                {visibleNavigation.map((item) => {
+                {navigationToRender.map((item) => {
                   // const isActive = pathname === item.href;
                   const hasChildren = item.children && item.children.length > 0;
 

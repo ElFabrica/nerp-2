@@ -35,6 +35,7 @@ model User {
   promotionalCatalogs   PromotionalCatalog[]
   createdPdvPhotos      PdvPhoto[]           @relation("CreatedPdvPhotos")
   createdBooks          Book[]               @relation("CreatedBooks")
+  createdTradeCatalogs  TradeCatalog[]       @relation("CreatedTradeCatalogs")
   authoredAnnotations   MapAnnotation[]      @relation("AuthoredAnnotations")
   editedMapObjects      MapObject[]          @relation("EditedMapObjects")
   createdNegotiations   SpaceNegotiation[]   @relation("CreatedSpaceNegotiations")
@@ -140,6 +141,9 @@ model Organization {
   country                  String                    @default("BR")
   // Configurações visuais
   primaryColor             String                    @default("#3b82f6")
+  // Módulos do NERP que esta empresa NÃO usa — some do menu de todo mundo.
+  // Lista de exclusão: default [] = todos ativos, módulo novo entra sozinho.
+  disabledModules          String[]                  @default([])
   // Plano e status
   plan                     PlanType                  @default(FREE)
   status                   OrganizationStatus        @default(TRIAL)
@@ -184,6 +188,7 @@ model Organization {
   pdvPhotos                PdvPhoto[]
   books                    Book[]
   bookCoverTemplate        BookCoverTemplate?
+  tradeCatalogs            TradeCatalog[]
   mapAnnotations           MapAnnotation[]
   spaceNegotiations        SpaceNegotiation[]
   mediaTypes               MediaType[]
@@ -205,18 +210,22 @@ model Organization {
 // Mantido exatamente como seu schema
 
 model Member {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role           String       @default("member")
-  permissions    String[]     @default([]) // chaves de páginas liberadas; owner/admin ignoram
-  createdAt      DateTime     @default(now())
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role             String       @default("member")
+  permissions      String[]     @default([]) // chaves de páginas liberadas; owner/admin ignoram
+  // Preferência pessoal de menu. Lista de EXCLUSÃO de propósito: default []
+  // já significa "vejo tudo" e módulo novo aparece sem backfill.
+  hiddenModules    String[]     @default([]) // módulos que este usuário tirou do próprio menu
+  dashboardModules String[]     @default([]) // módulos com botão de atalho no dashboard
+  createdAt        DateTime     @default(now())
   // Hierarquia de campo: supervisor do promotor (mesma organização)
-  supervisorId   String?
-  supervisor     Member?      @relation("MemberSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
-  supervisees    Member[]     @relation("MemberSupervisor")
+  supervisorId     String?
+  supervisor       Member?      @relation("MemberSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  supervisees      Member[]     @relation("MemberSupervisor")
 
   salesGoalEntries SalesGoalEntry[]
 
@@ -1344,6 +1353,13 @@ enum BookStatus {
   FAILED
 }
 
+enum TradeCatalogStatus {
+  DRAFT
+  GENERATING
+  READY
+  FAILED
+}
+
 // Padrões de disposição das fotos de um PdvPhoto (2 ou 3 fotos).
 // null = grade automática (1 foto = tela cheia, 4 fotos = grade 2x2).
 enum PdvPhotoLayoutPattern {
@@ -1598,10 +1614,27 @@ model MediaType {
   organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   mapObjects      MapObject[]
   prices          MediaTypePrice[]
+  pdvPhotos       PdvPhoto[]
 
   @@unique([organizationId, code])
   @@index([organizationId, isActive, sortOrder])
   @@map("media_types")
+}
+
+// Foto modelo GLOBAL da Biblioteca Órbita — não é org-scoped: uma única
+// biblioteca central, keyed pelo código padrão da mídia (PG, GO, IL...),
+// visível a todos os usuários do sistema. Só o super-admin (ver
+// src/lib/super-admin.ts) insere/apaga; ninguém mais altera. Cada org ainda
+// pode ter as suas próprias fotos em MediaType.defaultPhotos.
+model MediaModelPhoto {
+  id        String   @id @default(cuid())
+  code      String // código padrão da mídia (bate com MediaType.code)
+  imageKey  String // chave R2 (já com watermark do Órbita)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([code])
+  @@map("media_model_photos")
 }
 
 model NegotiationType {
@@ -1722,8 +1755,10 @@ model PdvPhoto {
   storeId            String // sempre presente (fallback quando não há mapa)
   mapObjectId        String? // objeto do mapa (gôndola/ilha) quando houver
   supplierId         String? // Indústria
+  mediaTypeId        String? // tipo de mídia fotografada — fonte de verdade quando não há mapObject
   section            String? // Seção
   responsibleCompany String? // Empresa responsável pelo PDV
+  managerName        String? // Gerente da loja na visita — snapshot editável; vazio cai no Store.managerName
   coordinatorName    String? // Coordenador(a) do PDV
   consultantName     String? // Consultor(a) do PDV
   code               String? // Código
@@ -1740,6 +1775,7 @@ model PdvPhoto {
   store              Store                  @relation(fields: [storeId], references: [id], onDelete: Cascade)
   mapObject          MapObject?             @relation(fields: [mapObjectId], references: [id], onDelete: SetNull)
   supplier           Supplier?              @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  mediaType          MediaType?             @relation(fields: [mediaTypeId], references: [id], onDelete: SetNull)
   createdBy          User                   @relation("CreatedPdvPhotos", fields: [createdById], references: [id])
   bookItems          BookItem[]
 
@@ -1748,6 +1784,7 @@ model PdvPhoto {
   @@index([mapObjectId])
   @@index([organizationId, code])
   @@index([organizationId, supplierId])
+  @@index([organizationId, mediaTypeId])
   @@map("pdv_photos")
 }
 
@@ -1811,6 +1848,59 @@ model BookItem {
   @@unique([bookId, pdvPhotoId])
   @@index([bookId])
   @@map("book_items")
+}
+
+// Catálogo visual de oportunidades de PDV — material que o Trade Marketing envia
+// a fornecedores/indústrias pra vender os espaços. Reaproveita o editor de capa
+// e o pipeline de PDF dos Books. shareToken dá link público (sem login).
+model TradeCatalog {
+  id                String             @id @default(cuid())
+  organizationId    String
+  name              String
+  status            TradeCatalogStatus @default(DRAFT)
+  pdfKey            String? // PDF gerado (R2)
+  generatedAt       DateTime?
+  // Sem @default(cuid()): cuid é anti-colisão, não imprevisível (timestamp +
+  // contador + fingerprint + ~20 bits de aleatório). Como este token é a ÚNICA
+  // barreira do link sem login, quem tem um consegue enumerar os vizinhos.
+  // Gerado com randomBytes em trade-catalog/catalog-doc/create.ts.
+  shareToken        String             @unique // link público
+  isPublic          Boolean            @default(false)
+  showIndex         Boolean            @default(true)
+  // Mesmo formato do Book (array de CoverElement) — reusa o editor Konva e o
+  // replay no PDF. null = capa/contracapa em branco.
+  coverLayout       Json?
+  closingLayout     Json?
+  coverBackground   Json?
+  closingBackground Json?
+  createdById       String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy         User               @relation("CreatedTradeCatalogs", fields: [createdById], references: [id])
+  pages             TradeCatalogPage[]
+
+  @@index([organizationId])
+  @@map("trade_catalogs")
+}
+
+// Página do catálogo (ex.: "Ponta de Gôndolas"). rows é um snapshot editável das
+// oportunidades — { id, storeId?, storeName, mediaTypeName, quantity, price,
+// status, note? }[] — pra a proposta enviada não mudar sozinha quando o mapa muda.
+model TradeCatalogPage {
+  id            String       @id @default(cuid())
+  catalogId     String
+  title         String
+  mediaTypeCode String? // origem da geração automática
+  order         Int          @default(0)
+  photoKeys     String[]     @default([]) // fotos do Cadastros de Trade (R2)
+  rows          Json         @default("[]")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  catalog       TradeCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId, order])
+  @@map("trade_catalog_pages")
 }
 
 model MapAnnotation {

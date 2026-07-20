@@ -3,17 +3,53 @@ import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getApiSession } from "@/lib/api-auth";
 import { S3 } from "@/lib/s3-client";
 
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+// Lista fechada, não prefixo `image/`: `image/svg+xml` é um documento que
+// executa script quando o objeto é aberto direto pela URL do bucket. Como o
+// Content-Type assinado aqui é o que o R2 devolve na resposta, manter SVG e
+// XML fora da lista é o que impede hospedar página ativa no domínio de assets.
+const ALLOWED_CONTENT_TYPES = new Set([
+  "image/jpeg",
+  "image/pjpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+  "image/avif",
+  "application/pdf",
+]);
+
 const fileUploadSchema = z.object({
-  fileName: z.string().min(1, "Nome do arquivo é obrigatório"),
-  contentType: z.string().min(1, "Content type is required"),
-  size: z.number().min(1, "Size is required"),
+  fileName: z
+    .string()
+    .min(1, "Nome do arquivo é obrigatório")
+    .max(200, "Nome do arquivo muito longo"),
+  contentType: z
+    .string()
+    .min(1, "Content type is required")
+    .refine((value) => ALLOWED_CONTENT_TYPES.has(value.toLowerCase()), {
+      message: "Tipo de arquivo não permitido",
+    }),
+  size: z
+    .number()
+    .int()
+    .min(1, "Size is required")
+    .max(MAX_UPLOAD_BYTES, "Arquivo excede o limite de 15MB"),
   isImage: z.boolean(),
 });
 
 export async function POST(request: Request) {
   try {
+    const session = await getApiSession(request);
+    if (!session) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
     const body = await request.json();
 
     const validation = fileUploadSchema.safeParse(body);
@@ -29,9 +65,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const { fileName, contentType, size, isImage } = validation.data;
+    const { fileName, contentType, size } = validation.data;
 
-    const uniqueKey = `${uuidv4()}-${fileName}`;
+    // O nome vem do dispositivo do usuário: sem sanitizar, uma barra cria
+    // objeto sob prefixo arbitrário do bucket (inclusive `trade-catalogs/`).
+    const safeFileName = fileName.replace(/[^\w.\-]/g, "_");
+    const uniqueKey = `${uuidv4()}-${safeFileName}`;
 
     const command = new PutObjectCommand({
       Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME_IMAGES,

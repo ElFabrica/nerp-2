@@ -65,6 +65,34 @@ export function useUpdateMemberPermissions() {
   );
 }
 
+// Silencioso: o usuário liga/desliga vários módulos seguidos e um toast por
+// switch empilharia na tela.
+export function useUpdateMyModules() {
+  const invalidate = useInvalidateMembers();
+  return useMutation(
+    orpc.members.updateMyModules.mutationOptions({
+      onSuccess: () => invalidate(),
+      onError: (error) => {
+        toast.error(error.message);
+        invalidate();
+      },
+    }),
+  );
+}
+
+export function useUpdateOrgDisabledModules() {
+  const invalidate = useInvalidateMembers();
+  return useMutation(
+    orpc.org.updateDisabledModules.mutationOptions({
+      onSuccess: () => invalidate(),
+      onError: (error) => {
+        toast.error(error.message);
+        invalidate();
+      },
+    }),
+  );
+}
+
 export function useUpdateMemberSupervisor() {
   const invalidate = useInvalidateMembers();
   return useMutation(

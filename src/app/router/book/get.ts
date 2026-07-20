@@ -13,7 +13,7 @@ export const getBook = base
       where: { id: input.id, organizationId: context.org.id },
       include: {
         supplier: {
-          select: { id: true, name: true, logo: true, contactPerson: true },
+          select: { id: true, name: true, logo: true },
         },
         organization: { select: { name: true, tradeName: true } },
         items: {
@@ -31,7 +31,10 @@ export const getBook = base
                 photoLayout: true,
                 photoAdjustments: true,
                 capturedAt: true,
-                store: { select: { name: true } },
+                mediaTypeId: true,
+                managerName: true,
+                store: { select: { name: true, managerName: true } },
+                mediaType: { select: { name: true } },
               },
             },
           },
@@ -49,7 +52,6 @@ export const getBook = base
       supplierId: book.supplierId,
       supplierName: book.supplier?.name ?? null,
       supplierLogo: book.supplier?.logo ?? null,
-      supplierManager: book.supplier?.contactPerson ?? null,
       organizationName: book.organization.tradeName ?? book.organization.name,
       distributorLogo: book.distributorLogo,
       periodMonth: book.periodMonth,
@@ -65,6 +67,11 @@ export const getBook = base
         pdvPhotoId: item.pdvPhotoId,
         order: item.order,
         storeName: item.pdvPhoto.store.name,
+        // Snapshot da página vence; vazio cai no gerente cadastrado na loja.
+        managerName:
+          item.pdvPhoto.managerName ?? item.pdvPhoto.store.managerName,
+        mediaTypeId: item.pdvPhoto.mediaTypeId,
+        mediaTypeName: item.pdvPhoto.mediaType?.name ?? null,
         section: item.pdvPhoto.section,
         code: item.pdvPhoto.code,
         actionValue: item.pdvPhoto.actionValue

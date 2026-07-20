@@ -582,7 +582,10 @@ export function ObjectPropertiesPanel() {
             storeId={storeId}
             mapObjectId={object.id}
             defaultSupplierId={object.supplierId}
-            defaultSection={object.category}
+            defaultSection={
+              storeSectors.find((sector) => sector.id === object.sectorId)
+                ?.name ?? object.category
+            }
           />
         </>
       )}

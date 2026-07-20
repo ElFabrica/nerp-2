@@ -46,6 +46,8 @@ export const listSpaces = base
         category: true,
         supplierId: true,
         brandId: true,
+        mediaTypeId: true,
+        mediaType: { select: { name: true } },
         floorPlan: { select: { id: true, storeId: true } },
       },
       orderBy: { spaceCode: "asc" },

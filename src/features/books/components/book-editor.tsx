@@ -73,7 +73,7 @@ export function BookEditor({ bookId }: BookEditorProps) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {book.status === "READY" && book.pdfKey && (
             <Button asChild variant="outline">
               <a
@@ -153,7 +153,6 @@ export function BookEditor({ bookId }: BookEditorProps) {
             periodYear={book.periodYear}
             items={book.items}
             industryLogo={book.supplierLogo}
-            supplierManager={book.supplierManager}
             organizationName={book.organizationName}
           />
         </TabsContent>

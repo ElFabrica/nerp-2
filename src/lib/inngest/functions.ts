@@ -4,6 +4,7 @@ import { runProductImport } from "@/features/products/server/import-runner";
 import { runSupplierImport } from "@/features/supplier/server/supplier-import-runner";
 import { runCustomerImport } from "@/features/custom/server/customer-import-runner";
 import { generateBook } from "@/features/books/server/generate-book";
+import { generateTradeCatalogPdf } from "@/features/pdv-catalog/server/generate-catalog-pdf";
 import {
   bookGenerateRequested,
   customerImportRequested,
@@ -11,6 +12,7 @@ import {
   productImportRequested,
   supplierImportRequested,
   syncNasaRequested,
+  tradeCatalogGenerateRequested,
 } from "./client";
 
 /**
@@ -206,10 +208,40 @@ export const bookGenerate = inngest.createFunction(
   },
 );
 
+/**
+ * Geração do Catálogo PDV em PDF (Trade Marketing).
+ *
+ * Disparada por `trade-catalog/generate.requested`. Mesmo pipeline do
+ * `bookGenerate` acima: `step.run` memoizado, `generateTradeCatalogPdf` marca
+ * READY, `onFailure` marca FAILED.
+ */
+export const tradeCatalogGenerate = inngest.createFunction(
+  {
+    id: "trade-catalog-generate",
+    triggers: [tradeCatalogGenerateRequested],
+    retries: 2,
+    onFailure: async ({ event, error }) => {
+      const { catalogId } = event.data.event.data;
+      await prisma.tradeCatalog
+        .update({ where: { id: catalogId }, data: { status: "FAILED" } })
+        .catch(() => {});
+      console.error(`[trade-catalog-generate] falha em ${catalogId}:`, error);
+    },
+  },
+  async ({ event, step }) => {
+    const { catalogId } = event.data;
+    const key = await step.run("render-and-upload", () =>
+      generateTradeCatalogPdf(catalogId),
+    );
+    return { catalogId, key };
+  },
+);
+
 export const functions = [
   syncNasaDelivery,
   productImportProcess,
   supplierImportProcess,
   customerImportProcess,
   bookGenerate,
+  tradeCatalogGenerate,
 ];

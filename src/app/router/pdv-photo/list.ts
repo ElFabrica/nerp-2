@@ -11,7 +11,11 @@ export const listPdvPhoto = base
     z.object({
       storeId: z.string().optional(),
       mapObjectId: z.string().optional(),
+      // Fotos tiradas em campo antes de a loja ter mapa — as candidatas a
+      // vincular a um espaço depois.
+      unlinkedOnly: z.boolean().optional(),
       supplierId: z.string().optional(),
+      mediaTypeId: z.string().optional(),
       section: z.string().optional(),
       responsibleCompany: z.string().optional(),
       coordinatorName: z.string().optional(),
@@ -34,8 +38,9 @@ export const listPdvPhoto = base
       where: {
         organizationId: context.org.id,
         storeId: input.storeId,
-        mapObjectId: input.mapObjectId,
+        mapObjectId: input.unlinkedOnly ? null : input.mapObjectId,
         supplierId: input.supplierId,
+        mediaTypeId: input.mediaTypeId,
         section: input.section,
         responsibleCompany: input.responsibleCompany,
         coordinatorName: input.coordinatorName,
@@ -49,6 +54,7 @@ export const listPdvPhoto = base
         storeId: true,
         mapObjectId: true,
         supplierId: true,
+        mediaTypeId: true,
         section: true,
         responsibleCompany: true,
         coordinatorName: true,
@@ -60,6 +66,7 @@ export const listPdvPhoto = base
         capturedAt: true,
         store: { select: { name: true, managerName: true } },
         supplier: { select: { name: true } },
+        mediaType: { select: { name: true, code: true } },
       },
     });
 
@@ -72,6 +79,9 @@ export const listPdvPhoto = base
         mapObjectId: photo.mapObjectId,
         supplierId: photo.supplierId,
         supplierName: photo.supplier?.name ?? null,
+        mediaTypeId: photo.mediaTypeId,
+        mediaTypeName: photo.mediaType?.name ?? null,
+        mediaTypeCode: photo.mediaType?.code ?? null,
         section: photo.section,
         responsibleCompany: photo.responsibleCompany,
         coordinatorName: photo.coordinatorName,

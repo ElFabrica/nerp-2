@@ -91,6 +91,21 @@ export const bookGenerateRequested = eventType("book/generate.requested", {
 });
 
 /**
+ * Geração do Catálogo PDV em PDF (Trade Marketing).
+ *
+ * Disparado por `tradeCatalogDoc.generate` após marcar o catálogo como
+ * GENERATING. A função `tradeCatalogGenerate` carrega o catálogo + páginas e
+ * renderiza o PDF server-side (@react-pdf/renderer), salvando em R2 e marcando
+ * READY. Mesmo pipeline do Book (bookGenerateRequested acima).
+ */
+export type TradeCatalogGenerateRequestedData = { catalogId: string };
+
+export const tradeCatalogGenerateRequested = eventType(
+  "trade-catalog/generate.requested",
+  { schema: staticSchema<TradeCatalogGenerateRequestedData>() },
+);
+
+/**
  * PDV Map — preparação da integração com o Tracking Órbita e o Forge.
  *
  * Emitidos quando o estado de um espaço muda ou uma negociação nasce, para que

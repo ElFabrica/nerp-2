@@ -11,7 +11,11 @@ import {
   getSlotAspectRatio,
   type PhotoAdjustment,
 } from "../lib/photo-adjustment";
-import { BookDocument, type BookDocumentData, type PhotoSource } from "../pdf/book-document";
+import {
+  BookDocument,
+  type BookDocumentData,
+  type PhotoSource,
+} from "../pdf/book-document";
 import { cropPhotoForPdf } from "./crop-photo";
 
 // `imageKey` de cada elemento tipo "image" vira URL completa — book-document.tsx
@@ -110,6 +114,7 @@ export async function generateBook(bookId: string): Promise<string> {
           pdvPhoto: {
             include: {
               store: { select: { name: true, managerName: true } },
+              mediaType: { select: { name: true } },
             },
           },
         },
@@ -124,10 +129,13 @@ export async function generateBook(bookId: string): Promise<string> {
   const items = await Promise.all(
     book.items.map(async (item) => ({
       storeName: item.pdvPhoto.store.name,
-      storeManager: item.pdvPhoto.store.managerName,
+      // Mesmo fallback do book.getOne — o que o card mostra é o que sai no PDF.
+      storeManager:
+        item.pdvPhoto.managerName ?? item.pdvPhoto.store.managerName,
       coordinatorName: item.pdvPhoto.coordinatorName,
       consultantName: item.pdvPhoto.consultantName,
       responsibleCompany: item.pdvPhoto.responsibleCompany,
+      mediaTypeName: item.pdvPhoto.mediaType?.name ?? null,
       section: item.pdvPhoto.section,
       code: item.pdvPhoto.code,
       actionValueLabel: item.pdvPhoto.actionValue

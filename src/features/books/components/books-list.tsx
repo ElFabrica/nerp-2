@@ -41,14 +41,18 @@ export function BooksList() {
     <>
       <Card>
         <CardContent className="pt-6">
-          <div className="rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Book</TableHead>
-                  <TableHead>Indústria</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    Indústria
+                  </TableHead>
                   <TableHead>Período</TableHead>
-                  <TableHead className="text-center">Fotos</TableHead>
+                  <TableHead className="hidden text-center md:table-cell">
+                    Fotos
+                  </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
@@ -84,7 +88,7 @@ export function BooksList() {
                           {book.name}
                         </Link>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {book.supplierName ?? (
                           <span className="text-muted-foreground">Geral</span>
                         )}
@@ -92,7 +96,7 @@ export function BooksList() {
                       <TableCell>
                         {formatPeriod(book.periodMonth, book.periodYear)}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="hidden text-center md:table-cell">
                         {book.itemsCount}
                       </TableCell>
                       <TableCell>
