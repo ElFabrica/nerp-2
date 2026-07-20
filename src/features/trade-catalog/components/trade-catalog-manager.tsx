@@ -2,7 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { CatalogTable } from "./catalog-table";
 import { MediaTypeDetailsDialog } from "./media-type-details-dialog";
@@ -13,6 +13,7 @@ import {
   useDeleteMediaType,
   useDeleteNegotiationType,
   useDeleteStoreSector,
+  useEnsureTradeCatalogs,
   useMediaTypes,
   useNegotiationTypes,
   useStoreSectors,
@@ -22,7 +23,10 @@ import {
 } from "../hooks/use-trade-catalog";
 
 function MediaTab({ kind }: { kind: "FISICA" | "DIGITAL" }) {
-  const { mediaTypes, isLoading } = useMediaTypes({ kind, includeInactive: true });
+  const { mediaTypes, isLoading } = useMediaTypes({
+    kind,
+    includeInactive: true,
+  });
   const create = useCreateMediaType();
   const update = useUpdateMediaType();
   const remove = useDeleteMediaType();
@@ -81,7 +85,9 @@ function NegotiationTab() {
 }
 
 function SectorTab() {
-  const { storeSectors, isLoading } = useStoreSectors({ includeInactive: true });
+  const { storeSectors, isLoading } = useStoreSectors({
+    includeInactive: true,
+  });
   const create = useCreateStoreSector();
   const update = useUpdateStoreSector();
   const remove = useDeleteStoreSector();
@@ -100,14 +106,33 @@ function SectorTab() {
 }
 
 export function TradeCatalogManager() {
+  const ensure = useEnsureTradeCatalogs();
+
   return (
     <Tabs defaultValue="media-fisica">
-      <TabsList>
-        <TabsTrigger value="media-fisica">Mídia Física</TabsTrigger>
-        <TabsTrigger value="media-digital">Mídia Digital</TabsTrigger>
-        <TabsTrigger value="negociacao">Tipos de Negociação</TabsTrigger>
-        <TabsTrigger value="setores">Setores</TabsTrigger>
-      </TabsList>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <TabsList>
+          <TabsTrigger value="media-fisica">Mídia Física</TabsTrigger>
+          <TabsTrigger value="media-digital">Mídia Digital</TabsTrigger>
+          <TabsTrigger value="negociacao">Tipos de Negociação</TabsTrigger>
+          <TabsTrigger value="setores">Setores</TabsTrigger>
+        </TabsList>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => ensure.mutate({})}
+          disabled={ensure.isPending}
+          title="Cria os itens padrão de mídia, negociação e setores que ainda não existirem nesta organização"
+        >
+          {ensure.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Sparkles className="size-4" />
+          )}
+          Restaurar catálogos padrão
+        </Button>
+      </div>
 
       <TabsContent value="media-fisica" className="mt-4">
         <MediaTab kind="FISICA" />
