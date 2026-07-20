@@ -11,12 +11,3 @@ export const TRADE_CATALOG_STATUS_META: Record<TradeCatalogStatus, StatusMeta> =
   READY: { label: "Pronto", variant: "default" },
   FAILED: { label: "Falhou", variant: "destructive" },
 };
-
-const brl = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
-
-export function formatBRL(value: number) {
-  return brl.format(value);
-}

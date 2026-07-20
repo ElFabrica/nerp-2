@@ -1860,7 +1860,11 @@ model TradeCatalog {
   status            TradeCatalogStatus @default(DRAFT)
   pdfKey            String? // PDF gerado (R2)
   generatedAt       DateTime?
-  shareToken        String             @unique @default(cuid()) // link público
+  // Sem @default(cuid()): cuid é anti-colisão, não imprevisível (timestamp +
+  // contador + fingerprint + ~20 bits de aleatório). Como este token é a ÚNICA
+  // barreira do link sem login, quem tem um consegue enumerar os vizinhos.
+  // Gerado com randomBytes em trade-catalog/catalog-doc/create.ts.
+  shareToken        String             @unique // link público
   isPublic          Boolean            @default(false)
   showIndex         Boolean            @default(true)
   // Mesmo formato do Book (array de CoverElement) — reusa o editor Konva e o

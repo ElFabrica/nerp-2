@@ -14,7 +14,7 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -55,6 +55,12 @@ export function BookPagesList({
   // A página só nasce no "Salvar": criar o PdvPhoto lá no passo 1 deixaria uma
   // página fantasma vazia toda vez que o promotor abandonasse o fluxo — e em
   // 4G de supermercado isso acontece bastante.
+  //
+  // São duas mutations sem transação entre elas. Se a segunda (anexar fotos)
+  // falhar, a página JÁ existe: guarda o id pra um novo "Salvar" reaproveitar
+  // em vez de criar uma segunda página vazia.
+  const createdPageIdRef = useRef<string | null>(null);
+
   const handleConfirmPage = async ({
     storeId,
     mediaTypeId,
@@ -64,14 +70,23 @@ export function BookPagesList({
     mediaTypeId?: string;
     photoKeys: string[];
   }) => {
-    const { pdvPhotoId } = await addPage.mutateAsync({
-      bookId,
-      storeId,
-      mediaTypeId,
-    });
-    if (photoKeys.length > 0) {
-      await updatePhoto.mutateAsync({ id: pdvPhotoId, photos: photoKeys });
+    if (!createdPageIdRef.current) {
+      const { pdvPhotoId } = await addPage.mutateAsync({
+        bookId,
+        storeId,
+        mediaTypeId,
+      });
+      createdPageIdRef.current = pdvPhotoId;
     }
+
+    if (photoKeys.length > 0) {
+      await updatePhoto.mutateAsync({
+        id: createdPageIdRef.current,
+        photos: photoKeys,
+      });
+    }
+
+    createdPageIdRef.current = null;
   };
 
   const [orderedIds, setOrderedIds] = useState<string[]>([]);

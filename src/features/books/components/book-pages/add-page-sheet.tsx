@@ -110,16 +110,33 @@ export function AddPageSheet({
     const toUpload = files.slice(0, remaining);
     setUploadingCount((count) => count + toUpload.length);
     try {
-      const keys = await Promise.all(
+      // allSettled e não all: uma falha no meio do lote não pode descartar as
+      // fotos que já subiram — é o caso comum no 4G dentro do supermercado.
+      const results = await Promise.allSettled(
         toUpload.map(async (file) =>
           uploadToR2(await compressImage(file), true),
         ),
       );
-      setPhotoKeys((prev) => [...prev, ...keys].slice(0, MAX_PHOTOS));
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Falha ao enviar fotos",
-      );
+
+      const keys = results
+        .filter(
+          (result): result is PromiseFulfilledResult<string> =>
+            result.status === "fulfilled",
+        )
+        .map((result) => result.value);
+
+      if (keys.length > 0) {
+        setPhotoKeys((prev) => [...prev, ...keys].slice(0, MAX_PHOTOS));
+      }
+
+      const failed = results.length - keys.length;
+      if (failed > 0) {
+        toast.error(
+          keys.length > 0
+            ? `${failed} de ${results.length} fotos não subiram. As demais foram salvas.`
+            : "Falha ao enviar fotos",
+        );
+      }
     } finally {
       setUploadingCount((count) => Math.max(0, count - toUpload.length));
     }
@@ -127,11 +144,18 @@ export function AddPageSheet({
 
   const handleSave = async () => {
     if (!storeId) return;
-    await onConfirm({
-      storeId,
-      mediaTypeId: mediaTypeId ?? undefined,
-      photoKeys,
-    });
+    try {
+      await onConfirm({
+        storeId,
+        mediaTypeId: mediaTypeId ?? undefined,
+        photoKeys,
+      });
+    } catch {
+      // O toast já vem do hook da mutation. O catch existe pra a rejeição não
+      // escapar de um onClick async como unhandled rejection — e pra o sheet
+      // continuar aberto com o que o promotor já preencheu, pronto pra retry.
+      return;
+    }
     onOpenChange(false);
   };
 

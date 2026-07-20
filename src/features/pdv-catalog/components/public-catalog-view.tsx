@@ -15,7 +15,7 @@ import { constructUrl } from "@/hooks/use-construct-url";
 import { orpc } from "@/lib/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { DownloadIcon } from "lucide-react";
-import { formatBRL } from "../lib/catalog-format";
+import { formatBRL } from "@/utils/currency-formatter";
 
 interface PublicCatalogViewProps {
   shareToken: string;

@@ -10,6 +10,7 @@ import { catalogRowsSchema } from "@/features/pdv-catalog/lib/catalog-types";
 import { constructUrl } from "@/hooks/use-construct-url";
 import prisma from "@/lib/db";
 import { uploadBufferToR2 } from "@/lib/upload-buffer-to-r2";
+import { formatBRL } from "@/utils/currency-formatter";
 import {
   CatalogDocument,
   type CatalogDocumentData,
@@ -35,11 +36,6 @@ function readBackground(value: unknown): CoverBackground | null {
     imageKey: background.imageKey ? constructUrl(background.imageKey) : null,
   };
 }
-
-const currency = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
 
 export async function generateTradeCatalogPdf(
   catalogId: string,
@@ -67,7 +63,7 @@ export async function generateTradeCatalogPdf(
         rows: rows.map((row) => ({
           storeName: row.storeName,
           quantity: row.quantity,
-          priceLabel: row.price != null ? currency.format(row.price) : null,
+          priceLabel: row.price != null ? formatBRL(row.price) : null,
           status: row.status,
         })),
       };

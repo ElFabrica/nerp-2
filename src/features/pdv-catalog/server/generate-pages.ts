@@ -80,14 +80,20 @@ export async function generateTradeCatalogPagesFor(params: {
   let nextOrder = (lastPage?.order ?? -1) + 1;
   const touchedPageIds: string[] = [];
 
-  for (const mediaType of mediaTypes) {
-    const objects = await prisma.mapObject.findMany({
+  // Duas queries para TODAS as mídias, agrupadas em memória. Uma por mídia
+  // dentro do laço serializava 2×N round-trips numa função que roda dentro do
+  // request — com uma dúzia de mídias o dialog ficava segundos travado.
+  const mediaTypeIdList = mediaTypes.map((mediaType) => mediaType.id);
+
+  const [allObjects, allManualPrices] = await Promise.all([
+    prisma.mapObject.findMany({
       where: {
         organizationId,
-        mediaTypeId: mediaType.id,
+        mediaTypeId: { in: mediaTypeIdList },
         spaceState: onlyAvailable ? "LIVRE" : undefined,
       },
       select: {
+        mediaTypeId: true,
         geometry: true,
         tier: true,
         flowLevel: true,
@@ -101,15 +107,32 @@ export async function generateTradeCatalogPagesFor(params: {
           },
         },
       },
-    });
+    }),
+    prisma.mediaTypePrice.findMany({
+      where: { organizationId, mediaTypeId: { in: mediaTypeIdList } },
+      select: { mediaTypeId: true, storeId: true, price: true },
+    }),
+  ]);
 
-    const manualPrices = await prisma.mediaTypePrice.findMany({
-      where: { organizationId, mediaTypeId: mediaType.id },
-      select: { storeId: true, price: true },
-    });
-    const manualByStoreId = new Map(
-      manualPrices.map((price) => [price.storeId, Number(price.price)]),
-    );
+  const objectsByMediaType = new Map<string, typeof allObjects>();
+  for (const object of allObjects) {
+    if (!object.mediaTypeId) continue;
+    const bucket = objectsByMediaType.get(object.mediaTypeId) ?? [];
+    bucket.push(object);
+    objectsByMediaType.set(object.mediaTypeId, bucket);
+  }
+
+  const manualPricesByMediaType = new Map<string, Map<string, number>>();
+  for (const price of allManualPrices) {
+    const bucket = manualPricesByMediaType.get(price.mediaTypeId) ?? new Map();
+    bucket.set(price.storeId, Number(price.price));
+    manualPricesByMediaType.set(price.mediaTypeId, bucket);
+  }
+
+  for (const mediaType of mediaTypes) {
+    const objects = objectsByMediaType.get(mediaType.id) ?? [];
+    const manualByStoreId =
+      manualPricesByMediaType.get(mediaType.id) ?? new Map<string, number>();
 
     const groups = new Map<
       string,

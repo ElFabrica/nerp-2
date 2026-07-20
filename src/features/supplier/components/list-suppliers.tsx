@@ -45,7 +45,7 @@ import { useState } from "react";
 import { ViewSupplier } from "./view-supplier";
 import { EditSupplier } from "./edit-supplier";
 import { DeleteSupplier } from "./delete-supplier";
-import { useDebouncedValue } from "@/utils/use-debouced";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
