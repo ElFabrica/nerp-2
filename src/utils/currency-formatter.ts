@@ -1,3 +1,14 @@
+const brl = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+// Com o símbolo — para exibição em tabela/PDF. Difere de `currencyFormatter`
+// abaixo, que remove o "R$" para campos que já têm o prefixo no layout.
+export function formatBRL(value: number) {
+  return brl.format(value);
+}
+
 export function currencyFormatter(amount: number) {
   const formatter = new Intl.NumberFormat("pt-BR", {
     style: "currency",

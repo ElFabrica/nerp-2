@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatBRL } from "../../lib/book-format";
+import { formatBRL } from "@/utils/currency-formatter";
 import type {
   PhotoAdjustment,
   PhotoAdjustmentMap,

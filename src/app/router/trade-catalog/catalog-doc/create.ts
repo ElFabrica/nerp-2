@@ -2,6 +2,7 @@ import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/db";
+import { generateShareToken } from "@/lib/share-token";
 import { z } from "zod";
 
 export const createTradeCatalog = base
@@ -15,6 +16,7 @@ export const createTradeCatalog = base
         organizationId: context.org.id,
         name: input.name,
         createdById: context.user.id,
+        shareToken: generateShareToken(),
       },
       select: { id: true },
     });

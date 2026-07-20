@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useProducts } from "@/features/products/hooks/use-products";
-import { useDebouncedValue } from "@/utils/use-debouced";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { MovementType } from "@/generated/prisma/enums";
 
 import { orpc } from "@/lib/orpc";

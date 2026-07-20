@@ -268,11 +268,14 @@ export function AppSidebar() {
 
   const visibleNavigation = navigation
     .map((item): NavItem | null => {
+      // Esconder o pai esconde a subárvore inteira. Precisa vir antes do filtro
+      // dos filhos: o `fullAccess` lá embaixo aprova o filho sozinho, então sem
+      // este corte desligar "Produtos"/"Estoque" não teria efeito nenhum para
+      // owner/admin — justamente quem configura os módulos.
+      if (!isVisible(item.permission)) return null;
+
       const parentPermitted =
-        (fullAccess ||
-          !item.permission ||
-          allowedPermissions.has(item.permission)) &&
-        isVisible(item.permission);
+        fullAccess || !item.permission || allowedPermissions.has(item.permission);
 
       if (!item.children) {
         return parentPermitted ? item : null;

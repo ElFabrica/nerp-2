@@ -34,6 +34,10 @@ interface CatalogPageCardProps {
   onRemove: () => void;
 }
 
+function serializeContent(title: string, rows: CatalogRow[]) {
+  return JSON.stringify({ title, rows });
+}
+
 function newRow(): CatalogRow {
   return {
     id: crypto.randomUUID(),
@@ -68,6 +72,24 @@ export function CatalogPageCard({
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextSaveRef = useRef(true);
+  // Último conteúdo que sabemos estar no servidor — o que veio via props ou o
+  // que acabamos de mandar. Serve pra distinguir "o servidor mudou por baixo de
+  // nós" (regeneração de páginas) de "o servidor só devolveu o nosso próprio
+  // autosave", que não pode descartar o que o usuário digitou desde então.
+  const syncedRef = useRef(serializeContent(page.title, page.rows));
+
+  useEffect(() => {
+    const incoming = serializeContent(page.title, page.rows);
+    if (incoming === syncedRef.current) return;
+
+    // Chegou conteúdo novo do servidor (ex.: "Gerar páginas" reescreveu as
+    // linhas). Sem isto o card seguia com o snapshot antigo e o próximo
+    // autosave gravava o obsoleto por cima do recém-gerado.
+    syncedRef.current = incoming;
+    skipNextSaveRef.current = true;
+    setTitle(page.title);
+    setRows(page.rows);
+  }, [page.title, page.rows]);
 
   useEffect(() => {
     if (skipNextSaveRef.current) {
@@ -76,6 +98,7 @@ export function CatalogPageCard({
     }
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
+      syncedRef.current = serializeContent(title, rows);
       updatePage.mutate({ id: page.id, title, rows });
     }, 600);
     return () => {
@@ -83,6 +106,14 @@ export function CatalogPageCard({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, rows]);
+
+  // `min={0}` no input não impede digitar "-5", e o schema do servidor é
+  // `nonnegative()`: sem clamp o autosave passa a falhar a cada tecla e a
+  // página inteira fica impossível de salvar até dar reload.
+  const toNonNegative = (raw: string) => {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  };
 
   const updateRow = (rowId: string, patch: Partial<CatalogRow>) => {
     setRows((current) =>
@@ -194,7 +225,9 @@ export function CatalogPageCard({
                       value={row.quantity}
                       onChange={(event) =>
                         updateRow(row.id, {
-                          quantity: Number(event.target.value) || 0,
+                          quantity: Math.trunc(
+                            toNonNegative(event.target.value),
+                          ),
                         })
                       }
                       className="h-8 w-20 text-center"
@@ -211,7 +244,7 @@ export function CatalogPageCard({
                           price:
                             event.target.value === ""
                               ? null
-                              : Number(event.target.value),
+                              : toNonNegative(event.target.value),
                         })
                       }
                       className="h-8 w-28"

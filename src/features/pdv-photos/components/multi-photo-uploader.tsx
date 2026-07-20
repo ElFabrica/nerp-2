@@ -26,14 +26,30 @@ export function MultiPhotoUploader({
     if (files.length === 0) return;
     setUploadingCount((count) => count + files.length);
     try {
-      const keys = await Promise.all(
+      // allSettled e não all: com `all`, uma foto que falha no 4G do
+      // supermercado descarta as que já subiram — o promotor perde o lote
+      // inteiro e ainda deixa os objetos órfãos no R2.
+      const results = await Promise.allSettled(
         files.map(async (file) => uploadToR2(await compressImage(file))),
       );
-      onChange([...value, ...keys]);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Falha ao enviar fotos",
-      );
+
+      const keys = results
+        .filter(
+          (result): result is PromiseFulfilledResult<string> =>
+            result.status === "fulfilled",
+        )
+        .map((result) => result.value);
+
+      if (keys.length > 0) onChange([...value, ...keys]);
+
+      const failed = results.length - keys.length;
+      if (failed > 0) {
+        toast.error(
+          keys.length > 0
+            ? `${failed} de ${results.length} fotos não subiram. As demais foram salvas.`
+            : "Falha ao enviar fotos",
+        );
+      }
     } finally {
       setUploadingCount((count) => Math.max(0, count - files.length));
     }
