@@ -104,7 +104,9 @@ const styles = StyleSheet.create({
   body: { flex: 1, flexDirection: "column", padding: 24, gap: 16 },
 
   photos: { flexDirection: "row", gap: 10, height: 200 },
-  photo: { flex: 1, objectFit: "cover", borderRadius: 4 },
+  // contain para a foto sair no PDF com o mesmo enquadramento que foi salvo —
+  // cover cortava as bordas do espaço fotografado.
+  photo: { flex: 1, objectFit: "contain", borderRadius: 4 },
 
   table: { flexDirection: "column", flex: 1 },
   tableHeader: {
@@ -122,7 +124,12 @@ const styles = StyleSheet.create({
   colStore: { flex: 2, fontSize: 11, color: INK },
   colQuantity: { flex: 1, fontSize: 11, color: INK, textAlign: "center" },
   colPrice: { flex: 1, fontSize: 12, color: ACCENT, fontWeight: "bold" },
-  colStatus: { flex: 1, fontSize: 10, color: MUTED, textTransform: "uppercase" },
+  colStatus: {
+    flex: 1,
+    fontSize: 10,
+    color: MUTED,
+    textTransform: "uppercase",
+  },
   headCell: {
     fontSize: 9,
     color: MUTED,

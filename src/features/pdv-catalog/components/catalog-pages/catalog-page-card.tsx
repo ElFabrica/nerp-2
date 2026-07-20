@@ -53,8 +53,14 @@ export function CatalogPageCard({
   total,
   onRemove,
 }: CatalogPageCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: page.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: page.id });
   const updatePage = useUpdateTradeCatalogPage();
 
   const [title, setTitle] = useState(page.title);
@@ -96,7 +102,11 @@ export function CatalogPageCard({
         transition,
         opacity: isDragging ? 0.5 : 1,
       }}
-      className="overflow-hidden rounded-xl border bg-white text-neutral-900 shadow-sm"
+      // bg-card e não bg-white fixo: os campos e a tabela usam as cores do
+      // tema, então com fundo branco forçado o texto ficava branco no branco
+      // no modo escuro. Este card é superfície de edição, não uma réplica
+      // da página do PDF — pode seguir o tema.
+      className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm"
     >
       <div className="flex items-center justify-between bg-[#c1121f] px-5 py-3">
         <Input
@@ -135,7 +145,9 @@ export function CatalogPageCard({
                 key={key}
                 src={constructUrl(key)}
                 alt=""
-                className="h-28 w-40 rounded-md border object-cover"
+                // contain preserva o enquadramento original da foto; cover
+                // cortava as laterais do espaço fotografado.
+                className="h-28 w-40 rounded-md border bg-muted object-contain"
               />
             ))}
           </div>
@@ -156,7 +168,10 @@ export function CatalogPageCard({
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-16 text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={6}
+                    className="h-16 text-center text-sm text-muted-foreground"
+                  >
                     Nenhuma linha ainda.
                   </TableCell>
                 </TableRow>
@@ -236,7 +251,13 @@ export function CatalogPageCard({
           </Table>
         </div>
 
-        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={addRow}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={addRow}
+        >
           <PlusIcon className="size-4" />
           Adicionar linha
         </Button>

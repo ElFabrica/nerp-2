@@ -50,7 +50,11 @@ export function PublicCatalogView({ shareToken }: PublicCatalogViewProps) {
         <h1 className="text-2xl font-semibold">{catalog.name}</h1>
         {catalog.status === "READY" && catalog.pdfKey && (
           <Button asChild className="gap-2">
-            <a href={constructUrl(catalog.pdfKey)} target="_blank" rel="noreferrer">
+            <a
+              href={constructUrl(catalog.pdfKey)}
+              target="_blank"
+              rel="noreferrer"
+            >
               <DownloadIcon className="size-4" />
               Baixar PDF
             </a>
@@ -96,7 +100,7 @@ export function PublicCatalogView({ shareToken }: PublicCatalogViewProps) {
                       key={key}
                       src={constructUrl(key)}
                       alt=""
-                      className="h-32 w-48 rounded-md border object-cover"
+                      className="h-32 w-48 rounded-md border bg-muted object-contain"
                     />
                   ))}
                 </div>
@@ -116,7 +120,9 @@ export function PublicCatalogView({ shareToken }: PublicCatalogViewProps) {
                     {page.rows.map((row) => (
                       <TableRow key={row.id}>
                         <TableCell>{row.storeName}</TableCell>
-                        <TableCell className="text-center">{row.quantity}</TableCell>
+                        <TableCell className="text-center">
+                          {row.quantity}
+                        </TableCell>
                         <TableCell>
                           {row.price != null ? formatBRL(row.price) : "—"}
                         </TableCell>
