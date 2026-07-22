@@ -15,7 +15,7 @@ export const getBook = base
         supplier: {
           select: { id: true, name: true, logo: true },
         },
-        organization: { select: { name: true, tradeName: true } },
+        organization: { select: { name: true, tradeName: true, logo: true } },
         items: {
           orderBy: { order: "asc" },
           include: {
@@ -28,6 +28,7 @@ export const getBook = base
                 actionValue: true,
                 coordinatorName: true,
                 consultantName: true,
+                responsibleCompany: true,
                 photoLayout: true,
                 photoAdjustments: true,
                 capturedAt: true,
@@ -53,19 +54,33 @@ export const getBook = base
       supplierName: book.supplier?.name ?? null,
       supplierLogo: book.supplier?.logo ?? null,
       organizationName: book.organization.tradeName ?? book.organization.name,
-      distributorLogo: book.distributorLogo,
+      // Igual ao generate-book: logo do book vence, senão o da organização.
+      distributorLogo: book.distributorLogo ?? book.organization.logo,
       periodMonth: book.periodMonth,
       periodYear: book.periodYear,
       status: book.status,
       pdfKey: book.pdfKey,
       coverLayout: book.coverLayout,
       closingLayout: book.closingLayout,
+      pageLayout: book.pageLayout,
       coverBackground: book.coverBackground,
       closingBackground: book.closingBackground,
+      pageBackground: book.pageBackground,
       generatedAt: book.generatedAt?.toISOString() ?? null,
+      // Editado depois de gerar = o PDF em mãos não reflete o que está na tela.
+      pdfDesatualizado: !!book.generatedAt && book.updatedAt > book.generatedAt,
       items: book.items.map((item) => ({
+        id: item.id,
         pdvPhotoId: item.pdvPhotoId,
         order: item.order,
+        // Só o booleano: o card usa isso apenas pra sinalizar que a página foge
+        // do layout do book. Mandar o layout inteiro custa ~5 KB por página e
+        // ninguém no client lê o conteúdo.
+        // Só páginas com layout próprio carregam JSON aqui — as demais mandam
+        // null e o card cai no `pageLayout` do book, que já vem uma vez só.
+        pageLayout: item.pageLayout,
+        pageBackground: item.pageBackground,
+        hasOwnPageLayout: Array.isArray(item.pageLayout),
         storeName: item.pdvPhoto.store.name,
         // Snapshot da página vence; vazio cai no gerente cadastrado na loja.
         managerName:
@@ -79,6 +94,7 @@ export const getBook = base
           : null,
         coordinatorName: item.pdvPhoto.coordinatorName,
         consultantName: item.pdvPhoto.consultantName,
+        responsibleCompany: item.pdvPhoto.responsibleCompany,
         photoLayout: item.pdvPhoto.photoLayout,
         photoAdjustments: item.pdvPhoto.photoAdjustments as Record<
           string,

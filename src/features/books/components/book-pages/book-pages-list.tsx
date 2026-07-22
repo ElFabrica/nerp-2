@@ -36,6 +36,11 @@ interface BookPagesListProps {
   items: (BookPageItem & { order: number })[];
   industryLogo?: string | null;
   organizationName?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  bookPageLayout?: unknown;
+  bookPageBackground?: unknown;
+  logos?: { organization?: string | null; supplier?: string | null };
 }
 
 export function BookPagesList({
@@ -45,6 +50,11 @@ export function BookPagesList({
   items,
   industryLogo,
   organizationName,
+  supplierId,
+  supplierName,
+  bookPageLayout,
+  bookPageBackground,
+  logos,
 }: BookPagesListProps) {
   const addPage = useAddBookPage();
   const updatePhoto = useUpdatePdvPhoto({ silent: true });
@@ -65,16 +75,19 @@ export function BookPagesList({
     storeId,
     mediaTypeId,
     photoKeys,
+    pageTemplateId,
   }: {
     storeId: string;
     mediaTypeId?: string;
     photoKeys: string[];
+    pageTemplateId?: string | null;
   }) => {
     if (!createdPageIdRef.current) {
       const { pdvPhotoId } = await addPage.mutateAsync({
         bookId,
         storeId,
         mediaTypeId,
+        pageTemplateId,
       });
       createdPageIdRef.current = pdvPhotoId;
     }
@@ -135,14 +148,18 @@ export function BookPagesList({
     </Button>
   );
 
-  const addPageSheet = (
+  // Só monta quando abre: o sheet consulta lojas e tipos de mídia no topo do
+  // componente, e montado o tempo todo essas duas idas ao banco aconteciam em
+  // toda abertura de book, para um formulário que ninguém tinha aberto.
+  const addPageSheet = openAddPage ? (
     <AddPageSheet
       open={openAddPage}
       onOpenChange={setOpenAddPage}
       onConfirm={handleConfirmPage}
       isSaving={isSavingPage}
+      supplierId={supplierId}
     />
-  );
+  ) : null;
 
   if (orderedItems.length === 0) {
     return (
@@ -180,6 +197,12 @@ export function BookPagesList({
                 total={orderedItems.length}
                 industryLogo={industryLogo}
                 organizationName={organizationName}
+                bookId={bookId}
+                supplierId={supplierId}
+                supplierName={supplierName ?? null}
+                bookPageLayout={bookPageLayout}
+                bookPageBackground={bookPageBackground}
+                logos={logos}
                 onRemove={() =>
                   removeItem.mutate({ bookId, pdvPhotoId: item.pdvPhotoId })
                 }

@@ -2,7 +2,13 @@
 
 import type Konva from "konva";
 import { useEffect, useRef, useState } from "react";
-import { Image as KonvaImage, Layer, Rect, Stage, Transformer } from "react-konva";
+import {
+  Image as KonvaImage,
+  Layer,
+  Rect,
+  Stage,
+  Transformer,
+} from "react-konva";
 import useImage from "use-image";
 import { constructUrl } from "@/hooks/use-construct-url";
 import {
@@ -11,6 +17,7 @@ import {
   type CoverBackground,
   type CoverElement,
 } from "../../lib/cover-layout";
+import type { BookVariableValues } from "../../lib/book-variables";
 import { CoverElementNode } from "./cover-element-node";
 
 // Preenche o canvas inteiro tipo `object-fit: cover` — sem essa conta a
@@ -45,6 +52,11 @@ interface CoverStageProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onChange: (id: string, patch: Partial<CoverElement>) => void;
+  variableValues?: BookVariableValues;
+  // Fotos reais do primeiro item do book, por índice de slot — deixa o
+  // preview do layout de página fiel ao que sai no PDF.
+  photoPreviewUrls?: string[];
+  logos?: { organization?: string | null; supplier?: string | null };
 }
 
 export function CoverStage({
@@ -53,11 +65,19 @@ export function CoverStage({
   selectedId,
   onSelect,
   onChange,
+  variableValues,
+  photoPreviewUrls,
+  logos,
 }: CoverStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const [scale, setScale] = useState(1);
+  const [isTouch, setIsTouch] = useState(false);
+
+  useEffect(() => {
+    setIsTouch(window.matchMedia("(pointer: coarse)").matches);
+  }, []);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -102,6 +122,9 @@ export function CoverStage({
           onMouseDown={(event) => {
             if (event.target === stageRef.current) onSelect(null);
           }}
+          onTouchStart={(event) => {
+            if (event.target === stageRef.current) onSelect(null);
+          }}
         >
           <Layer listening={false}>
             {background.imageKey && (
@@ -124,11 +147,25 @@ export function CoverStage({
                 isSelected={element.id === selectedId}
                 onSelect={onSelect}
                 onChange={onChange}
+                variableValues={variableValues}
+                logos={logos}
+                photoPreviewUrl={
+                  element.type === "photoSlot"
+                    ? photoPreviewUrls?.[element.slotIndex]
+                    : undefined
+                }
               />
             ))}
             <Transformer
               ref={transformerRef}
               rotateEnabled
+              // Os anchors são desenhados no espaço do stage, que está
+              // escalado pra caber na tela: sem dividir pelo scale eles
+              // encolhem junto e no celular viram alvos de 4px.
+              anchorSize={(isTouch ? 22 : 10) / scale}
+              anchorStrokeWidth={1 / scale}
+              borderStrokeWidth={1 / scale}
+              rotateAnchorOffset={(isTouch ? 34 : 20) / scale}
               boundBoxFunc={(oldBox, newBox) =>
                 newBox.width < 10 || newBox.height < 10 ? oldBox : newBox
               }

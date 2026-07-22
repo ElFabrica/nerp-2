@@ -239,7 +239,9 @@ function CoverLayoutView({
           );
         }
 
-        if (!element.imageKey) return null;
+        // Formas e espaços de foto existem no editor de Books, não no de
+        // catálogo — a toolbar daqui não os cria, então basta ignorá-los.
+        if (element.type !== "image" || !element.imageKey) return null;
         return (
           <Image
             key={element.id}

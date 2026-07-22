@@ -188,6 +188,8 @@ model Organization {
   pdvPhotos                PdvPhoto[]
   books                    Book[]
   bookCoverTemplate        BookCoverTemplate?
+  bookTemplates            BookTemplate[]
+  bookPageTemplates        BookPageTemplate[]
   tradeCatalogs            TradeCatalog[]
   mapAnnotations           MapAnnotation[]
   spaceNegotiations        SpaceNegotiation[]
@@ -597,6 +599,8 @@ model Supplier {
   mapObjects     MapObject[]
   pdvPhotos      PdvPhoto[]
   books          Book[]
+  bookTemplates  BookTemplate[]
+  bookPageTemplates BookPageTemplate[]
   negotiations   SpaceNegotiation[]
 
   @@index([organizationId])
@@ -1803,9 +1807,13 @@ model Book {
   // canvas Konva. null = usa o layout fixo legado em book-document.tsx.
   coverLayout       Json?
   closingLayout     Json?
+  // Layout livre das páginas de PDV. Aplicado a TODOS os itens do book, com
+  // variáveis e slots de foto resolvidos por item. null = layout fixo legado.
+  pageLayout        Json?
   // Fundo da página { color: string, opacity: number 0-1 }. null = branco opaco.
   coverBackground   Json?
   closingBackground Json?
+  pageBackground    Json?
   createdById       String
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
@@ -1819,9 +1827,9 @@ model Book {
   @@map("books")
 }
 
-// Layout de capa/página final marcado como padrão da organização — usado
-// pra pré-preencher o editor de books novos que ainda não têm coverLayout
-// próprio. 1 por organização (o botão "Tornar padrão" faz upsert aqui).
+// DEPRECADO em favor de BookTemplate (supplierId = null). Mantido só para a
+// migração de dados não perder os padrões já salvos; pode ser removido depois
+// que o backfill rodar em produção.
 model BookCoverTemplate {
   id                String       @id @default(cuid())
   organizationId    String       @unique
@@ -1836,18 +1844,73 @@ model BookCoverTemplate {
   @@map("book_cover_templates")
 }
 
+// Padrão visual de book salvo e reaplicável. Cada indústria/fornecedor tem os
+// seus (supplierId preenchido); supplierId null é o padrão da organização,
+// usado nos books sem indústria e como base copiada ao criar o primeiro
+// padrão de uma indústria. A cópia é por valor: editar o padrão da org depois
+// não altera os padrões das indústrias.
+model BookTemplate {
+  id                String       @id @default(cuid())
+  organizationId    String
+  supplierId        String?
+  name              String
+  // Marca qual padrão é carregado por default nos books daquela indústria.
+  isDefault         Boolean      @default(false)
+  coverLayout       Json
+  closingLayout     Json
+  pageLayout        Json?
+  coverBackground   Json?
+  closingBackground Json?
+  pageBackground    Json?
+  createdById       String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier          Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, supplierId, name])
+  @@index([organizationId, supplierId])
+  @@map("book_templates")
+}
+
 model BookItem {
-  id         String   @id @default(cuid())
-  bookId     String
-  pdvPhotoId String
-  order      Int      @default(0)
-  createdAt  DateTime @default(now())
-  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  pdvPhoto   PdvPhoto @relation(fields: [pdvPhotoId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  bookId         String
+  pdvPhotoId     String
+  order          Int      @default(0)
+  // Layout próprio desta página, sobrescrevendo o do book. null = usa
+  // Book.pageLayout; se este também for null, cai no layout fixo legado.
+  // Permite uma página de abertura com um padrão e as de PDV com outro.
+  pageLayout     Json?
+  pageBackground Json?
+  createdAt      DateTime @default(now())
+  book           Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  pdvPhoto       PdvPhoto @relation(fields: [pdvPhotoId], references: [id], onDelete: Cascade)
 
   @@unique([bookId, pdvPhotoId])
   @@index([bookId])
   @@map("book_items")
+}
+
+// Padrão de UMA página, salvo a partir do editor e reaplicável ao adicionar
+// páginas novas. Diferente de BookTemplate, que guarda o visual do book
+// inteiro (capa + página final + páginas).
+model BookPageTemplate {
+  id             String       @id @default(cuid())
+  organizationId String
+  supplierId     String?
+  name           String
+  layout         Json
+  background     Json?
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier       Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, supplierId, name])
+  @@index([organizationId, supplierId])
+  @@map("book_page_templates")
 }
 
 // Catálogo visual de oportunidades de PDV — material que o Trade Marketing envia

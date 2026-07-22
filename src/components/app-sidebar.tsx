@@ -65,6 +65,7 @@ import { Skeleton } from "./ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useEffect, useState } from "react";
 import type { ActiveOrganization } from "@/lib/auth-types";
+import { constructUrl } from "@/hooks/use-construct-url";
 import Image from "next/image";
 import {
   Collapsible,
@@ -573,7 +574,7 @@ function OrgMenu() {
                 <Skeleton className="size-8 aspect-square rounded-lg" />
               ) : organizationActive?.logo ? (
                 <Image
-                  src={organizationActive.logo}
+                  src={constructUrl(organizationActive.logo)}
                   width={32}
                   height={32}
                   alt="Logo"
@@ -618,7 +619,7 @@ function OrgMenu() {
                 <div className="flex size-6 items-center justify-center rounded-md border overflow-hidden">
                   {org.logo ? (
                     <Image
-                      src={org.logo}
+                      src={constructUrl(org.logo)}
                       alt={org.name}
                       width={16}
                       height={16}

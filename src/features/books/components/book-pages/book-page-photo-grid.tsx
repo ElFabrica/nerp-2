@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { constructUrl } from "@/hooks/use-construct-url";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { compressImage } from "@/lib/compress-image";
@@ -166,6 +166,20 @@ export function BookPagePhotoGrid({
     onChange((prev) => prev.filter((photo) => photo !== key));
   };
 
+  // A ordem das fotos é a ordem dos espaços de foto do layout: a 1ª cai no
+  // "Foto 1", a 2ª no "Foto 2", e assim por diante. Setas em vez de arrastar
+  // porque o card inteiro já é arrastável pra reordenar páginas — no toque os
+  // dois gestos se atropelariam.
+  const movePhoto = (from: number, to: number) => {
+    onChange((prev) => {
+      if (to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
   return (
     <div className="flex h-full min-h-64 flex-col gap-2 md:min-h-0">
       {editable && onLayoutChange && (
@@ -223,6 +237,11 @@ export function BookPagePhotoGrid({
                   <img
                     src={constructUrl(cell.key)}
                     alt=""
+                    // Sem lazy, abrir um book de 30 páginas dispara ~90
+                    // downloads do R2 de uma vez — o navegador engasga antes
+                    // de a primeira página ficar utilizável.
+                    loading="lazy"
+                    decoding="async"
                     onClick={(event) => {
                       if (!editable || !onAdjustmentChange) return;
                       const rect = event.currentTarget.getBoundingClientRect();
@@ -238,6 +257,37 @@ export function BookPagePhotoGrid({
                       transform: `scale(${adjustment.zoom})`,
                     }}
                   />
+                  {editable && (
+                    <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/60 px-1 py-0.5 text-white transition-opacity md:opacity-0 md:group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          movePhoto(index, index - 1);
+                        }}
+                        disabled={index === 0}
+                        className="flex size-7 items-center justify-center rounded-full disabled:opacity-30 md:size-5"
+                        title="Mover para antes"
+                      >
+                        <ChevronLeft className="size-3.5" />
+                      </button>
+                      <span className="min-w-4 text-center text-[10px] font-semibold tabular-nums">
+                        {index + 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          movePhoto(index, index + 1);
+                        }}
+                        disabled={index === photos.length - 1}
+                        className="flex size-7 items-center justify-center rounded-full disabled:opacity-30 md:size-5"
+                        title="Mover para depois"
+                      >
+                        <ChevronRight className="size-3.5" />
+                      </button>
+                    </div>
+                  )}
                   {editable && (
                     <button
                       type="button"

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  NO_PAGE_TEMPLATE,
+  PageTemplatePicker,
+} from "../templates/page-template-picker";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -45,8 +49,10 @@ interface AddPageSheetProps {
     storeId: string;
     mediaTypeId?: string;
     photoKeys: string[];
+    pageTemplateId?: string | null;
   }) => Promise<void> | void;
   isSaving: boolean;
+  supplierId?: string | null;
 }
 
 type Step = 1 | 2 | 3;
@@ -56,6 +62,7 @@ export function AddPageSheet({
   onOpenChange,
   onConfirm,
   isSaving,
+  supplierId,
 }: AddPageSheetProps) {
   const isMobile = useIsMobile();
   const [step, setStep] = useState<Step>(1);
@@ -67,6 +74,8 @@ export function AddPageSheet({
   const { mediaTypes, isLoading: isLoadingMediaTypes } = useMediaTypes();
   const createStore = useCreateStore();
 
+  const [pageTemplateId, setPageTemplateId] =
+    useState<string>(NO_PAGE_TEMPLATE);
   const [storeId, setStoreId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState("");
   const [mediaTypeId, setMediaTypeId] = useState<string | null>(null);
@@ -149,6 +158,8 @@ export function AddPageSheet({
         storeId,
         mediaTypeId: mediaTypeId ?? undefined,
         photoKeys,
+        pageTemplateId:
+          pageTemplateId === NO_PAGE_TEMPLATE ? null : pageTemplateId,
       });
     } catch {
       // O toast já vem do hook da mutation. O catch existe pra a rejeição não
@@ -276,6 +287,15 @@ export function AddPageSheet({
           >
             Não informar a mídia
           </Button>
+
+          <div className="rounded-lg border p-3">
+            <PageTemplatePicker
+              supplierId={supplierId ?? null}
+              value={pageTemplateId}
+              onChange={setPageTemplateId}
+              label="Importar padrão de página"
+            />
+          </div>
         </>
       )}
 
@@ -385,12 +405,17 @@ export function AddPageSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      {/* O DialogContent do shadcn só limita a largura. Sem teto de altura, a
+          lista de tipos de mídia (dezenas de itens) empurrava o diálogo pra
+          fora da tela, cortando o cabeçalho em cima e os botões embaixo. */}
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-lg">
+        <DialogHeader className="shrink-0">
           <DialogTitle asChild>{header}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        {body}
+        {/* -mx-6/px-6 devolve o padding do DialogContent dentro da área que
+            rola, senão a barra de rolagem corta o conteúdo rente à borda. */}
+        <div className="-mx-6 min-h-0 flex-1 overflow-y-auto px-6">{body}</div>
       </DialogContent>
     </Dialog>
   );

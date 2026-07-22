@@ -134,12 +134,15 @@ export function useDefaultCoverTemplate() {
     orpc.book.getDefaultCoverTemplate.queryOptions({ input: {} }),
   );
   return {
-    template: query.data as {
-      coverLayout: CoverElement[];
-      closingLayout: CoverElement[];
-      coverBackground: CoverBackground | null;
-      closingBackground: CoverBackground | null;
-    } | null | undefined,
+    template: query.data as
+      | {
+          coverLayout: CoverElement[];
+          closingLayout: CoverElement[];
+          coverBackground: CoverBackground | null;
+          closingBackground: CoverBackground | null;
+        }
+      | null
+      | undefined,
     isLoading: query.isPending,
   };
 }
@@ -148,6 +151,154 @@ export function useSetDefaultCoverTemplate() {
   return useMutation(
     orpc.book.setDefaultCoverTemplate.mutationOptions({
       onSuccess: () => toast.success("Definido como padrão da organização"),
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useUpdateBookPageLayout() {
+  return useMutation(
+    orpc.book.updatePageLayout.mutationOptions({
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useUpdateBookItemLayout() {
+  const invalidateBooks = useInvalidateBooks();
+  return useMutation(
+    orpc.book.updateItemLayout.mutationOptions({
+      onSuccess: () => invalidateBooks(),
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+// ── Padrões por indústria ────────────────────────────────────────────────
+
+export function useBookTemplates(supplierId: string | null) {
+  const query = useQuery(
+    orpc.book.listTemplates.queryOptions({ input: { supplierId } }),
+  );
+  return { templates: query.data?.templates ?? [], isLoading: query.isPending };
+}
+
+export function useTemplateForBook(supplierId: string | null) {
+  const query = useQuery(
+    orpc.book.getTemplateForBook.queryOptions({ input: { supplierId } }),
+  );
+  return {
+    template: query.data,
+    isLoading: query.isPending,
+    error: query.error,
+  };
+}
+
+function useInvalidateTemplates() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: orpc.book.listTemplates.key() });
+    queryClient.invalidateQueries({
+      queryKey: orpc.book.getTemplateForBook.key(),
+    });
+  };
+}
+
+export function useSaveBookTemplate() {
+  const invalidate = useInvalidateTemplates();
+  return useMutation(
+    orpc.book.saveTemplate.mutationOptions({
+      onSuccess: (result) => {
+        toast.success(`Padrão "${result.name}" salvo`);
+        invalidate();
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useDeleteBookTemplate() {
+  const invalidate = useInvalidateTemplates();
+  return useMutation(
+    orpc.book.deleteTemplate.mutationOptions({
+      onSuccess: () => {
+        toast.success("Padrão excluído");
+        invalidate();
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useApplyBookTemplate() {
+  const invalidateBooks = useInvalidateBooks();
+  return useMutation(
+    orpc.book.applyTemplate.mutationOptions({
+      onSuccess: () => {
+        toast.success("Padrão aplicado ao book");
+        invalidateBooks();
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+// ── Padrões de página ────────────────────────────────────────────────────
+
+export function useBookPageTemplates(supplierId: string | null) {
+  const query = useQuery(
+    orpc.book.listPageTemplates.queryOptions({ input: { supplierId } }),
+  );
+  return { templates: query.data?.templates ?? [], isLoading: query.isPending };
+}
+
+function useInvalidatePageTemplates() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({
+      queryKey: orpc.book.listPageTemplates.key(),
+    });
+  };
+}
+
+export function useSaveBookPageTemplate() {
+  const invalidate = useInvalidatePageTemplates();
+  return useMutation(
+    orpc.book.savePageTemplate.mutationOptions({
+      onSuccess: (result) => {
+        toast.success(`Padrão de página "${result.name}" salvo`);
+        invalidate();
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useDeleteBookPageTemplate() {
+  const invalidate = useInvalidatePageTemplates();
+  return useMutation(
+    orpc.book.deletePageTemplate.mutationOptions({
+      onSuccess: () => {
+        toast.success("Padrão de página excluído");
+        invalidate();
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useApplyBookPageTemplate() {
+  const invalidateBooks = useInvalidateBooks();
+  return useMutation(
+    orpc.book.applyPageTemplate.mutationOptions({
+      onSuccess: (result) => {
+        toast.success(
+          result.cleared
+            ? "Página voltou a seguir o layout do book"
+            : "Padrão aplicado à página",
+        );
+        invalidateBooks();
+      },
       onError: (error) => toast.error(error.message),
     }),
   );

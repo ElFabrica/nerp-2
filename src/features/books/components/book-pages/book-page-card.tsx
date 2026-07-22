@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, LayoutTemplate, SquarePen, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { constructUrl } from "@/hooks/use-construct-url";
 import { useUpdatePdvPhoto } from "@/features/pdv-photos/hooks/use-pdv-photos";
@@ -14,7 +14,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { formatBRL } from "@/utils/currency-formatter";
+import { cn } from "@/lib/utils";
+import { useApplyBookPageTemplate } from "../../hooks/use-books";
+import {
+  NO_PAGE_TEMPLATE,
+  PageTemplatePicker,
+} from "../templates/page-template-picker";
+import { LayoutPreview } from "../templates/layout-preview";
+import type { BookVariableValues } from "../../lib/book-variables";
 import type {
   PhotoAdjustment,
   PhotoAdjustmentMap,
@@ -23,9 +36,15 @@ import {
   BookPagePhotoGrid,
   type PhotoLayoutPattern,
 } from "./book-page-photo-grid";
+import { PageItemLayoutDialog } from "./page-item-layout-dialog";
 
 export interface BookPageItem {
+  id: string;
   pdvPhotoId: string;
+  hasOwnPageLayout: boolean;
+  // Layout próprio da página; null = segue o do book.
+  pageLayout: unknown;
+  pageBackground: unknown;
   storeName: string;
   managerName: string | null;
   section: string | null;
@@ -40,11 +59,18 @@ export interface BookPageItem {
 
 interface BookPageCardProps {
   item: BookPageItem;
+  bookId: string;
   periodLabel: string;
   position: number;
   total: number;
   industryLogo?: string | null;
   organizationName?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  // Layout do book, usado quando a página não tem um próprio.
+  bookPageLayout?: unknown;
+  bookPageBackground?: unknown;
+  logos?: { organization?: string | null; supplier?: string | null };
   onRemove: () => void;
 }
 
@@ -101,11 +127,17 @@ function InlineField({
 
 export function BookPageCard({
   item,
+  bookId,
   periodLabel,
   position,
   total,
   industryLogo,
   organizationName,
+  supplierId,
+  supplierName,
+  bookPageLayout,
+  bookPageBackground,
+  logos,
   onRemove,
 }: BookPageCardProps) {
   const {
@@ -144,15 +176,36 @@ export function BookPageCard({
   );
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skipNextSaveRef = useRef(true);
+  // Instantâneo do que já está salvo. Um booleano de "pula a primeira" não
+  // servia: em dev o StrictMode roda o effect duas vezes, a primeira passada
+  // consumia o guard e a segunda gravava — uma escrita por página só de abrir
+  // o book, o que deixava books grandes lentíssimos.
+  const savedSnapshotRef = useRef(
+    JSON.stringify([
+      item.managerName ?? "",
+      item.section ?? "",
+      item.code ?? "",
+      item.coordinatorName ?? "",
+      item.consultantName ?? "",
+      item.actionValue != null ? String(item.actionValue) : "",
+    ]),
+  );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: useMutation recria `updatePdvPhoto` a cada render; incluí-lo redispararia o autosave em loop
   useEffect(() => {
-    if (skipNextSaveRef.current) {
-      skipNextSaveRef.current = false;
-      return;
-    }
+    const snapshot = JSON.stringify([
+      manager,
+      section,
+      code,
+      coordinator,
+      consultant,
+      actionValue,
+    ]);
+    if (snapshot === savedSnapshotRef.current) return;
+
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
+      savedSnapshotRef.current = snapshot;
       updatePdvPhoto.mutate({
         id: item.pdvPhotoId,
         managerName: manager || null,
@@ -166,7 +219,6 @@ export function BookPageCard({
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manager, section, code, coordinator, consultant, actionValue]);
 
   const updatePhotos = (updater: (prev: string[]) => string[]) => {
@@ -182,6 +234,13 @@ export function BookPageCard({
     updatePdvPhoto.mutate({ id: item.pdvPhotoId, photoLayout: nextPattern });
   };
 
+  const applyPageTemplate = useApplyBookPageTemplate();
+  const [layoutDialogOpen, setLayoutDialogOpen] = useState(false);
+  const hasOwnLayout = item.hasOwnPageLayout;
+  // O picker não guarda qual padrão originou o layout — a cópia é por valor,
+  // então só sabemos se a página tem layout próprio ou não.
+  const pageTemplateValue = hasOwnLayout ? "" : NO_PAGE_TEMPLATE;
+
   const saveAdjustment = (key: string, adjustment: PhotoAdjustment) => {
     setPhotoAdjustments((prev) => {
       const next = { ...prev, [key]: adjustment };
@@ -190,6 +249,133 @@ export function BookPageCard({
     });
   };
 
+  // Layout que esta página vai usar no PDF: o próprio vence o do book.
+  const layoutEfetivo = hasOwnLayout ? item.pageLayout : bookPageLayout;
+  const fundoEfetivo = hasOwnLayout ? item.pageBackground : bookPageBackground;
+  const temLayoutLivre =
+    Array.isArray(layoutEfetivo) && layoutEfetivo.length > 0;
+
+  const variaveisDaPagina: BookVariableValues = {
+    loja: item.storeName,
+    gerente: manager,
+    coordenador: coordinator,
+    consultor: consultant,
+    empresaPdv: organizationName ?? "",
+    secao: section,
+    codigo: code,
+    valorAcao: actionValue ? formatBRL(Number(actionValue) || 0) : "",
+    numeroPagina: `${position} / ${total}`,
+    periodo: periodLabel,
+  };
+
+  const camposEditaveis = (
+    <div className="space-y-3">
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Gerente
+        </p>
+        <InlineField
+          value={manager}
+          placeholder="—"
+          onChange={setManager}
+          className="text-sm font-bold"
+        />
+      </div>
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Coordenador(a)
+        </p>
+        <CollaboratorSelect
+          value={coordinator}
+          placeholder="—"
+          onChange={setCoordinator}
+          collaboratorNames={collaboratorNames}
+        />
+      </div>
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Consultor(a)
+        </p>
+        <CollaboratorSelect
+          value={consultant}
+          placeholder="—"
+          onChange={setConsultant}
+          collaboratorNames={collaboratorNames}
+        />
+      </div>
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Empresa PDV
+        </p>
+        <p className="text-sm font-bold">{organizationName || "—"}</p>
+      </div>
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Seção
+        </p>
+        <InlineField
+          value={section}
+          placeholder="—"
+          onChange={setSection}
+          className="text-sm font-bold"
+        />
+      </div>
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+          Código
+        </p>
+        <InlineField
+          value={code}
+          placeholder="—"
+          onChange={setCode}
+          className="text-sm font-bold"
+        />
+      </div>
+
+      <div className="rounded-md border-l-4 border-[#c1121f] bg-[#c1121f]/5 px-3 py-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-[#c1121f]">
+          Valor da ação
+        </p>
+        <div className="flex items-center gap-1">
+          <span className="text-lg font-bold text-[#c1121f]">R$</span>
+          <InlineField
+            value={actionValue}
+            placeholder="0,00"
+            onChange={setActionValue}
+            numeric
+            className="text-lg font-bold text-[#c1121f]"
+          />
+        </div>
+        {actionValue && (
+          <p className="text-[10px] text-neutral-500">
+            {formatBRL(Number(actionValue) || 0)}
+          </p>
+        )}
+      </div>
+
+      {industryLogo && (
+        // biome-ignore lint/performance/noImgElement: preview simples de key do R2, sem otimização do next/image
+        <img
+          src={constructUrl(industryLogo)}
+          alt=""
+          className="max-h-36 max-w-full object-contain"
+        />
+      )}
+    </div>
+  );
+
+  const gradeDeFotos = (
+    <BookPagePhotoGrid
+      photos={photos}
+      layoutPattern={photoLayout}
+      photoAdjustments={photoAdjustments}
+      onChange={updatePhotos}
+      onLayoutChange={saveLayoutPattern}
+      onAdjustmentChange={saveAdjustment}
+      editable
+    />
+  );
+
   return (
     <div
       ref={setNodeRef}
@@ -197,20 +383,111 @@ export function BookPageCard({
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
+        // O navegador pula o layout/paint dos cards fora da tela. Sem isso,
+        // abrir um book grande renderiza dezenas de páginas 960x540 completas
+        // de uma vez. `contain-intrinsic-size` reserva a altura pra barra de
+        // rolagem não pular enquanto os cards entram em cena.
+        contentVisibility: "auto",
+        containIntrinsicSize: "auto 540px",
       }}
-      className="flex flex-col overflow-hidden rounded-xl border bg-white text-neutral-900 shadow-sm md:aspect-[960/540]"
+      className={cn(
+        "flex flex-col overflow-hidden rounded-xl border bg-white text-neutral-900 shadow-sm",
+        // Sem layout livre o card imita a página 960x540; com layout, quem
+        // define a proporção é o próprio preview.
+        !temLayoutLivre && "md:aspect-[960/540]",
+      )}
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 bg-[#c1121f] px-3 py-3 md:px-5">
-        {/* No celular o nome quebra em até 2 linhas — nomes de supermercado
-            não cabem em 375px. No desktop segue truncando, senão uma segunda
-            linha estouraria o aspect-ratio fixo de 960x540 da página. */}
-        <h3 className="line-clamp-2 min-w-0 text-base font-bold uppercase leading-tight tracking-tight text-white md:line-clamp-none md:truncate md:text-lg">
-          {item.storeName}
-        </h3>
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-white/90">
+      {/* Com layout livre a barra fica neutra e sem o nome da loja: o layout
+          desenha o próprio cabeçalho, e repetir aqui dava a impressão de uma
+          página dentro da outra. */}
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-2 px-3 py-2 md:px-5",
+          temLayoutLivre
+            ? "justify-end border-b bg-neutral-100"
+            : "justify-between bg-[#c1121f] py-3",
+        )}
+      >
+        {!temLayoutLivre && (
+          // No celular o nome quebra em até 2 linhas — nomes de supermercado
+          // não cabem em 375px. No desktop segue truncando, senão uma segunda
+          // linha estouraria o aspect-ratio fixo de 960x540 da página.
+          <h3 className="line-clamp-2 min-w-0 text-base font-bold uppercase leading-tight tracking-tight text-white md:line-clamp-none md:truncate md:text-lg">
+            {item.storeName}
+          </h3>
+        )}
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-3",
+            temLayoutLivre &&
+              "[&_button]:bg-neutral-200 [&_button]:text-neutral-700 [&_button:hover]:bg-neutral-300",
+          )}
+        >
+          <span
+            className={cn(
+              "text-xs font-bold uppercase tracking-wider",
+              temLayoutLivre ? "text-neutral-500" : "text-white/90",
+            )}
+          >
             {periodLabel}
           </span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "flex size-9 items-center justify-center rounded-md text-white hover:bg-white/25 md:size-7",
+                  // Destaque quando a página tem layout próprio, senão não dá
+                  // pra saber pelo card que ela foge do padrão do book.
+                  hasOwnLayout
+                    ? "bg-white/40 ring-1 ring-white"
+                    : "bg-white/15",
+                )}
+                title={
+                  hasOwnLayout
+                    ? "Esta página usa um padrão próprio"
+                    : "Aplicar padrão de página"
+                }
+              >
+                <LayoutTemplate className="size-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72">
+              <PageTemplatePicker
+                supplierId={supplierId ?? null}
+                value={pageTemplateValue}
+                placeholder={
+                  hasOwnLayout ? "Layout próprio desta página" : undefined
+                }
+                onChange={(templateId) =>
+                  applyPageTemplate.mutate({
+                    itemId: item.id,
+                    templateId:
+                      templateId === NO_PAGE_TEMPLATE ? null : templateId,
+                  })
+                }
+                disabled={applyPageTemplate.isPending}
+              />
+              {/* Instrução, não descrição de estado: a frase antiga afirmava
+                  "esta página tem layout próprio" bem na hora em que o usuário
+                  tentava removê-lo, e parecia que o sistema estava recusando. */}
+              <p className="mt-2 text-xs text-muted-foreground">
+                {hasOwnLayout
+                  ? "Para voltar ao layout do book, escolha “Seguir o layout do book”."
+                  : "Escolha um padrão para dar a esta página um layout diferente do resto do book."}
+              </p>
+            </PopoverContent>
+          </Popover>
+          <button
+            type="button"
+            className={cn(
+              "flex size-9 items-center justify-center rounded-md bg-white/15 text-white hover:bg-white/25 md:size-7",
+            )}
+            title="Editar o layout desta página"
+            onClick={() => setLayoutDialogOpen(true)}
+          >
+            <SquarePen className="size-4" />
+          </button>
           <button
             type="button"
             // touch-none: sem isso o browser sequestra o gesto pro scroll
@@ -233,119 +510,61 @@ export function BookPageCard({
         </div>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 md:min-h-0 md:grid-cols-[240px_1fr] md:gap-5 md:p-5">
-        {/* No celular as fotos vêm primeiro: o promotor abriu a página pra
-            fotografar, não pra preencher coordenador. */}
-        <div className="order-2 space-y-3 overflow-y-auto md:order-1">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Gerente
-            </p>
-            <InlineField
-              value={manager}
-              placeholder="—"
-              onChange={setManager}
-              className="text-sm font-bold"
-            />
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Coordenador(a)
-            </p>
-            <CollaboratorSelect
-              value={coordinator}
-              placeholder="—"
-              onChange={setCoordinator}
-              collaboratorNames={collaboratorNames}
-            />
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Consultor(a)
-            </p>
-            <CollaboratorSelect
-              value={consultant}
-              placeholder="—"
-              onChange={setConsultant}
-              collaboratorNames={collaboratorNames}
-            />
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Empresa PDV
-            </p>
-            <p className="text-sm font-bold">{organizationName || "—"}</p>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Seção
-            </p>
-            <InlineField
-              value={section}
-              placeholder="—"
-              onChange={setSection}
-              className="text-sm font-bold"
-            />
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-              Código
-            </p>
-            <InlineField
-              value={code}
-              placeholder="—"
-              onChange={setCode}
-              className="text-sm font-bold"
-            />
-          </div>
-
-          <div className="rounded-md border-l-4 border-[#c1121f] bg-[#c1121f]/5 px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#c1121f]">
-              Valor da ação
-            </p>
-            <div className="flex items-center gap-1">
-              <span className="text-lg font-bold text-[#c1121f]">R$</span>
-              <InlineField
-                value={actionValue}
-                placeholder="0,00"
-                onChange={setActionValue}
-                numeric
-                className="text-lg font-bold text-[#c1121f]"
-              />
-            </div>
-            {actionValue && (
-              <p className="text-[10px] text-neutral-500">
-                {formatBRL(Number(actionValue) || 0)}
-              </p>
-            )}
-          </div>
-
-          {industryLogo && (
-            // biome-ignore lint/performance/noImgElement: preview simples de key do R2, sem otimização do next/image
-            <img
-              src={constructUrl(industryLogo)}
-              alt=""
-              className="max-h-36 max-w-full object-contain"
-            />
-          )}
-        </div>
-
-        <div className="order-1 flex min-h-0 flex-col md:order-2">
-          <BookPagePhotoGrid
-            photos={photos}
-            layoutPattern={photoLayout}
-            photoAdjustments={photoAdjustments}
-            onChange={updatePhotos}
-            onLayoutChange={saveLayoutPattern}
-            onAdjustmentChange={saveAdjustment}
-            editable
+      {/* Com layout livre, a página É o layout escolhido — o corpo fixo abaixo
+          não é renderizado. Os dados do PDV continuam editáveis no bloco
+          recolhível, já que o preview em si não aceita digitação. */}
+      {temLayoutLivre && (
+        <>
+          <LayoutPreview
+            layout={layoutEfetivo}
+            background={fundoEfetivo}
+            variableValues={variaveisDaPagina}
+            photoUrls={photos.map(constructUrl)}
+            logos={logos}
           />
+          <details className="border-t bg-neutral-50">
+            <summary className="cursor-pointer px-3 py-3 text-xs font-semibold uppercase tracking-wider text-neutral-600 md:px-5">
+              Editar dados do PDV
+            </summary>
+            <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-[240px_1fr] md:gap-5 md:p-5">
+              {camposEditaveis}
+              {gradeDeFotos}
+            </div>
+          </details>
+        </>
+      )}
+
+      {!temLayoutLivre && (
+        <div className="grid flex-1 grid-cols-1 gap-3 overflow-hidden p-3 md:min-h-0 md:grid-cols-[240px_1fr] md:gap-5 md:p-5">
+          {/* No celular as fotos vêm primeiro: o promotor abriu a página pra
+              fotografar, não pra preencher coordenador. */}
+          <div className="order-2 overflow-y-auto md:order-1">
+            {camposEditaveis}
+          </div>
+          <div className="order-1 flex min-h-0 flex-col md:order-2">
+            {gradeDeFotos}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex shrink-0 items-center justify-end border-t px-5 py-2 text-xs text-neutral-500">
         {position} / {total}
       </div>
+
+      <PageItemLayoutDialog
+        open={layoutDialogOpen}
+        onOpenChange={setLayoutDialogOpen}
+        bookId={bookId}
+        itemId={item.id}
+        storeName={item.storeName}
+        supplierId={supplierId ?? null}
+        supplierName={supplierName ?? null}
+        layout={layoutEfetivo}
+        background={fundoEfetivo}
+        variableValues={variaveisDaPagina}
+        photoPreviewUrls={photos.map(constructUrl)}
+        logos={logos}
+      />
     </div>
   );
 }

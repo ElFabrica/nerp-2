@@ -12,6 +12,17 @@ import { getDefaultCoverTemplate } from "./get-default-cover-template";
 import { setDefaultCoverTemplate } from "./set-default-cover-template";
 import { listSupplierBrands } from "./list-supplier-brands";
 import { addBookPage } from "./add-page";
+import { updateBookPageLayout } from "./update-page-layout";
+import { updateBookItemLayout } from "./update-item-layout";
+import { listBookTemplates } from "./list-templates";
+import { saveBookTemplate } from "./save-template";
+import { deleteBookTemplate } from "./delete-template";
+import { applyBookTemplate } from "./apply-template";
+import { getTemplateForBook } from "./get-template-for-book";
+import { listBookPageTemplates } from "./list-page-templates";
+import { saveBookPageTemplate } from "./save-page-template";
+import { applyBookPageTemplate } from "./apply-page-template";
+import { deleteBookPageTemplate } from "./delete-page-template";
 
 export const bookRoutes = {
   list: listBook,
@@ -28,4 +39,15 @@ export const bookRoutes = {
   setDefaultCoverTemplate: setDefaultCoverTemplate,
   listSupplierBrands: listSupplierBrands,
   addPage: addBookPage,
+  updatePageLayout: updateBookPageLayout,
+  updateItemLayout: updateBookItemLayout,
+  listTemplates: listBookTemplates,
+  saveTemplate: saveBookTemplate,
+  deleteTemplate: deleteBookTemplate,
+  applyTemplate: applyBookTemplate,
+  getTemplateForBook: getTemplateForBook,
+  listPageTemplates: listBookPageTemplates,
+  savePageTemplate: saveBookPageTemplate,
+  applyPageTemplate: applyBookPageTemplate,
+  deletePageTemplate: deleteBookPageTemplate,
 };

@@ -12,14 +12,43 @@ import {
   TriangleAlert,
   Zap,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState } from "react";
 import { useBook, useGenerateBook } from "../hooks/use-books";
 import { formatPeriod } from "../lib/book-format";
 import { BookPagesList } from "./book-pages/book-pages-list";
 import { BookStatusBadge } from "./book-status-badge";
-import { CoverEditor } from "./cover-editor/cover-editor";
 import { ImportPhotosDialog } from "./import-photos-dialog";
+import { SaveTemplateDialog } from "./templates/save-template-dialog";
+
+// Os três editores só existem dentro de abas que começam fechadas, e juntos
+// arrastam o canvas e os painéis de propriedades. Importados de forma estática
+// eles entravam no bundle inicial e atrasavam a abertura do book.
+const tabFallback = () => (
+  <div className="flex justify-center py-12">
+    <Spinner />
+  </div>
+);
+
+const PageLayoutEditor = dynamic(
+  () =>
+    import("./book-pages/page-layout-editor").then(
+      (mod) => mod.PageLayoutEditor,
+    ),
+  { loading: tabFallback },
+);
+
+const CoverEditor = dynamic(
+  () => import("./cover-editor/cover-editor").then((mod) => mod.CoverEditor),
+  { loading: tabFallback },
+);
+
+const TemplateLibrary = dynamic(
+  () =>
+    import("./templates/template-library").then((mod) => mod.TemplateLibrary),
+  { loading: tabFallback },
+);
 
 interface BookEditorProps {
   bookId: string;
@@ -29,6 +58,7 @@ export function BookEditor({ bookId }: BookEditorProps) {
   const { book, isLoading } = useBook(bookId);
   const generateBook = useGenerateBook();
   const [openImport, setOpenImport] = useState(false);
+  const [openSaveTemplate, setOpenSaveTemplate] = useState(false);
   const [pendingMode, setPendingMode] = useState<"queue" | "sync" | null>(null);
 
   if (isLoading || !book) {
@@ -52,6 +82,13 @@ export function BookEditor({ bookId }: BookEditorProps) {
   };
 
   const existingPhotoIds = book.items.map((item) => item.pdvPhotoId);
+  // Logos resolvidos na renderização: a capa padrão referencia a origem
+  // ("organization"/"supplier"), não uma key fixa, então troca de logo se
+  // reflete sozinha em todos os books.
+  const logos = {
+    organization: book.distributorLogo ?? null,
+    supplier: book.supplierLogo,
+  };
 
   return (
     <div className="space-y-6">
@@ -83,6 +120,11 @@ export function BookEditor({ bookId }: BookEditorProps) {
               >
                 <DownloadIcon className="size-4" />
                 Baixar PDF
+                {book.pdfDesatualizado && (
+                  <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
+                    desatualizado
+                  </span>
+                )}
               </a>
             </Button>
           )}
@@ -133,6 +175,17 @@ export function BookEditor({ bookId }: BookEditorProps) {
         </div>
       )}
 
+      {book.pdfDesatualizado && !isGenerating && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          <p>
+            O book foi editado depois do último PDF. Clique em{" "}
+            <strong>Gerar PDF</strong> para o arquivo refletir o que está na
+            tela.
+          </p>
+        </div>
+      )}
+
       {isGenerating && (
         <p className="text-sm text-muted-foreground">
           Gerando o PDF… Se estiver demorando, use <strong>Gerar agora</strong>{" "}
@@ -147,24 +200,70 @@ export function BookEditor({ bookId }: BookEditorProps) {
         </TabsList>
 
         <TabsContent value="photos" className="mt-4">
-          <BookPagesList
-            bookId={bookId}
-            periodMonth={book.periodMonth}
-            periodYear={book.periodYear}
-            items={book.items}
-            industryLogo={book.supplierLogo}
-            organizationName={book.organizationName}
-          />
+          <Tabs defaultValue="content">
+            <TabsList>
+              <TabsTrigger value="content">Conteúdo</TabsTrigger>
+              <TabsTrigger value="custom">Personalizado</TabsTrigger>
+              <TabsTrigger value="templates">Padrões</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="content" className="mt-4">
+              <BookPagesList
+                bookId={bookId}
+                periodMonth={book.periodMonth}
+                periodYear={book.periodYear}
+                items={book.items}
+                industryLogo={book.supplierLogo}
+                organizationName={book.organizationName}
+                supplierId={book.supplierId}
+                supplierName={book.supplierName}
+                bookPageLayout={book.pageLayout}
+                bookPageBackground={book.pageBackground}
+                logos={logos}
+              />
+            </TabsContent>
+
+            <TabsContent value="custom" className="mt-4">
+              <PageLayoutEditor
+                bookId={bookId}
+                supplierId={book.supplierId}
+                supplierName={book.supplierName}
+                organizationName={book.organizationName}
+                periodMonth={book.periodMonth}
+                periodYear={book.periodYear}
+                pageLayout={book.pageLayout}
+                pageBackground={book.pageBackground}
+                items={book.items}
+                onRequestSaveTemplate={() => setOpenSaveTemplate(true)}
+                logos={logos}
+              />
+            </TabsContent>
+
+            <TabsContent value="templates" className="mt-4">
+              <TemplateLibrary
+                bookId={bookId}
+                supplierId={book.supplierId}
+                supplierName={book.supplierName}
+              />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="cover" className="mt-4">
           <CoverEditor
             bookId={bookId}
+            bookName={book.name}
             supplierId={book.supplierId}
+            supplierName={book.supplierName}
+            organizationName={book.organizationName}
+            periodMonth={book.periodMonth}
+            periodYear={book.periodYear}
+            logos={logos}
             coverLayout={book.coverLayout}
             closingLayout={book.closingLayout}
             coverBackground={book.coverBackground}
             closingBackground={book.closingBackground}
+            onRequestSaveTemplate={() => setOpenSaveTemplate(true)}
           />
         </TabsContent>
       </Tabs>
@@ -175,6 +274,14 @@ export function BookEditor({ bookId }: BookEditorProps) {
         bookId={bookId}
         defaultSupplierId={book.supplierId}
         existingPhotoIds={existingPhotoIds}
+      />
+
+      <SaveTemplateDialog
+        open={openSaveTemplate}
+        onOpenChange={setOpenSaveTemplate}
+        bookId={bookId}
+        supplierId={book.supplierId}
+        supplierName={book.supplierName}
       />
     </div>
   );

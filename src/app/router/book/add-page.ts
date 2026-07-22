@@ -1,6 +1,7 @@
 import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
+import { Prisma } from "@/generated/prisma/client";
 import prisma from "@/lib/db";
 import { z } from "zod";
 import { assertMediaTypeInOrg } from "../pdv-photo/assert-relations";
@@ -16,6 +17,9 @@ export const addBookPage = base
       bookId: z.string(),
       storeId: z.string(),
       mediaTypeId: z.string().optional(),
+      // Padrão de página opcional: a página já nasce com esse layout próprio,
+      // em vez de seguir o layout do book.
+      pageTemplateId: z.string().nullable().optional(),
     }),
   )
   .output(z.object({ pdvPhotoId: z.string() }))
@@ -38,6 +42,16 @@ export const addBookPage = base
 
     if (input.mediaTypeId) {
       await assertMediaTypeInOrg(input.mediaTypeId, context.org.id, errors);
+    }
+
+    const pageTemplate = input.pageTemplateId
+      ? await prisma.bookPageTemplate.findFirst({
+          where: { id: input.pageTemplateId, organizationId: context.org.id },
+          select: { layout: true, background: true },
+        })
+      : null;
+    if (input.pageTemplateId && !pageTemplate) {
+      throw errors.NOT_FOUND({ message: "Padrão de página não encontrado" });
     }
 
     const pdvPhotoId = await prisma.$transaction(async (tx) => {
@@ -63,6 +77,12 @@ export const addBookPage = base
           bookId: input.bookId,
           pdvPhotoId: photo.id,
           order: (last?.order ?? -1) + 1,
+          ...(pageTemplate
+            ? {
+                pageLayout: pageTemplate.layout ?? Prisma.DbNull,
+                pageBackground: pageTemplate.background ?? Prisma.DbNull,
+              }
+            : {}),
         },
       });
 
