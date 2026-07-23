@@ -85,13 +85,16 @@ export function CatalogCoverEditor({
       : DEFAULT_COVER_BACKGROUND,
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
+    "idle",
+  );
 
   const elements = activePage === "cover" ? cover : closing;
   const setElements = activePage === "cover" ? setCover : setClosing;
   const background = activePage === "cover" ? coverBg : closingBg;
   const setBackground = activePage === "cover" ? setCoverBg : setClosingBg;
-  const selected = elements?.find((element) => element.id === selectedId) ?? null;
+  const selected =
+    elements?.find((element) => element.id === selectedId) ?? null;
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const skipNextSaveRef = useRef(true);
@@ -125,13 +128,17 @@ export function CatalogCoverEditor({
   const updateElement = (id: string, patch: Partial<CoverElement>) => {
     setElements((current) =>
       (current ?? []).map((element) =>
-        element.id === id ? ({ ...element, ...patch } as CoverElement) : element,
+        element.id === id
+          ? ({ ...element, ...patch } as CoverElement)
+          : element,
       ),
     );
   };
 
   const deleteElement = (id: string) => {
-    setElements((current) => (current ?? []).filter((element) => element.id !== id));
+    setElements((current) =>
+      (current ?? []).filter((element) => element.id !== id),
+    );
     setSelectedId(null);
   };
 
@@ -202,6 +209,11 @@ export function CatalogCoverEditor({
                 element={selected}
                 onChange={updateElement}
                 onDelete={deleteElement}
+                onReplaceImage={async (id, file) => {
+                  const imageKey = await uploadImage.mutateAsync(file);
+                  updateElement(id, { imageKey, imageSource: "upload" });
+                }}
+                allowItemScope={false}
               />
             </div>
           </div>

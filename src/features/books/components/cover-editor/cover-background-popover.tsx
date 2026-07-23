@@ -5,9 +5,14 @@ import { useRef } from "react";
 import { constructUrl } from "@/hooks/use-construct-url";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import type { CoverBackground } from "../../lib/cover-layout";
+import { EDITOR_BUTTON_CLASS } from "./editor-controls";
 
 interface CoverBackgroundPopoverProps {
   background: CoverBackground;
@@ -43,7 +48,12 @@ export function CoverBackgroundPopover({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={`gap-2 ${EDITOR_BUTTON_CLASS}`}
+        >
           <span
             className="size-3.5 rounded-full border bg-cover bg-center"
             style={{
@@ -114,7 +124,9 @@ export function CoverBackgroundPopover({
               type="color"
               className="h-9 w-12 rounded-md border"
               value={background.color}
-              onChange={(event) => onChange({ ...background, color: event.target.value })}
+              onChange={(event) =>
+                onChange({ ...background, color: event.target.value })
+              }
             />
             <div className="flex flex-wrap gap-1.5">
               {PRESET_COLORS.map((color) => (

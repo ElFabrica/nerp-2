@@ -1,8 +1,12 @@
 import {
   Document,
+  Ellipse,
   Image,
   Page,
+  Polygon,
+  Rect,
   StyleSheet,
+  Svg,
   Text,
   View,
 } from "@react-pdf/renderer";
@@ -11,6 +15,10 @@ import {
   type CoverBackground,
   type CoverElement,
 } from "../lib/cover-layout";
+import {
+  resolveVariables,
+  type BookVariableValues,
+} from "../lib/book-variables";
 
 // Elemento de capa já resolvido pra renderização: `imageKey` (quando
 // type === "image") contém a URL completa, não a key do R2 — resolução
@@ -29,6 +37,10 @@ export type PdvPhotoLayoutPattern =
 export type PhotoSource = string | { data: Buffer; format: "jpg" };
 
 export interface BookDocumentItem {
+  // Layout próprio desta página; null cai no `pageLayout` do documento e,
+  // faltando os dois, no layout fixo legado.
+  pageLayout?: ResolvedCoverElement[] | null;
+  pageBackground?: CoverBackground | null;
   storeName: string;
   storeManager: string | null;
   coordinatorName: string | null;
@@ -52,8 +64,43 @@ export interface BookDocumentData {
   items: BookDocumentItem[];
   coverLayout?: ResolvedCoverElement[] | null;
   closingLayout?: ResolvedCoverElement[] | null;
+  // Layout livre das páginas de PDV. Vazio/null mantém o layout fixo abaixo.
+  pageLayout?: ResolvedCoverElement[] | null;
   coverBackground?: CoverBackground | null;
   closingBackground?: CoverBackground | null;
+  pageBackground?: CoverBackground | null;
+}
+
+// Variáveis que valem no documento inteiro — as únicas disponíveis na capa e
+// na página final, que não têm PDV associado.
+function buildBookVariables(data: BookDocumentData): BookVariableValues {
+  return {
+    nomeBook: data.bookName,
+    periodo: data.periodLabel,
+    industria: data.industryName,
+  };
+}
+
+function buildItemVariables(
+  data: BookDocumentData,
+  item: BookDocumentItem,
+  index: number,
+): BookVariableValues {
+  return {
+    loja: item.storeName,
+    gerente: item.storeManager,
+    coordenador: item.coordinatorName,
+    consultor: item.consultantName,
+    empresaPdv: item.responsibleCompany,
+    midia: item.mediaTypeName,
+    secao: item.section,
+    codigo: item.code,
+    valorAcao: item.actionValueLabel,
+    numeroPagina: `${index + 1} / ${data.items.length}`,
+    nomeBook: data.bookName,
+    periodo: data.periodLabel,
+    industria: data.industryName,
+  };
 }
 
 // 16:9 widescreen (mesma proporção do PPT do cliente): 960 x 540 pt.
@@ -204,12 +251,95 @@ const styles = StyleSheet.create({
   closingText: { fontSize: 30, fontWeight: "bold", color: ACCENT },
 });
 
+// react-pdf não tem triângulo nem elipse como primitiva de layout: as formas
+// são desenhadas em SVG por cima da caixa e o texto vai numa <Text> centrada.
+function ShapeElementView({
+  element,
+  text,
+}: {
+  element: Extract<ResolvedCoverElement, { type: "shape" }>;
+  text: string;
+}) {
+  const stroke = element.strokeWidth > 0 ? element.strokeColor : undefined;
+  const inset = element.strokeWidth / 2;
+  const fillProps = {
+    fill: element.fill,
+    fillOpacity: element.fillOpacity,
+    stroke,
+    strokeWidth: element.strokeWidth,
+  };
+
+  return (
+    <View
+      style={{
+        position: "absolute",
+        left: element.x,
+        top: element.y,
+        width: element.width,
+        height: element.height,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Svg
+        style={{ position: "absolute", left: 0, top: 0 }}
+        width={element.width}
+        height={element.height}
+        viewBox={`0 0 ${element.width} ${element.height}`}
+      >
+        {element.shape === "circle" ? (
+          <Ellipse
+            cx={element.width / 2}
+            cy={element.height / 2}
+            rx={Math.max(0, element.width / 2 - inset)}
+            ry={Math.max(0, element.height / 2 - inset)}
+            {...fillProps}
+          />
+        ) : element.shape === "triangle" ? (
+          <Polygon
+            points={`${element.width / 2},${inset} ${element.width - inset},${element.height - inset} ${inset},${element.height - inset}`}
+            {...fillProps}
+          />
+        ) : (
+          <Rect
+            x={inset}
+            y={inset}
+            width={Math.max(0, element.width - element.strokeWidth)}
+            height={Math.max(0, element.height - element.strokeWidth)}
+            rx={element.shape === "rounded" ? 16 : 0}
+            {...fillProps}
+          />
+        )}
+      </Svg>
+      {!!text && (
+        <Text
+          style={{
+            fontSize: element.fontSize,
+            color: element.fontColor,
+            fontFamily: element.fontFamily ?? "Helvetica",
+            fontWeight: element.fontWeight === "bold" ? "bold" : "normal",
+            textAlign: "center",
+            paddingHorizontal: 8,
+          }}
+        >
+          {text}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 function CoverLayoutView({
   elements,
   background,
+  variableValues,
+  photoSources,
 }: {
   elements: ResolvedCoverElement[];
   background?: CoverBackground | null;
+  variableValues?: BookVariableValues;
+  photoSources?: PhotoSource[];
 }) {
   return (
     <View
@@ -259,6 +389,7 @@ function CoverLayoutView({
         };
 
         if (element.type === "text") {
+          const resolved = resolveVariables(element.text, variableValues ?? {});
           return (
             <Text
               key={element.id}
@@ -266,12 +397,65 @@ function CoverLayoutView({
                 ...boxStyle,
                 fontSize: element.fontSize,
                 color: element.color,
+                fontFamily: element.fontFamily ?? "Helvetica",
                 fontWeight: element.fontWeight === "bold" ? "bold" : "normal",
                 textAlign: element.align,
               }}
             >
-              {element.uppercase ? element.text.toUpperCase() : element.text}
+              {element.uppercase ? resolved.toUpperCase() : resolved}
             </Text>
+          );
+        }
+
+        if (element.type === "shape") {
+          return (
+            <ShapeElementView
+              key={element.id}
+              element={element}
+              text={resolveVariables(element.text, variableValues ?? {})}
+            />
+          );
+        }
+
+        if (element.type === "photoSlot") {
+          const source = photoSources?.[element.slotIndex];
+          if (!source) return null;
+          const strokeWidth = element.strokeWidth ?? 0;
+          const scale = element.imageScale ?? 1;
+          // Moldura como View com overflow hidden: o zoom estoura as bordas da
+          // foto de propósito, e sem o recorte ela invadiria os elementos
+          // vizinhos da página.
+          return (
+            <View
+              key={element.id}
+              style={{
+                ...boxStyle,
+                borderRadius: element.cornerRadius,
+                overflow: "hidden",
+                ...(strokeWidth > 0
+                  ? {
+                      borderWidth: strokeWidth,
+                      borderColor: element.strokeColor ?? "#1a1a1a",
+                      borderStyle: element.strokeDashed
+                        ? ("dashed" as const)
+                        : ("solid" as const),
+                    }
+                  : {}),
+              }}
+            >
+              <Image
+                src={source}
+                style={{
+                  width: `${scale * 100}%`,
+                  height: `${scale * 100}%`,
+                  marginLeft: `${(1 - scale) * (element.imageOffsetX ?? 50)}%`,
+                  marginTop: `${(1 - scale) * (element.imageOffsetY ?? 50)}%`,
+                  objectFit: element.objectFit,
+                  objectPositionX: `${element.imageOffsetX ?? 50}%`,
+                  objectPositionY: `${element.imageOffsetY ?? 50}%`,
+                }}
+              />
+            </View>
           );
         }
 
@@ -393,6 +577,7 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
           <CoverLayoutView
             elements={data.coverLayout}
             background={data.coverBackground}
+            variableValues={buildBookVariables(data)}
           />
         ) : (
           <View style={styles.cover}>
@@ -419,62 +604,89 @@ export function BookDocument({ data }: { data: BookDocumentData }) {
         )}
       </Page>
 
-      {data.items.map((item, index) => (
-        <Page key={`${item.storeName}-${index}`} size={PAGE_SIZE}>
-          <View style={styles.page}>
-            <View style={styles.headerBand}>
-              <Text style={styles.headerTitle}>{item.storeName}</Text>
-              <Text style={styles.headerPeriod}>{data.periodLabel}</Text>
-            </View>
+      {data.items.map((item, index) => {
+        // Layout da página vence o do book; sem nenhum dos dois, layout fixo.
+        const layout =
+          item.pageLayout && item.pageLayout.length > 0
+            ? item.pageLayout
+            : data.pageLayout;
+        const layoutBackground = item.pageLayout
+          ? item.pageBackground
+          : data.pageBackground;
 
-            <View style={styles.body}>
-              <View style={styles.meta}>
-                <MetaItem label="Gerente" value={item.storeManager} />
-                <MetaItem label="Coordenador(a)" value={item.coordinatorName} />
-                <MetaItem label="Consultor(a)" value={item.consultantName} />
-                <MetaItem label="Empresa PDV" value={item.responsibleCompany} />
-                <MetaItem label="Mídia" value={item.mediaTypeName} />
-                <MetaItem label="Seção" value={item.section} />
-                <MetaItem label="Código" value={item.code} />
-                {item.actionValueLabel && (
-                  <View style={styles.valueBox}>
-                    <Text style={styles.valueLabel}>Valor da ação</Text>
-                    <Text style={styles.valueAmount}>
-                      {item.actionValueLabel}
-                    </Text>
-                  </View>
-                )}
+        return layout && layout.length > 0 ? (
+          <Page key={`${item.storeName}-${index}`} size={PAGE_SIZE}>
+            <CoverLayoutView
+              elements={layout}
+              background={layoutBackground}
+              variableValues={buildItemVariables(data, item, index)}
+              photoSources={item.photoSources}
+            />
+          </Page>
+        ) : (
+          <Page key={`${item.storeName}-${index}`} size={PAGE_SIZE}>
+            <View style={styles.page}>
+              <View style={styles.headerBand}>
+                <Text style={styles.headerTitle}>{item.storeName}</Text>
+                <Text style={styles.headerPeriod}>{data.periodLabel}</Text>
               </View>
 
-              <PhotoLayout
-                sources={item.photoSources}
-                pattern={item.photoLayoutPattern}
-              />
-            </View>
-
-            <View style={styles.footer}>
-              <View style={styles.footerBrands}>
-                {data.brandLogoUrls.map((url, logoIndex) => (
-                  <Image
-                    key={`${url}-${logoIndex}`}
-                    src={url}
-                    style={styles.brandLogo}
+              <View style={styles.body}>
+                <View style={styles.meta}>
+                  <MetaItem label="Gerente" value={item.storeManager} />
+                  <MetaItem
+                    label="Coordenador(a)"
+                    value={item.coordinatorName}
                   />
-                ))}
+                  <MetaItem label="Consultor(a)" value={item.consultantName} />
+                  <MetaItem
+                    label="Empresa PDV"
+                    value={item.responsibleCompany}
+                  />
+                  <MetaItem label="Mídia" value={item.mediaTypeName} />
+                  <MetaItem label="Seção" value={item.section} />
+                  <MetaItem label="Código" value={item.code} />
+                  {item.actionValueLabel && (
+                    <View style={styles.valueBox}>
+                      <Text style={styles.valueLabel}>Valor da ação</Text>
+                      <Text style={styles.valueAmount}>
+                        {item.actionValueLabel}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <PhotoLayout
+                  sources={item.photoSources}
+                  pattern={item.photoLayoutPattern}
+                />
               </View>
-              <Text style={styles.footerPage}>
-                {index + 1} / {data.items.length}
-              </Text>
+
+              <View style={styles.footer}>
+                <View style={styles.footerBrands}>
+                  {data.brandLogoUrls.map((url, logoIndex) => (
+                    <Image
+                      key={`${url}-${logoIndex}`}
+                      src={url}
+                      style={styles.brandLogo}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.footerPage}>
+                  {index + 1} / {data.items.length}
+                </Text>
+              </View>
             </View>
-          </View>
-        </Page>
-      ))}
+          </Page>
+        );
+      })}
 
       <Page size={PAGE_SIZE}>
         {data.closingLayout && data.closingLayout.length > 0 ? (
           <CoverLayoutView
             elements={data.closingLayout}
             background={data.closingBackground}
+            variableValues={buildBookVariables(data)}
           />
         ) : (
           <View style={styles.closing}>

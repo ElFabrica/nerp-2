@@ -5,11 +5,19 @@ import { v4 as uuidv4 } from "uuid";
 import { constructUrl } from "@/hooks/use-construct-url";
 import prisma from "@/lib/db";
 import { uploadBufferToR2 } from "@/lib/upload-buffer-to-r2";
-import type { CoverBackground, CoverElement } from "../lib/cover-layout";
+import {
+  buildDefaultClosingLayout,
+  buildDefaultCoverLayout,
+  resolveImageKey,
+  type CoverBackground,
+  type CoverElement,
+} from "../lib/cover-layout";
 import {
   DEFAULT_PHOTO_ADJUSTMENT,
+  buildPhotoSlotMap,
   getSlotAspectRatio,
   type PhotoAdjustment,
+  type PhotoSlotShape,
 } from "../lib/photo-adjustment";
 import {
   BookDocument,
@@ -20,13 +28,18 @@ import { cropPhotoForPdf } from "./crop-photo";
 
 // `imageKey` de cada elemento tipo "image" vira URL completa — book-document.tsx
 // só sabe renderizar, não resolve keys do R2.
-function resolveLayoutImages(layout: unknown): CoverElement[] | null {
+function resolveLayoutImages(
+  layout: unknown,
+  logos?: { organization?: string | null; supplier?: string | null },
+): CoverElement[] | null {
   if (!Array.isArray(layout)) return null;
-  return (layout as CoverElement[]).map((element) =>
-    element.type === "image" && element.imageKey
-      ? { ...element, imageKey: constructUrl(element.imageKey) }
-      : element,
-  );
+  return (layout as CoverElement[]).map((element) => {
+    if (element.type !== "image") return element;
+    const key = resolveImageKey(element, logos);
+    return key
+      ? { ...element, imageKey: constructUrl(key) }
+      : { ...element, imageKey: "" };
+  });
 }
 
 // `imageKey` do fundo vira URL completa, igual resolveLayoutImages faz pros
@@ -54,12 +67,25 @@ async function resolvePhotoSources(
   photos: string[],
   adjustments: PhotoAdjustmentMap,
   pattern: "PATTERN_1" | "PATTERN_2" | "PATTERN_3" | "PATTERN_4" | null,
+  photoSlots: Map<number, PhotoSlotShape> | null,
 ): Promise<PhotoSource[]> {
   return Promise.all(
     photos.map(async (key, index) => {
       const adjustment = adjustments[key];
       if (!adjustment) return constructUrl(key);
-      const aspectRatio = getSlotAspectRatio(pattern, index, photos.length);
+
+      let aspectRatio: number;
+      if (photoSlots) {
+        const slot = photoSlots.get(index);
+        // Slot inexistente: a foto não entra nesta página. "Caber inteira"
+        // precisa da imagem completa — cortar aqui contradiria a opção
+        // escolhida e comeria parte da foto.
+        if (!slot || slot.objectFit === "contain") return constructUrl(key);
+        aspectRatio = slot.aspectRatio;
+      } else {
+        aspectRatio = getSlotAspectRatio(pattern, index, photos.length);
+      }
+
       try {
         const buffer = await cropPhotoForPdf(
           constructUrl(key),
@@ -124,30 +150,78 @@ export async function generateBook(bookId: string): Promise<string> {
 
   if (!book) throw new Error("Book não encontrado");
 
+  // O editor mostra o padrão da indústria (ou o da organização) quando o book
+  // ainda não tem layout próprio, e só grava depois de uma edição de verdade.
+  // Sem repetir a mesma cascata aqui, o PDF sairia com a capa fixa antiga —
+  // diferente da que o usuário acabou de ver na tela.
+  const template =
+    book.coverLayout && book.closingLayout
+      ? null
+      : await prisma.bookTemplate.findFirst({
+          where: {
+            organizationId: book.organizationId,
+            OR: book.supplierId
+              ? [{ supplierId: book.supplierId }, { supplierId: null }]
+              : [{ supplierId: null }],
+          },
+          orderBy: [{ supplierId: "desc" }, { isDefault: "desc" }],
+        });
+
+  const capa =
+    book.coverLayout ?? template?.coverLayout ?? buildDefaultCoverLayout();
+  const paginaFinal =
+    book.closingLayout ??
+    template?.closingLayout ??
+    buildDefaultClosingLayout();
+  const fundoCapa = book.coverBackground ?? template?.coverBackground ?? null;
+  const fundoFinal =
+    book.closingBackground ?? template?.closingBackground ?? null;
+
   const distributorKey = book.distributorLogo ?? book.organization.logo;
+  const logos = {
+    organization: distributorKey,
+    supplier: book.supplier?.logo ?? null,
+  };
+  const pageLayout = resolveLayoutImages(book.pageLayout, logos);
+  const bookPhotoSlots = buildPhotoSlotMap(pageLayout);
 
   const items = await Promise.all(
-    book.items.map(async (item) => ({
-      storeName: item.pdvPhoto.store.name,
-      // Mesmo fallback do book.getOne — o que o card mostra é o que sai no PDF.
-      storeManager:
-        item.pdvPhoto.managerName ?? item.pdvPhoto.store.managerName,
-      coordinatorName: item.pdvPhoto.coordinatorName,
-      consultantName: item.pdvPhoto.consultantName,
-      responsibleCompany: item.pdvPhoto.responsibleCompany,
-      mediaTypeName: item.pdvPhoto.mediaType?.name ?? null,
-      section: item.pdvPhoto.section,
-      code: item.pdvPhoto.code,
-      actionValueLabel: item.pdvPhoto.actionValue
-        ? currency.format(Number(item.pdvPhoto.actionValue))
-        : null,
-      photoSources: await resolvePhotoSources(
-        item.pdvPhoto.photos,
-        readPhotoAdjustments(item.pdvPhoto.photoAdjustments),
-        item.pdvPhoto.photoLayout,
-      ),
-      photoLayoutPattern: item.pdvPhoto.photoLayout,
-    })),
+    book.items.map(async (item) => {
+      // Layout próprio da página vence o do book, e os slots de foto precisam
+      // vir do layout que de fato será renderizado — senão o corte sai numa
+      // proporção e a foto é encaixada em outra.
+      const itemPageLayout = resolveLayoutImages(item.pageLayout, logos);
+      const photoSlots = itemPageLayout
+        ? buildPhotoSlotMap(itemPageLayout)
+        : bookPhotoSlots;
+
+      return {
+        pageLayout: itemPageLayout,
+        pageBackground: itemPageLayout
+          ? readBackground(item.pageBackground)
+          : null,
+        storeName: item.pdvPhoto.store.name,
+        // Mesmo fallback do book.getOne — o que o card mostra é o que sai no PDF.
+        storeManager:
+          item.pdvPhoto.managerName ?? item.pdvPhoto.store.managerName,
+        coordinatorName: item.pdvPhoto.coordinatorName,
+        consultantName: item.pdvPhoto.consultantName,
+        responsibleCompany: item.pdvPhoto.responsibleCompany,
+        mediaTypeName: item.pdvPhoto.mediaType?.name ?? null,
+        section: item.pdvPhoto.section,
+        code: item.pdvPhoto.code,
+        actionValueLabel: item.pdvPhoto.actionValue
+          ? currency.format(Number(item.pdvPhoto.actionValue))
+          : null,
+        photoSources: await resolvePhotoSources(
+          item.pdvPhoto.photos,
+          readPhotoAdjustments(item.pdvPhoto.photoAdjustments),
+          item.pdvPhoto.photoLayout,
+          photoSlots,
+        ),
+        photoLayoutPattern: item.pdvPhoto.photoLayout,
+      };
+    }),
   );
 
   const data: BookDocumentData = {
@@ -163,10 +237,12 @@ export async function generateBook(bookId: string): Promise<string> {
       .filter((logo): logo is string => !!logo)
       .map(constructUrl),
     items,
-    coverLayout: resolveLayoutImages(book.coverLayout),
-    closingLayout: resolveLayoutImages(book.closingLayout),
-    coverBackground: readBackground(book.coverBackground),
-    closingBackground: readBackground(book.closingBackground),
+    coverLayout: resolveLayoutImages(capa, logos),
+    closingLayout: resolveLayoutImages(paginaFinal, logos),
+    pageLayout,
+    coverBackground: readBackground(fundoCapa),
+    closingBackground: readBackground(fundoFinal),
+    pageBackground: readBackground(book.pageBackground),
   };
 
   const buffer = await renderToBuffer(<BookDocument data={data} />);

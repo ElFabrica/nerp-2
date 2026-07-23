@@ -1,41 +1,39 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  useDefaultCoverTemplate,
-  useSetDefaultCoverTemplate,
   useSupplierBrands,
+  useTemplateForBook,
   useUpdateBookCoverLayout,
-  useUploadCoverImage,
 } from "../../hooks/use-books";
 import {
   DEFAULT_COVER_BACKGROUND,
-  type CoverBackground,
-  type CoverElement,
   buildDefaultClosingLayout,
   buildDefaultCoverLayout,
   createImageElement,
-  createTextElement,
+  type CoverBackground,
+  type CoverElement,
 } from "../../lib/cover-layout";
-import { CoverBackgroundPopover } from "./cover-background-popover";
-import { CoverPropertiesPanel } from "./cover-properties-panel";
-import { CoverToolbar } from "./cover-toolbar";
-
-const CoverStage = dynamic(
-  () => import("./cover-stage").then((mod) => mod.CoverStage),
-  { ssr: false, loading: () => <div className="flex aspect-video items-center justify-center rounded-lg border"><Spinner /></div> },
-);
+import type { BookVariableValues } from "../../lib/book-variables";
+import { formatPeriod } from "../../lib/book-format";
+import { LayoutEditor } from "./layout-editor";
 
 interface CoverEditorProps {
   bookId: string;
+  bookName: string;
   supplierId: string | null;
+  supplierName: string | null;
+  organizationName: string;
+  periodMonth: number;
+  periodYear: number;
   coverLayout: unknown;
   closingLayout: unknown;
   coverBackground: unknown;
   closingBackground: unknown;
+  onRequestSaveTemplate: () => void;
+  logos?: { organization?: string | null; supplier?: string | null };
 }
 
 type PageKey = "cover" | "closing";
@@ -55,16 +53,22 @@ function isBackground(value: unknown): value is CoverBackground {
 
 export function CoverEditor({
   bookId,
+  bookName,
   supplierId,
+  supplierName,
+  organizationName,
+  periodMonth,
+  periodYear,
   coverLayout,
   closingLayout,
   coverBackground,
   closingBackground,
+  onRequestSaveTemplate,
+  logos,
 }: CoverEditorProps) {
-  const { template, isLoading: isTemplateLoading } = useDefaultCoverTemplate();
+  const { template, isLoading: isTemplateLoading } =
+    useTemplateForBook(supplierId);
   const updateLayout = useUpdateBookCoverLayout();
-  const setDefaultTemplate = useSetDefaultCoverTemplate();
-  const uploadImage = useUploadCoverImage();
   const { brands } = useSupplierBrands(supplierId);
 
   const [activePage, setActivePage] = useState<PageKey>("cover");
@@ -80,34 +84,56 @@ export function CoverEditor({
   const [closingBg, setClosingBg] = useState<CoverBackground | null>(
     isBackground(closingBackground) ? closingBackground : null,
   );
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
+    "idle",
+  );
 
-  // Pré-popula com o template padrão da org (ou o layout legado) assim que
-  // sabemos que o book ainda não tem capa própria.
+  // Pré-popula com o padrão da indústria (ou o da organização, copiado) assim
+  // que sabemos que o book ainda não tem capa própria.
   useEffect(() => {
     if (isTemplateLoading) return;
-    setCover((current) => current ?? template?.coverLayout ?? buildDefaultCoverLayout());
-    setClosing((current) => current ?? template?.closingLayout ?? buildDefaultClosingLayout());
-    setCoverBg((current) => current ?? template?.coverBackground ?? DEFAULT_COVER_BACKGROUND);
-    setClosingBg((current) => current ?? template?.closingBackground ?? DEFAULT_COVER_BACKGROUND);
+    setCover(
+      (current) =>
+        current ??
+        (isElementArray(template?.coverLayout)
+          ? template.coverLayout
+          : buildDefaultCoverLayout()),
+    );
+    setClosing(
+      (current) =>
+        current ??
+        (isElementArray(template?.closingLayout)
+          ? template.closingLayout
+          : buildDefaultClosingLayout()),
+    );
+    setCoverBg(
+      (current) =>
+        current ??
+        (isBackground(template?.coverBackground)
+          ? template.coverBackground
+          : DEFAULT_COVER_BACKGROUND),
+    );
+    setClosingBg(
+      (current) =>
+        current ??
+        (isBackground(template?.closingBackground)
+          ? template.closingBackground
+          : DEFAULT_COVER_BACKGROUND),
+    );
   }, [isTemplateLoading, template]);
 
-  const elements = activePage === "cover" ? cover : closing;
-  const setElements = activePage === "cover" ? setCover : setClosing;
-  const background = activePage === "cover" ? coverBg : closingBg;
-  const setBackground = activePage === "cover" ? setCoverBg : setClosingBg;
-  const selected = elements?.find((element) => element.id === selectedId) ?? null;
-
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skipNextSaveRef = useRef(true);
+  // Só grava depois de uma edição de verdade — abrir a aba não deve escrever
+  // no book o layout que acabou de ser semeado a partir do padrão.
+  const hasUserEditedRef = useRef(false);
+  const markEdited = () => {
+    hasUserEditedRef.current = true;
+  };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: useMutation recria `updateLayout` a cada render; incluí-lo redispararia o autosave em loop
   useEffect(() => {
     if (!cover || !closing || !coverBg || !closingBg) return;
-    if (skipNextSaveRef.current) {
-      skipNextSaveRef.current = false;
-      return;
-    }
+    if (!hasUserEditedRef.current) return;
     setSaveStatus("saving");
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
@@ -125,67 +151,50 @@ export function CoverEditor({
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cover, closing, coverBg, closingBg, bookId]);
 
-  const updateElement = (id: string, patch: Partial<CoverElement>) => {
-    setElements((current) =>
-      (current ?? []).map((element) =>
-        element.id === id ? ({ ...element, ...patch } as CoverElement) : element,
-      ),
-    );
-  };
-
-  const deleteElement = (id: string) => {
-    setElements((current) => (current ?? []).filter((element) => element.id !== id));
-    setSelectedId(null);
-  };
-
-  const addText = () => {
-    const element = createTextElement();
-    setElements((current) => [...(current ?? []), element]);
-    setSelectedId(element.id);
-  };
-
-  const addImageElement = async (file: File) => {
-    const key = await uploadImage.mutateAsync(file);
-    const element = createImageElement(key, {
-      x: 60 + Math.random() * 100,
-      y: 60 + Math.random() * 100,
-    });
-    setElements((current) => [...(current ?? []), element]);
-    setSelectedId(element.id);
-  };
+  const elements = activePage === "cover" ? cover : closing;
+  const setElements = activePage === "cover" ? setCover : setClosing;
+  const background = activePage === "cover" ? coverBg : closingBg;
+  const setBackground = activePage === "cover" ? setCoverBg : setClosingBg;
 
   const importBrands = () => {
     if (brands.length === 0) return;
+    markEdited();
     const spacing = 130;
-    const totalWidth = brands.length * spacing;
-    const startX = Math.max(40, (960 - totalWidth) / 2);
-    const newElements = brands
-      .filter((brand) => brand.logo)
-      .map((brand, index) =>
-        createImageElement(brand.logo as string, {
-          x: startX + index * spacing,
-          y: 460,
-          width: 100,
-          height: 50,
-        }),
-      );
-    setElements((current) => [...(current ?? []), ...newElements]);
+    const startX = Math.max(40, (960 - brands.length * spacing) / 2);
+    setElements((current) => [
+      ...(current ?? []),
+      ...brands
+        .filter((brand) => brand.logo)
+        .map((brand, index) =>
+          createImageElement(brand.logo as string, {
+            x: startX + index * spacing,
+            y: 460,
+            width: 100,
+            height: 50,
+          }),
+        ),
+    ]);
   };
 
-  const handleSetDefault = () => {
-    if (!cover || !closing || !coverBg || !closingBg) return;
-    setDefaultTemplate.mutate({
-      coverLayout: cover,
-      closingLayout: closing,
-      coverBackground: coverBg,
-      closingBackground: closingBg,
-    });
-  };
+  // A capa usa variáveis de escopo do book ({{nomeBook}}, {{periodo}}...).
+  // Sem elas o canvas mostrava os textos vazios, e parecia que nada tinha sido
+  // inserido.
+  const variableValues = useMemo<BookVariableValues>(
+    () => ({
+      nomeBook: bookName,
+      periodo: formatPeriod(periodMonth, periodYear),
+      industria: supplierName,
+      empresaPdv: organizationName,
+    }),
+    [bookName, periodMonth, periodYear, supplierName, organizationName],
+  );
 
-  const canImportBrands = useMemo(() => !!supplierId && brands.length > 0, [supplierId, brands]);
+  const canImportBrands = useMemo(
+    () => !!supplierId && brands.length > 0,
+    [supplierId, brands],
+  );
 
   if (!elements || !background) {
     return (
@@ -196,50 +205,36 @@ export function CoverEditor({
   }
 
   return (
-    <div className="space-y-4">
-      <Tabs value={activePage} onValueChange={(value) => { setActivePage(value as PageKey); setSelectedId(null); }}>
-        <TabsList>
-          <TabsTrigger value="cover">Capa</TabsTrigger>
-          <TabsTrigger value="closing">Página final</TabsTrigger>
-        </TabsList>
+    <Tabs
+      value={activePage}
+      onValueChange={(value) => setActivePage(value as PageKey)}
+    >
+      <TabsList>
+        <TabsTrigger value="cover">Capa</TabsTrigger>
+        <TabsTrigger value="closing">Página final</TabsTrigger>
+      </TabsList>
 
-        <TabsContent value={activePage} className="mt-4">
-          <CoverToolbar
-            onAddText={addText}
-            onAddImage={addImageElement}
-            onImportBrands={importBrands}
-            canImportBrands={canImportBrands}
-            onSetDefault={handleSetDefault}
-            isUploadingImage={uploadImage.isPending}
-            saveStatus={saveStatus}
-            backgroundControl={
-              <CoverBackgroundPopover
-                background={background}
-                onChange={setBackground}
-                onUploadImage={uploadImage.mutateAsync}
-                isUploadingImage={uploadImage.isPending}
-              />
-            }
-          />
-
-          <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_260px]">
-            <CoverStage
-              elements={elements}
-              background={background}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onChange={updateElement}
-            />
-            <div className="rounded-lg border p-3">
-              <CoverPropertiesPanel
-                element={selected}
-                onChange={updateElement}
-                onDelete={deleteElement}
-              />
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+      <TabsContent value={activePage} className="mt-4">
+        <LayoutEditor
+          elements={elements}
+          onElementsChange={(update) => {
+            markEdited();
+            setElements((current) => update(current ?? []));
+          }}
+          background={background}
+          onBackgroundChange={(next) => {
+            markEdited();
+            setBackground(next);
+          }}
+          saveStatus={saveStatus}
+          onSetDefault={onRequestSaveTemplate}
+          setDefaultLabel="Salvar como padrão"
+          onImportBrands={importBrands}
+          canImportBrands={canImportBrands}
+          variableValues={variableValues}
+          logos={logos}
+        />
+      </TabsContent>
+    </Tabs>
   );
 }

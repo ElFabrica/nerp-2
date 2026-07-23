@@ -1,3 +1,5 @@
+import type { CoverElement } from "./cover-layout";
+
 // Enquadramento (pan/zoom) de uma foto dentro do slot fixo do padrão de
 // página. `zoom` >= 1 (1 = só o "cover" padrão, sem zoom extra). `posX`/
 // `posY` seguem exatamente a semântica de `object-position` do CSS (0-100,
@@ -81,6 +83,29 @@ function clamp(value: number, min: number, max: number): number {
 // da PROPORÇÃO do container, não do tamanho absoluto, então esses valores
 // aproximados bastam pra reproduzir o mesmo corte calculado no editor.
 const PHOTO_AREA_RATIO = 692 / 410;
+
+export interface PhotoSlotShape {
+  aspectRatio: number;
+  objectFit: "contain" | "cover";
+}
+
+// Slots de um layout de página customizado, indexados por `slotIndex`. As
+// proporções de `getSlotAspectRatio` abaixo valem só para o layout fixo; num
+// layout desenhado pelo usuário quem manda é o tamanho do slot.
+export function buildPhotoSlotMap(
+  layout: CoverElement[] | null,
+): Map<number, PhotoSlotShape> | null {
+  if (!layout) return null;
+  const slots = new Map<number, PhotoSlotShape>();
+  for (const element of layout) {
+    if (element.type !== "photoSlot" || element.height <= 0) continue;
+    slots.set(element.slotIndex, {
+      aspectRatio: element.width / element.height,
+      objectFit: element.objectFit,
+    });
+  }
+  return slots;
+}
 
 // Espelha exatamente o branching de `PhotoLayout` em book-document.tsx —
 // cada slot nomeado ou automático tem uma proporção fixa e previsível.
