@@ -196,7 +196,7 @@ function SoundPresetPicker({
 }
 
 function TeamsTab({ periodType }: { periodType: SalesGoalPeriodType }) {
-  const query = useSalesGoalRanking(periodType, undefined, true);
+  const query = useSalesGoalRanking(periodType, undefined, undefined, true);
   const updateBranch = useUpdateSalesGoalBranch();
   const branches = query.data?.branches ?? [];
 
@@ -279,7 +279,12 @@ function TeamsTab({ periodType }: { periodType: SalesGoalPeriodType }) {
 const UNLINKED_MEMBER_VALUE = "__unlinked__";
 
 function SellersTab({ periodType }: { periodType: SalesGoalPeriodType }) {
-  const rankingQuery = useSalesGoalRanking(periodType, undefined, true);
+  const rankingQuery = useSalesGoalRanking(
+    periodType,
+    undefined,
+    undefined,
+    true,
+  );
   const membersQuery = useQuery(orpc.members.list.queryOptions({ input: {} }));
   const collaboratorsQuery = useQueryCollaborators(true);
   const upsertEntry = useUpsertSalesGoalEntry();

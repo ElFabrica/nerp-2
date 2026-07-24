@@ -1,12 +1,14 @@
 "use client";
 
 import { ExternalLink, Plus, Settings, Sliders, Upload } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { useQueryCollaborators } from "@/features/collaborators/hooks/use-collaborators";
+import { ErpSyncBadge } from "@/features/erp-sync/components/erp-sync-badge";
 import {
+  type SalesMode,
   useSalesGoalRanking,
   useSalesGoalRankingSettings,
 } from "@/features/ranking/hooks/use-ranking";
@@ -20,14 +22,27 @@ import { SalesGoalRankingBoard } from "./sales-goal-ranking-board";
 import { SalesGoalSettingsSheet } from "./sales-goal-settings-sheet";
 import { SalesGoalSetupWizard } from "./sales-goal-setup-wizard";
 
+const SALES_MODE_STORAGE_KEY = "ranking:sales-mode";
+
 export function RankingPage() {
   const [periodType, setPeriodType] = useState<SalesGoalPeriodType>("MONTHLY");
+  const [salesMode, setSalesMode] = useState<SalesMode>("INVOICED");
   const [importOpen, setImportOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addEntryOpen, setAddEntryOpen] = useState(false);
 
-  const query = useSalesGoalRanking(periodType);
+  // Preferência do gestor entre faturado e pipeline — sobrevive a reload. Lida
+  // só no cliente (efeito), para não divergir do HTML do servidor na hidratação.
+  useEffect(() => {
+    const saved = window.localStorage.getItem(SALES_MODE_STORAGE_KEY);
+    if (saved === "INVOICED" || saved === "PIPELINE") setSalesMode(saved);
+  }, []);
+  useEffect(() => {
+    window.localStorage.setItem(SALES_MODE_STORAGE_KEY, salesMode);
+  }, [salesMode]);
+
+  const query = useSalesGoalRanking(periodType, salesMode);
   const settingsQuery = useSalesGoalRankingSettings();
   const orgQuery = useQuery(orpc.org.get.queryOptions());
   const publicUrl = orgQuery.data?.organization.slug
@@ -52,9 +67,12 @@ export function RankingPage() {
         isLoading={query.isLoading}
         periodType={periodType}
         onPeriodTypeChange={setPeriodType}
+        salesMode={salesMode}
+        onSalesModeChange={setSalesMode}
         onRefresh={() => query.refetch()}
         canEdit={canEdit}
         photoByName={collaboratorPhotoByName}
+        statusSlot={<ErpSyncBadge canEdit={canEdit} />}
         toolbarActions={
           publicUrl && (
             <Button
