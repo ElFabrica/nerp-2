@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { normalizeCollaboratorName } from "@/features/ranking/lib/collaborator-name-match";
+import { compareRankEntries } from "@/features/ranking/lib/sales-goal-rank-order";
 import { playSalesGoalSound } from "@/features/ranking/lib/sales-goal-sound-presets";
 import { SALES_GOAL_THEME_STYLES } from "@/features/ranking/lib/sales-goal-theme";
 import type { SalesGoalPeriodType } from "@/features/ranking/lib/sales-goal-xlsx-parser";
@@ -277,11 +278,7 @@ export function SalesGoalRankingBoard({
         // null para todo mundo, e o `flatMap` acima já concatenou filial por
         // filial — sem este critério o pódio mostraria os primeiros da primeira
         // filial em vez dos maiores vendedores.
-        .sort(
-          (a, b) =>
-            (b.percentAchieved ?? -1) - (a.percentAchieved ?? -1) ||
-            (b.achievedAmount ?? 0) - (a.achievedAmount ?? 0),
-        )
+        .sort(compareRankEntries)
     );
   }, [period, selectedBranch, photoByName]);
 
