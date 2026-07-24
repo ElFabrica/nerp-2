@@ -32,6 +32,7 @@ import {
   MapPinned,
   Megaphone,
   Package,
+  Plug,
   Plus,
   Settings,
   ShoppingCart,
@@ -194,6 +195,12 @@ const navigation: Array<{
     permission: "ranking",
   },
   {
+    name: "Integrações",
+    href: "/integracoes",
+    icon: Plug,
+    permission: "integracoes",
+  },
+  {
     name: "Catálogo Online",
     href: "/catalogo",
     icon: Store,
@@ -276,7 +283,9 @@ export function AppSidebar() {
       if (!isVisible(item.permission)) return null;
 
       const parentPermitted =
-        fullAccess || !item.permission || allowedPermissions.has(item.permission);
+        fullAccess ||
+        !item.permission ||
+        allowedPermissions.has(item.permission);
 
       if (!item.children) {
         return parentPermitted ? item : null;

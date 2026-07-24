@@ -33,6 +33,7 @@ import { tradeCatalogDocRoutes } from "./trade-catalog/catalog-doc";
 import { mediaModelPhotoRoutes } from "./media-model-photo";
 import { tradeCatalogSeedRoutes } from "./trade-catalog/seed";
 import { invitationRoutes } from "./invitation";
+import { erpSyncRoutes } from "./erp-sync";
 
 export const router = {
   products: productsRoutes,
@@ -70,4 +71,5 @@ export const router = {
   mediaModelPhoto: mediaModelPhotoRoutes,
   tradeCatalogSeed: tradeCatalogSeedRoutes,
   invitation: invitationRoutes,
+  erpSync: erpSyncRoutes,
 };
