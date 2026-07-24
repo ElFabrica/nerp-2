@@ -152,3 +152,26 @@ export function createWinthorConnector(config: OracleConfig): SalesConnector {
 
   return { kind: "WINTHOR_ORACLE", sellers, salesBySellerDaily };
 }
+
+export interface WinthorTestResult {
+  /** Vendedores no cadastro (PCUSUARI) — confirma auth E acesso ao schema. */
+  sellerCount: number;
+}
+
+/**
+ * Valida uma config antes de salvar: além de autenticar, confere que o schema
+ * existe e é legível contando `PCUSUARI`. Um `SELECT 1 FROM dual` passaria com
+ * credencial certa mas schema errado — aqui o erro sai na hora do teste, não no
+ * primeiro sync.
+ */
+export async function testWinthorConfig(
+  config: OracleConfig,
+): Promise<WinthorTestResult> {
+  const schema = assertIdentifier(config.schema);
+  const rows = await withOracleReadOnly(config, (query: OracleQuery) =>
+    query<{ TOTAL: number }>(
+      `SELECT COUNT(*) AS "TOTAL" FROM ${schema}.pcusuari`,
+    ),
+  );
+  return { sellerCount: Number(rows[0]?.TOTAL ?? 0) };
+}

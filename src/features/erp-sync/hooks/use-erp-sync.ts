@@ -36,3 +36,56 @@ export function useRunErpSync() {
     }),
   );
 }
+
+// Config da conexão para o formulário de Integrações (sem a senha).
+export function useErpConnection() {
+  return useQuery(orpc.erpSync.getConnection.queryOptions({ input: {} }));
+}
+
+export function useSaveErpConnection() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.erpSync.saveConnection.mutationOptions({
+      onSuccess: () => {
+        toast.success("Conexão salva");
+        queryClient.invalidateQueries({ queryKey: orpc.erpSync.key() });
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+// Não usa toast: a tela de Integrações mostra o resultado (ok/erro) inline,
+// com a contagem de vendedores ou a mensagem do Oracle.
+export function useTestErpConnection() {
+  return useMutation(orpc.erpSync.testConnection.mutationOptions({}));
+}
+
+export function usePauseErpConnection() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.erpSync.setPaused.mutationOptions({
+      onSuccess: (data) => {
+        toast.success(
+          data.paused ? "Sincronização pausada" : "Sincronização retomada",
+        );
+        queryClient.invalidateQueries({ queryKey: orpc.erpSync.key() });
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+export function useRemoveErpConnection() {
+  const queryClient = useQueryClient();
+  return useMutation(
+    orpc.erpSync.removeConnection.mutationOptions({
+      onSuccess: () => {
+        toast.success("Conexão removida");
+        queryClient.invalidateQueries({ queryKey: orpc.erpSync.key() });
+        queryClient.invalidateQueries({ queryKey: orpc.ranking.key() });
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}

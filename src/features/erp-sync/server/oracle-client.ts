@@ -74,3 +74,26 @@ export async function withOracleReadOnly<T>(
     await connection.close().catch(() => {});
   }
 }
+
+// Timeout curto para o "Testar conexão": o usuário está esperando na tela, e o
+// erro rápido (host errado, senha errada) vale mais que travar 3 minutos.
+const PING_TIMEOUT_MS = 15_000;
+
+/**
+ * Abre uma conexão só para validar credenciais — sem tocar em tabela de negócio.
+ * Lança o erro do Oracle (mensagem útil: ORA-01017 senha, ORA-12154 host, etc.)
+ * para a UI mostrar. Usa timeout curto porque é interativo.
+ */
+export async function pingOracle(config: OracleConfig): Promise<void> {
+  const connection = await oracledb.getConnection({
+    user: config.user,
+    password: config.password,
+    connectString: `${config.host}:${config.port}/${config.serviceName}`,
+  });
+  connection.callTimeout = PING_TIMEOUT_MS;
+  try {
+    await connection.execute("SELECT 1 FROM dual");
+  } finally {
+    await connection.close().catch(() => {});
+  }
+}

@@ -1,21 +1,10 @@
-import { ORPCError } from "@orpc/server";
 import z from "zod";
 import { requireAuthMiddleware } from "@/app/middlewares/auth";
 import { base } from "@/app/middlewares/base";
 import { requireOrgMiddleware } from "@/app/middlewares/org";
 import prisma from "@/lib/db";
 import { erpSyncRequested, inngest } from "@/lib/inngest/client";
-import { isOrgAdmin } from "@/lib/org-access";
-
-// Sincronizar puxa dado do ERP de produção de um cliente — não é operação de
-// qualquer membro.
-async function requireOrgAdmin(orgId: string, userId: string): Promise<void> {
-  if (!(await isOrgAdmin(orgId, userId))) {
-    throw new ORPCError("FORBIDDEN", {
-      message: "Apenas administradores podem sincronizar o ERP.",
-    });
-  }
-}
+import { requireOrgAdmin } from "./_access";
 
 const SYNC_STUCK_AFTER_MS = 15 * 60 * 1000;
 
